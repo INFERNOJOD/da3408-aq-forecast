@@ -1,0 +1,37 @@
+# Data (tracked by DVC, never git)
+/data/
+!/data/*.dvc
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# MLflow / experiment outputs
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# DVC local cache/remote
+/dvc-storage/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
