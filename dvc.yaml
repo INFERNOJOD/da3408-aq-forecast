@@ -29,3 +29,22 @@ stages:
     metrics:
       - reports/validation.json:
           cache: false
+
+  features:
+    cmd: python -m src.pipeline.features
+    deps:
+      - data/interim
+      - reports/validation.json
+      - src/pipeline/features.py
+      - src/common
+    params:
+      - paths
+      - spark
+      - cities
+      - cutoff
+      - replay
+      - features
+    outs:
+      - data/features
+      - reports/baseline_stats.json:
+          cache: false

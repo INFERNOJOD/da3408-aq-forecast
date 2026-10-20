@@ -49,3 +49,9 @@ validate:
   min_city_hours: 15000             # selected cities need at least this many hourly rows
   min_city_pm25_share: 0.7          # ... and this share of non-missing PM2.5 values
   min_replay_coverage: 0.5          # ... and this share of PM2.5 hours inside the replay window
+
+# Settings for the features stage.
+features:
+  max_ffill_hours: 3                       # fill gaps of up to this many hours (lag inputs only)
+  serving_start: "2020-01-01 00:00:00"     # first hour stored for the live replay
+  psi_bins: 10                             # bins for the drift baseline of pm25_lag_1

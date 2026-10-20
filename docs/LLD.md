@@ -223,8 +223,9 @@ Alert rules (`monitoring/alerts.yml`):
 | Path | Writer | Reader | Content |
 |------|--------|--------|---------|
 | `data/interim/*.parquet` | ingest | validate, features | Typed copies of the raw CSVs |
-| `data/features/train.parquet` | features | train, evaluate | Rows before the cutoff, with features and targets `y_1h`, `y_24h` |
-| `data/features/serving.parquet` | features | backend (ro) | All hours 2020-01-01..2020-06-30 for the 7 cities. Features are causal (past only) and `pm25` actuals are included for replay scoring. |
+| `data/features/train.parquet` | features | train, evaluate | Spark Parquet folder. One row per city and hour with `Datetime <= cutoff`: `City`, `Datetime`, the stored feature columns (section 4 without `horizon_h`), `pm25` (observed value at the hour) and targets `y_1h`, `y_24h`. A target is null if its hour is missing or falls after the cutoff, so training never sees the future. Hours missing in the source are present as rows with null values. |
+| `data/features/serving.parquet` | features | backend (ro) | Same columns as `train.parquet`, for every hour 2020-01-01 00:00 .. 2020-06-30 23:00 and the 7 cities (4,368 rows per city). Features are causal (past only). `pm25`, `y_1h` and `y_24h` are the actuals the backend reveals when its replay clock passes them. `y_24h` is null for the last 23 hours because the data ends on 2020-07-01 00:00. |
+| `reports/baseline_stats.json` | features | train (logged as `drift_baseline.json`), backend | PSI baseline of `pm25_lag_1` per city: `n`, `edges`, `proportions`, `mean`, `std`, `min`, `max`. Bin index of a value is the number of edges `e` with `e <= value`. |
 | `reports/validation.json` | validate | console, docs | `{status, n_checks, n_passed, n_warnings, n_failed, checks[], stats}`; each check is `{table, check, status: pass/warn/fail, detail, value}` |
 | `reports/eda/*.csv` | `python -m src.pipeline.eda` (manual, not a DVC stage) | `scripts/plot_eda.py`, docs | Small aggregates for `docs/eda.md` |
 | `reports/runs.jsonl` | every stage (via `stage_runner`) | backend `/pipeline/*` | One JSON line per stage execution: `{run_id, trigger, stage, status, started_at, duration_s, rows_in, rows_out, rows_per_sec, error, git_commit, cutoff}` |
@@ -237,7 +238,7 @@ Alert rules (`monitoring/alerts.yml`):
 |-------|---------|------|----------------|
 | ingest | `python -m src.pipeline.ingest` | `data/raw`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, ingest` | `data/interim/` (one Parquet folder per table) |
 | validate | `python -m src.pipeline.validate` | `data/interim/`, `src/pipeline/validate.py`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, cities, replay, validate` | `reports/validation.json` (metric, kept in git; written even when validation fails) |
-| features | `python -m src.pipeline.features` | `data/interim/`, params `cities, cutoff, features` | `data/features/` |
+| features | `python -m src.pipeline.features` | `data/interim/`, `reports/validation.json` (the stage refuses to run unless its `status` is `passed`), `src/pipeline/features.py`, `src/common`, params `paths, spark, cities, cutoff, replay, features` | `data/features/`, `reports/baseline_stats.json` (kept in git) |
 | train | `python -m src.pipeline.train` | `data/features/train.parquet`, params `train, cutoff` | `models/candidate/`, `reports/train_metrics.json` |
 | evaluate | `python -m src.pipeline.evaluate` | `models/candidate/`, `data/features/train.parquet` | `reports/eval.json` (candidate vs champion) |
 | test | `python -m src.pipeline.test_gate` | `reports/eval.json` | `reports/gate.json` (`{"passed": bool, "reasons": [...]}`) |

@@ -10,9 +10,9 @@ stages:
       nfiles: 5
     - path: src/common
       hash: md5
-      md5: a11b2a6d81aa940b7ea353dab60c4351.dir
-      size: 27499
-      nfiles: 12
+      md5: 66a911c66528c49505da7dadede6dfba.dir
+      size: 32512
+      nfiles: 16
     - path: src/pipeline/ingest.py
       hash: md5
       md5: 2e69e97eb2a9f6ab92df687207d2329a
@@ -38,7 +38,7 @@ stages:
     outs:
     - path: data/interim
       hash: md5
-      md5: 4051ae48eb1c77059671cb0ad277496d.dir
+      md5: e82c6af32509c5c4cd5497642a622d10.dir
       size: 67319003
       nfiles: 36
   validate:
@@ -46,14 +46,14 @@ stages:
     deps:
     - path: data/interim
       hash: md5
-      md5: 4051ae48eb1c77059671cb0ad277496d.dir
+      md5: e82c6af32509c5c4cd5497642a622d10.dir
       size: 67319003
       nfiles: 36
     - path: src/common
       hash: md5
-      md5: a11b2a6d81aa940b7ea353dab60c4351.dir
-      size: 27499
-      nfiles: 12
+      md5: 66a911c66528c49505da7dadede6dfba.dir
+      size: 32512
+      nfiles: 16
     - path: src/pipeline/ingest.py
       hash: md5
       md5: 2e69e97eb2a9f6ab92df687207d2329a
@@ -111,3 +111,61 @@ stages:
       hash: md5
       md5: 0d004c03bed196b8e1fa3953f9fcd050
       size: 12607
+  features:
+    cmd: python -m src.pipeline.features
+    deps:
+    - path: data/interim
+      hash: md5
+      md5: e82c6af32509c5c4cd5497642a622d10.dir
+      size: 67319003
+      nfiles: 36
+    - path: reports/validation.json
+      hash: md5
+      md5: 0d004c03bed196b8e1fa3953f9fcd050
+      size: 12607
+    - path: src/common
+      hash: md5
+      md5: 66a911c66528c49505da7dadede6dfba.dir
+      size: 32512
+      nfiles: 16
+    - path: src/pipeline/features.py
+      hash: md5
+      md5: 324cefa9f7c03e5e73581128e1e23a77
+      size: 12377
+    params:
+      params.yaml:
+        cities:
+        - Delhi
+        - Chennai
+        - Lucknow
+        - Hyderabad
+        - Bengaluru
+        - Jaipur
+        - Kolkata
+        cutoff: '2020-03-24 23:00:00'
+        features:
+          max_ffill_hours: 3
+          serving_start: '2020-01-01 00:00:00'
+          psi_bins: 10
+        paths:
+          raw_dir: data/raw
+          interim_dir: data/interim
+          features_dir: data/features
+          reports_dir: reports
+        replay:
+          start: '2020-03-25 00:00:00'
+          end: '2020-06-30 23:00:00'
+        spark:
+          driver_memory: 2g
+          shuffle_partitions: 8
+          cores: 4
+    outs:
+    - path: data/features
+      hash: md5
+      md5: 975af39d6fb17266692e123ae7303835.dir
+      size: 17013428
+      nfiles: 18
+    - path: reports/baseline_stats.json
+      hash: md5
+      md5: 23797f1b7cd463e2e6d39463e74ca7f9
+      size: 3627

@@ -101,3 +101,30 @@ I set the Spark driver to 2g in `CLAUDE.md` and `params.yaml`, then ran the whol
 
 Both stages give the same results with 2g. The times are within the run-to-run spread I saw before.
 Ingest at 2g is a single run, so I do not read anything into the 0.5 s difference.
+
+## Stage 6: features (Spark, driver 2g)
+
+| What | Value |
+|------|-------|
+| Input | 287,083 `city_hour` rows of the 7 selected cities (`rows_in`). Filling the hourly grid adds the hours that are missing in the source |
+| Training rows (`train.parquet`, hours up to 2020-03-24 23:00) | 270,612 |
+| Serving rows (`serving.parquet`, 2020-01-01 to 2020-06-30) | 30,576 (4,368 per city) |
+| Stage time (5 runs) | 12.4 s, 13.0 s, 11.8 s, 12.3 s, 13.0 s |
+| Output | 301,188 rows written (`rows_out`: train 270,612 + serving 30,576) |
+| Throughput | about 23,000 to 25,500 rows/s (rows written per second) |
+| Disk size | train 15 MB, serving 1.8 MB |
+| Peak Spark memory (JVM RSS) | about 2.5 GB over a full `dvc repro` of ingest, validate and features |
+
+Features process fewer rows per second than ingest and validate. I did not profile where the
+time goes. The likely cause is that every city needs several window operations (lags, rolling
+mean and standard deviation, forward fill), each ordered by time, and the data is small enough
+that fixed job costs matter, including the Spark start of about 1.5 s. The rows/s figure also
+counts rows that appear in both files (the replay hours up to the cutoff), so it should not be
+compared directly with the other stages.
+
+Full pipeline, driver 2g, one `dvc repro` from a clean state: ingest 8.8 s, validate 32.9 s,
+features 13.0 s, about 55 s in total.
+
+Correctness check (not a speed number): I recomputed every feature column in pandas for
+Hyderabad (has gaps) and Kolkata (starts late), 4,368 serving rows each, 21 columns. There were
+0 mismatches. In the training file, no row has a target from after the cutoff.
