@@ -2,12 +2,9 @@
 
 ## 1. Problem and scope
 
-Forecast hourly PM2.5 for 7 Indian cities (Delhi, Chennai, Lucknow, Hyderabad, Bengaluru, Jaipur, Kolkata)
-1 hour and 24 hours ahead. Show the result as a CPCB AQI category with health advice. Treat the
-COVID lockdown (25 Mar - 30 Jun 2020) as live traffic that is replayed in time order. Detect the resulting drift,
-retrain automatically, promote only better models, and support rollback.
+I forecast hourly PM2.5 for 7 Indian cities (Delhi, Chennai, Lucknow, Hyderabad, Bengaluru, Jaipur, Kolkata), 1 hour and 24 hours ahead. The result is shown as a CPCB AQI category with health advice. I treat the COVID lockdown (25 Mar - 30 Jun 2020) as live traffic and replay it in time order. The system has to detect the resulting drift, retrain by itself, promote a new model only if it is better, and support rollback.
 
-The cities were chosen because they have long history and < 15% missing PM2.5 (see `docs/data_notes.md`).
+I picked these cities because they have a long history and less than 15% missing PM2.5 (see `docs/data_notes.md`).
 
 ## 2. Lifecycle (HLD diagram)
 
@@ -30,31 +27,43 @@ flowchart TB
     I -->|smoke check fails| R[Rollback:<br/>champion ← previous]
 ```
 
-## 3. Design choices and rationale
+## 3. Design decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Paradigm | **Functional** pipeline stages: each transform is a function `f(DataFrame, params) -> DataFrame`, and I/O happens only at the stage entry point. **Object-oriented** services: `Forecaster`, `ReplayClock`, `DriftMonitor`, `RegistryClient`, `BackendClient`. | Pure transforms are easy to unit-test and reason about. Services hold state (clock, model version, drift windows), so objects fit them. |
-| Main data table | `city_hour.csv` | Matches the "city, 1h/24h" problem. The station files are ingested and validated, but not modelled (3.6x larger, little extra value). |
-| Data engine | Spark local mode, driver 3g, 8 shuffle partitions, Parquet after ingest | Required engine. Parquet is columnar and compressed, so later stages read only the columns they need. |
-| Models | Persistence, seasonal-naive (t-24h), Ridge, LightGBM; one LightGBM per horizon | Baselines show the main model adds value. LightGBM handles NaNs and non-linearity, and is fast on CPU. |
-| Packaging the model | One pyfunc `aq-pm25` that holds both horizon models; the input carries `horizon_h` | One model server process instead of two (saves RAM). One version number for both horizons. |
-| Time split | `cutoff` param (initially 2020-03-24 23:00). Training data is everything before `cutoff − eval_window_days`; the evaluation window is the last `eval_window_days` (3) before the cutoff. Recency weights use a 30-day half-life. | The same rule works for the first training and for retraining after drift. A short evaluation window means models are compared on the most recent regime. |
-| Promotion rule | Promote only if the candidate's mean MAE (1h and 24h) on the evaluation window is lower than the champion's on the **same** window, **and** LightGBM ≤ 1.02 × best baseline per horizon | It compares like with like and blocks models that are worse than trivial baselines. |
-| Registry and rollback | MLflow aliases `champion` and `previous`. Rollback moves `champion` to `previous` (or to a given version). | Rollback is a metadata change, so it is instant, auditable and reversible. |
-| Model reload | A watcher in the model-server container polls the `champion` alias every 30s and restarts `mlflow models serve` when it changes | The backend never needs Docker access, and promotion takes effect without manual steps. |
-| Live traffic | The backend's `ReplayClock` advances simulated time from 2020-03-25 at `REPLAY_SPEED_HPS` (default 1 simulated hour per second). Forecasts use features at the simulated "now"; actual values are revealed only when the clock passes them. | It gives realistic, time-ordered traffic and lets the demo show drift within minutes. |
-| Drift detection | PSI of `pm25_lag_1` per city: the last 168 replayed hours vs the training baseline (baseline saved as a model artifact). Rolling 72h MAE ratio vs evaluation-window MAE. Thresholds: PSI > 0.2, ratio > 1.5. | PSI catches input shift before labels arrive. The MAE ratio confirms the model actually got worse. |
-| Retraining trigger | Prometheus alert → Alertmanager → `POST /ops/alerts` → retrain request file → host ops runner. A 30-minute cooldown applies. | Monitoring drives retraining with no human step, and the cooldown prevents retrain storms. |
-| Memory | Compose `mem_limit` on every container. While batch runs, the runner pauses the frontend and Grafana. | Batch and the full serve stack never run together. Core serving and monitoring stay up. |
-| Security | Bearer API key on `/ops/*` (constant-time compare); HTTPS on the backend (self-signed certificate); secrets only in `.env`; non-root containers; no Docker socket in containers | Ops actions change production state, so they need authentication. TLS encrypts traffic in transit. |
-| Reproducibility | Every MLflow run is tagged with `git_commit`, `dvc_data_md5` and `cutoff`. Every forecast response returns `model_version`, `mlflow_run_id` and `git_commit`. | Any prediction can be traced back to its exact code, data and run. |
-| Loose coupling | The frontend uses only `BACKEND_URL` plus the REST contract in `docs/LLD.md`. The backend uses only `MODEL_SERVER_URL` and `MLFLOW_TRACKING_URI`. | Each service can be rebuilt, moved or replaced independently. |
+**Programming paradigm.** The pipeline stages are functional. Each transform is a function `f(DataFrame, params) -> DataFrame`, and I/O happens only at the stage entry point. The services are object-oriented: `Forecaster`, `ReplayClock`, `DriftMonitor`, `RegistryClient` and `BackendClient`. Pure transforms are easy to unit-test. The services hold state (the clock, the model version, the drift windows), so objects fit them better.
+
+**Main data table.** I use `city_hour.csv`. It matches the "city, 1h/24h" problem directly. The station files are ingested and validated but not modelled. They are 3.6x larger and add little for a city-level forecast.
+
+**Data engine.** Spark in local mode, with a 3g driver and 8 shuffle partitions, and Parquet after ingest. The course requires Spark. Parquet is columnar and compressed, so later stages read only the columns they need. On this small data pandas turned out about twice as fast as Spark at the ingest job (see `docs/metrics.md`). I keep Spark for the requirement and for data that would not fit in memory, but I have not measured the second reason.
+
+**Models.** Persistence, seasonal-naive (t-24h), Ridge and LightGBM, with one LightGBM per horizon. The baselines show whether the main model adds anything. I chose LightGBM because it handles NaNs and non-linear effects and is fast on CPU.
+
+**Packaging the model.** One pyfunc called `aq-pm25` holds both horizon models, and the input carries `horizon_h`. That means one model-server process instead of two, which saves RAM, and one version number for both horizons.
+
+**Time split.** A `cutoff` parameter (initially 2020-03-24 23:00) drives everything. Training data is everything before `cutoff − eval_window_days`. The evaluation window is the last `eval_window_days` (3) before the cutoff. Recency weights use a 30-day half-life. The same rule works for the first training and for retraining after drift. The short evaluation window compares models on the most recent regime, at the cost of a noisy estimate from only 3 days.
+
+**Promotion rule.** A candidate is promoted only if its mean MAE (1h and 24h) on the evaluation window is lower than the champion's on the same window, and LightGBM is within 1.02 × the best baseline for each horizon. Comparing on the same window keeps the test fair, and the baseline condition blocks a model that is worse than a trivial one.
+
+**Registry and rollback.** MLflow aliases `champion` and `previous` do the work. Rollback moves `champion` back to `previous`, or to a version I name. It is a metadata change, so it is instant, auditable and reversible.
+
+**Model reload.** A watcher in the model-server container polls the `champion` alias every 30 seconds and restarts `mlflow models serve` when it changes. The backend never needs Docker access, and a promotion takes effect without manual steps.
+
+**Live traffic.** The backend's `ReplayClock` advances simulated time from 2020-03-25 at `REPLAY_SPEED_HPS` (default: 1 simulated hour per second). Forecasts use the features at the simulated "now". Actual values are revealed only when the clock passes them. This gives realistic, time-ordered traffic and lets a demo show drift within minutes.
+
+**Drift detection.** I use two signals. The first is the PSI of `pm25_lag_1` per city: the last 168 replayed hours against the training baseline, which is saved as a model artifact. The second is the rolling 72h MAE ratio against the evaluation-window MAE. The thresholds are PSI > 0.2 and ratio > 1.5. PSI catches an input shift before labels arrive, and the MAE ratio confirms that the model really got worse.
+
+**Retraining trigger.** A Prometheus alert goes to Alertmanager, which calls `POST /ops/alerts`, which writes a retrain request file that the host ops runner picks up. A 30-minute cooldown prevents retrain storms. No human step is needed.
+
+**Memory.** Every container gets a compose `mem_limit`. While batch runs, the runner pauses the frontend and Grafana. Batch and the full serve stack never run together, and core serving and monitoring stay up.
+
+**Security.** The `/ops/*` endpoints need a bearer API key, compared in constant time. The backend serves HTTPS with a self-signed certificate. Secrets live only in `.env`, containers run as non-root, and no container gets the Docker socket. Ops actions change production state, so they need authentication, and TLS encrypts the traffic.
+
+**Reproducibility.** Every MLflow run is tagged with `git_commit`, `dvc_data_md5` and `cutoff`. Every forecast response returns `model_version`, `mlflow_run_id` and `git_commit`. Any prediction can be traced back to its exact code, data and run.
+
+**Loose coupling.** The frontend uses only `BACKEND_URL` and the REST contract in `docs/LLD.md`. The backend uses only `MODEL_SERVER_URL` and `MLFLOW_TRACKING_URI`. Each service can be rebuilt, moved or replaced on its own.
 
 ## 4. AQI mapping
 
-The CPCB PM2.5 breakpoints (µg/m³) are applied to the forecast value. The official AQI uses 24h averages, so the UI
-labels the category as *indicative*.
+I apply the CPCB PM2.5 breakpoints (µg/m³) to the forecast value. The official AQI uses 24h averages, so the UI labels the category as *indicative*.
 
 | Category | PM2.5 | Colour | Health advice (CPCB) |
 |----------|-------|--------|----------------------|
@@ -67,20 +76,22 @@ labels the category as *indicative*.
 
 ## 5. Deployment
 
+These are planned memory limits. I will measure real usage in Stage 13 and record it in `docs/metrics.md`.
+
 | Profile | Services | mem_limit (planned) |
 |---------|----------|---------------------|
 | serve | frontend 384m, backend 512m, model-server 768m, mlflow 512m, prometheus 384m, pushgateway 64m, alertmanager 64m, grafana 256m, node-exporter 64m | ≈ 3.0 GB |
 | batch | pipeline 3.5g (Spark driver 3g) | 3.5 GB |
 | during retrain | batch + serve without frontend and grafana | ≈ 6.1 GB |
 
-These limits are planned figures. Actual usage is measured in Stage 13 and recorded in `docs/metrics.md`.
-
 ## 6. Failure handling
 
-| Failure | Behaviour |
-|---------|-----------|
-| Validation errors (schema, impossible values) | The `validate` stage fails, the run is recorded as `failed` with the reason, and the champion is unchanged. |
-| Candidate worse than champion or baselines | The `test` stage marks it rejected, nothing is registered as champion, and the run is visible in the console. |
-| New champion fails the smoke check | The ops runner calls the rollback, and an alert and log entry are written. |
-| Model server down | The backend returns 503 with a clear message, and the UI shows a friendly "forecast temporarily unavailable" notice. |
-| Backend down | The UI shows a friendly error, and the Prometheus `up == 0` alert fires. |
+If validation fails (a wrong schema or an impossible value), the `validate` stage fails and the run is recorded as `failed` with the reason. The champion stays unchanged.
+
+If a candidate is worse than the champion or the baselines, the `test` stage marks it rejected. Nothing is registered as champion, and the run is visible in the console.
+
+If a new champion fails the smoke check, the ops runner calls the rollback and writes an alert and a log entry.
+
+If the model server is down, the backend returns 503 with a clear message and the UI shows a friendly "forecast temporarily unavailable" notice.
+
+If the backend is down, the UI shows a friendly error and the Prometheus `up == 0` alert fires.
