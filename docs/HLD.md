@@ -82,6 +82,8 @@ The backend evaluates the rule and exports one gauge, `aq_drift_detected`. The P
 
 **Reproducibility.** Every MLflow run is tagged with `git_commit`, `dvc_data_md5` and `cutoff`. Every forecast response returns `model_version`, `mlflow_run_id` and `git_commit`. Any prediction can be traced back to its exact code, data and run.
 
+**Frontend.** I wrote the frontend in Streamlit with two pages. The Forecast page has a city dropdown (no free text, so a user cannot type an unsupported city), one colour card per horizon in the CPCB colour of the category, and the advice text. If the backend is down it shows a plain sentence instead of a stack trace. The Pipeline console shows the DVC DAG as a Graphviz drawing coloured by each stage's last status, the stage durations and rows per second, the run history with error messages, the model versions, and links to MLflow, Grafana and Prometheus. Drift and the ops buttons (replay, retrain, rollback) are hidden until the operator types the API key. The console does not read the key from the environment: if it did, anyone who could open the page could press the buttons. The key is checked by the first `/ops/drift` call, and a wrong key shows no buttons. The frontend never imports backend code. Its only door is `src/frontend/client.py`, which reads `BACKEND_URL`. What I did not do: the page does not refresh by itself, because auto-refresh on a phone costs battery and a Refresh button is enough for a forecast that changes once per simulated hour.
+
 **Loose coupling.** The frontend uses only `BACKEND_URL` and the REST contract in `docs/LLD.md`. The backend uses only `MODEL_SERVER_URL` and `MLFLOW_TRACKING_URI`. Each service can be rebuilt, moved or replaced on its own.
 
 ## 4. AQI mapping

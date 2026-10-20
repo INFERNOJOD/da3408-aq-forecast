@@ -296,7 +296,10 @@ Alert rules (`monitoring/alerts.yml`):
 | Variable | Used by | Default |
 |----------|---------|---------|
 | `BACKEND_URL` | frontend | `https://backend:8000` |
-| `OPS_API_KEY` | backend, frontend (console), alertmanager | — (required, in `.env`) |
+| `BACKEND_CA_FILE` | frontend | unset (system CAs); path to the CA file once the backend uses a self-signed certificate |
+| `UI_METRICS_PORT` | frontend | `8502` |
+| `MLFLOW_URL`, `GRAFANA_URL`, `PROMETHEUS_URL` | frontend (console links only) | `http://localhost:5000`, `:3000`, `:9090` |
+| `OPS_API_KEY` | backend, alertmanager | — (required, in `.env`). The frontend does not read it: the operator types the key into the console, which sends it only to `/ops/*`. |
 | `MODEL_SERVER_URL` | backend | `http://model-server:5001` |
 | `MLFLOW_TRACKING_URI` | backend, pipeline, model server | `http://mlflow:5000` |
 | `MODEL_NAME`, `POLL_SECONDS` | model server | `aq-pm25`, `30` |
