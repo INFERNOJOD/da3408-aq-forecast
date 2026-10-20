@@ -66,6 +66,4 @@ lists every rubric line and the stage that delivers it.
 - `docs/metrics.md` is filled in as we go (stages 4-6, 9, 10, 11), not at the end.
 - `docs/LLD.md` is the API contract. Any later endpoint change edits it in the same commit.
 - The serve and batch compose profiles are never run together (8 GB RAM limit).
-- **Open point: Docker Hub vs "no cloud".** The guidelines require Docker Hub, but CLAUDE.md says no cloud platforms.
-  Plan: treat Docker Hub only as an image registry for distributing images, with no compute or storage of project
-  data there. CLAUDE.md should be amended to state this exception explicitly.
+- Docker Hub is used only to publish images (exception recorded in CLAUDE.md).
