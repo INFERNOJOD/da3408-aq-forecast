@@ -10,8 +10,8 @@ stages:
       nfiles: 5
     - path: src/common
       hash: md5
-      md5: e2e9406e416d4a84c0c2367764a176c4.dir
-      size: 41805
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
       nfiles: 18
     - path: src/pipeline/ingest.py
       hash: md5
@@ -40,7 +40,7 @@ stages:
     outs:
     - path: data/interim
       hash: md5
-      md5: 9368df25605869fb1986065c7cc49d0d.dir
+      md5: 6d96b99775477de08e711b4df9c2f400.dir
       size: 67319003
       nfiles: 36
   validate:
@@ -48,13 +48,13 @@ stages:
     deps:
     - path: data/interim
       hash: md5
-      md5: 9368df25605869fb1986065c7cc49d0d.dir
+      md5: 6d96b99775477de08e711b4df9c2f400.dir
       size: 67319003
       nfiles: 36
     - path: src/common
       hash: md5
-      md5: e2e9406e416d4a84c0c2367764a176c4.dir
-      size: 41805
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
       nfiles: 18
     - path: src/pipeline/ingest.py
       hash: md5
@@ -120,7 +120,7 @@ stages:
     deps:
     - path: data/interim
       hash: md5
-      md5: 9368df25605869fb1986065c7cc49d0d.dir
+      md5: 6d96b99775477de08e711b4df9c2f400.dir
       size: 67319003
       nfiles: 36
     - path: reports/validation.json
@@ -129,8 +129,8 @@ stages:
       size: 12607
     - path: src/common
       hash: md5
-      md5: e2e9406e416d4a84c0c2367764a176c4.dir
-      size: 41805
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
       nfiles: 18
     - path: src/pipeline/features.py
       hash: md5
@@ -173,7 +173,7 @@ stages:
     outs:
     - path: data/features
       hash: md5
-      md5: 5c03b5f887416b15fae99fed4dab6067.dir
+      md5: 59ba585a5088265f1d7183d13e4c168b.dir
       size: 17013428
       nfiles: 18
     - path: reports/baseline_stats.json
@@ -185,7 +185,7 @@ stages:
     deps:
     - path: data/features/train.parquet
       hash: md5
-      md5: 43ce77165ec393d5a360529fb0aa520c.dir
+      md5: 4bd647accf7663a54514d6cdade1cc71.dir
       size: 15184333
       nfiles: 14
     - path: reports/baseline_stats.json
@@ -194,21 +194,21 @@ stages:
       size: 52194
     - path: src/common
       hash: md5
-      md5: e2e9406e416d4a84c0c2367764a176c4.dir
-      size: 41805
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
       nfiles: 18
     - path: src/pipeline/aq_model.py
       hash: md5
-      md5: 28204f65897cd03dc4aa8a3dbac6ec6c
-      size: 3200
+      md5: 1d3dcb95af0e93364caba95d12c03db6
+      size: 4037
     - path: src/pipeline/modeling.py
       hash: md5
-      md5: 3c1c21d90e3d19c815c9e272aab216cd
-      size: 6434
+      md5: 32eafc59c7b97ca2043cf9cadf3d4e1a
+      size: 6828
     - path: src/pipeline/train.py
       hash: md5
-      md5: d07a6c7a2390ebcb1487765ca59fd493
-      size: 15340
+      md5: 5b4d0b14c5eef3a15c80c3174b0d032f
+      size: 16588
     - path: src/pipeline/train_plots.py
       hash: md5
       md5: a97c2d3935a5a3228fde3853cf88140c
@@ -252,10 +252,141 @@ stages:
     outs:
     - path: models/candidate
       hash: md5
-      md5: ba215b2f976c43106ce05b5ddfc613ce.dir
-      size: 3044365
+      md5: 0ed43a5ce3134b2e53b5dbacf0cdb115.dir
+      size: 3045338
       nfiles: 12
     - path: reports/train_metrics.json
       hash: md5
-      md5: 9375c4c1c5ee5f5d7453df5bfbba41c6
-      size: 2371
+      md5: 4bac4ba777c8138ebe317f2008cf43bc
+      size: 2690
+  evaluate:
+    cmd: python -m src.pipeline.evaluate
+    deps:
+    - path: data/features/train.parquet
+      hash: md5
+      md5: 4bd647accf7663a54514d6cdade1cc71.dir
+      size: 15184333
+      nfiles: 14
+    - path: models/candidate
+      hash: md5
+      md5: 0ed43a5ce3134b2e53b5dbacf0cdb115.dir
+      size: 3045338
+      nfiles: 12
+    - path: reports/train_metrics.json
+      hash: md5
+      md5: 4bac4ba777c8138ebe317f2008cf43bc
+      size: 2690
+    - path: src/common
+      hash: md5
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
+      nfiles: 18
+    - path: src/pipeline/evaluate.py
+      hash: md5
+      md5: ed11f4361fe412a164082437cc2afddd
+      size: 5366
+    - path: src/pipeline/modeling.py
+      hash: md5
+      md5: 32eafc59c7b97ca2043cf9cadf3d4e1a
+      size: 6828
+    - path: src/pipeline/registry.py
+      hash: md5
+      md5: fbb5cb6882d7f21f15842c69407059ae
+      size: 5058
+    params:
+      params.yaml:
+        cutoff: '2020-03-24 23:00:00'
+        eval_window_days: 3
+        paths:
+          raw_dir: data/raw
+          interim_dir: data/interim
+          features_dir: data/features
+          reports_dir: reports
+          models_dir: models
+          raw_dvc: data/raw.dvc
+        promotion.model_name: aq-pm25
+    outs:
+    - path: reports/eval.json
+      hash: md5
+      md5: 3e3fa95993e25c11bd1b70f81461a246
+      size: 1131
+  test:
+    cmd: python -m src.pipeline.test_gate
+    deps:
+    - path: reports/eval.json
+      hash: md5
+      md5: 3e3fa95993e25c11bd1b70f81461a246
+      size: 1131
+    - path: src/common
+      hash: md5
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
+      nfiles: 18
+    - path: src/pipeline/test_gate.py
+      hash: md5
+      md5: 591b55c2d434346b83438c94a56bb930
+      size: 3426
+    params:
+      params.yaml:
+        paths:
+          raw_dir: data/raw
+          interim_dir: data/interim
+          features_dir: data/features
+          reports_dir: reports
+          models_dir: models
+          raw_dvc: data/raw.dvc
+        promotion.max_ratio_to_baseline: 1.02
+    outs:
+    - path: reports/gate.json
+      hash: md5
+      md5: e95221322714649f6caa29c39e676a65
+      size: 400
+  register:
+    cmd: python -m src.pipeline.register
+    deps:
+    - path: models/candidate
+      hash: md5
+      md5: 0ed43a5ce3134b2e53b5dbacf0cdb115.dir
+      size: 3045338
+      nfiles: 12
+    - path: reports/eval.json
+      hash: md5
+      md5: 3e3fa95993e25c11bd1b70f81461a246
+      size: 1131
+    - path: reports/gate.json
+      hash: md5
+      md5: e95221322714649f6caa29c39e676a65
+      size: 400
+    - path: reports/train_metrics.json
+      hash: md5
+      md5: 4bac4ba777c8138ebe317f2008cf43bc
+      size: 2690
+    - path: src/common
+      hash: md5
+      md5: 83309660567efecaba130530efffb09f.dir
+      size: 42153
+      nfiles: 18
+    - path: src/pipeline/register.py
+      hash: md5
+      md5: bd76287519d2923ef81660d7294d3b68
+      size: 4038
+    - path: src/pipeline/registry.py
+      hash: md5
+      md5: fbb5cb6882d7f21f15842c69407059ae
+      size: 5058
+    params:
+      params.yaml:
+        cutoff: '2020-03-24 23:00:00'
+        paths:
+          raw_dir: data/raw
+          interim_dir: data/interim
+          features_dir: data/features
+          reports_dir: reports
+          models_dir: models
+          raw_dvc: data/raw.dvc
+        promotion.model_name: aq-pm25
+    outs:
+    - path: reports/register.json
+      hash: md5
+      md5: 9832ade20c85d89251bb8e3184337d4a
+      size: 314

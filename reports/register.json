@@ -1,0 +1,11 @@
+{
+  "promoted": false,
+  "version": null,
+  "champion_before": "1",
+  "mlflow_run_id": "abc58d10452442ebace465cb62488db2",
+  "reasons": [
+    "mean MAE 9.018 is not lower than champion v1 9.018 on the same window"
+  ],
+  "cutoff": "2020-03-24 23:00:00",
+  "git_commit": "feab67ad932a96a7e5dd74a777ae72cb91912df1"
+}

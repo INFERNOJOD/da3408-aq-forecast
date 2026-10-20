@@ -467,3 +467,86 @@ Stage 8 builds the `evaluate`, `test` and `register` stages, the registry with t
 5. Run it on the first model, where there is no champion yet, and on a second run to show that a candidate that is not better is rejected and logged.
 
 Waiting for your go-ahead.
+
+---
+
+## Part 7: Stage 8, evaluate, test, register and rollback
+
+Stage 8 is done. The pipeline now has all seven DVC stages (`dvc dag` shows ingest, validate, features, train, evaluate, test, register). `ruff check` passes, `pytest` gives 144 passed and 0 failed (it was 117), and `dvc status` says up to date. I did not start Stage 9. Your two answers are applied: "best model" is the better of Ridge and LightGBM per horizon, and the package holds either one.
+
+### What I built
+
+**The package holds Ridge or LightGBM per horizon.** The train stage now picks, for each horizon, whichever of Ridge and LightGBM has the lower MAE on the evaluation window (a tie goes to LightGBM). A LightGBM booster is saved as `h<N>.txt` and a Ridge pipeline as `h<N>.joblib`. `meta.json` has a `kinds` entry per horizon, and `aq_model.py` loads each file the way its kind needs. A package from before this change has no `kinds` and is read as all LightGBM. I used joblib because it comes with scikit-learn, so there is no new package. The cost is that a joblib file is a pickle: I load it only from my own registry. On the real data LightGBM wins both horizons, so the Ridge path is covered by unit tests but has not served a real forecast.
+
+**`src/pipeline/registry.py`.** A `ModelRegistryClient` with the two aliases. `promote` creates a new registry version and moves `champion` to it and `previous` to the old champion. `rollback` does the same move to `previous`, or to a version I name, and it can itself be rolled back. Unknown version, no previous version and "already champion" raise a `RegistryError`, and nothing changes.
+
+**The three stages.**
+
+| Stage | What it does |
+|-------|--------------|
+| `evaluate` | Loads the candidate and the champion as MLflow packages and scores both on the same rows (the last 3 days before the cutoff). Writes `reports/eval.json`. With no champion it scores the candidate alone. |
+| `test` | Applies the rule: each served model within 1.02 times the best baseline, and if there is a champion, a strictly lower mean MAE. Writes `reports/gate.json`. |
+| `register` | If the gate passed, creates the registry version with tags (cutoff, git commit, data version, MAE per horizon, model kind per horizon) and moves the aliases. If not, registers nothing and tags the MLflow run `promotion=rejected` with the reasons. Writes `reports/register.json`. |
+
+A rejection is not a failure. The `test` stage succeeds with `passed: false`, so the console can show it as a normal outcome and the run is not marked red. The module is called `test_gate.py` and not `test.py` so that pytest does not try to collect it.
+
+**`scripts/rollback.py`.** `python -m scripts.rollback` moves `champion` back to `previous`. `--version N` names a version and `--list` shows the versions and aliases. Stage 10 will call the same code from `POST /ops/rollback`.
+
+I updated `dvc.yaml`, `params.yaml` (a new `promotion` section with the registry name and the 1.02 limit), the HLD, the LLD (file formats and stage contracts), `docs/PLAN.md` and `docs/metrics.md`.
+
+### How to run it
+
+```
+source .venv/bin/activate
+dvc repro                       # runs whatever is out of date, through register
+python -m scripts.rollback --list
+python -m scripts.rollback      # champion <- previous
+```
+
+To train and judge a candidate again without redoing Spark, use `dvc repro -s -f train && dvc repro`.
+
+### What I ran and what I measured
+
+**First model.** There was no champion, so `evaluate` scored the candidate alone. Gate: passed, with ratios of 0.894 at 1 h and 0.950 at 24 h against the best baseline (Ridge in both cases). `register` created version 1 and set `champion`. The limit of 1.02 was applied as it is, not relaxed.
+
+**Second run, a candidate that is not better.** I retrained on the same data and settings. Training is deterministic, so the candidate is the same model: mean MAE 9.018 for both. The gate rejected it with "mean MAE 9.018 is not lower than champion v1 9.018 on the same window". Nothing was registered, the champion is still version 1, and the run carries `promotion=rejected` and the reason. I chose this test because it shows the strictness of the rule: a tie is not promoted. It does not show a candidate that is clearly worse; the unit tests cover that case, with a worse mean MAE and with a baseline ratio above 1.02.
+
+**Rollback drill.** To have two versions I registered the rejected run as version 2, then ran the script.
+
+| Step | Result |
+|------|--------|
+| `python -m scripts.rollback` | champion 2 to 1, version 2 becomes `previous` |
+| `python -m scripts.rollback` | champion 1 to 2 (the rollback undone) |
+| `python -m scripts.rollback --version 1` | champion 2 to 1 |
+
+After the drill I deleted version 2 and the `previous` alias, so the registry holds only version 1 as champion, and I checked that it loads by alias.
+
+Stage times are in `docs/metrics.md`: `evaluate` 0.7 s, `test` under 0.1 s, `register` about 0.5 s. Scoring through the package matches the train stage within rounding.
+
+### What went wrong
+
+**The first registration failed.** `register` stopped with "Registered Model with name=aq-pm25 not found". MLflow does not create the registry entry when you create a version. The test I wrote first created the entry by hand, so it passed. The end-to-end test I added next did not, and it caught the problem. `promote` now creates the entry if it is missing.
+
+**DVC said the model had changed, after nothing had.** After the first full run, `dvc status` showed `models/candidate` as modified. Loading the package imports its code, and Python wrote a `__pycache__` folder inside the tracked model folder. I now switch off bytecode writing in the evaluate stage, and the status stays clean. I would not have found this without running the real chain twice.
+
+### Limits you should know about
+
+- **The champion lives outside DVC.** The registry is in `mlflow.db`, which DVC does not track. `evaluate` depends on the champion, but DVC cannot see it change. This is fine in the normal flow, because only `register` changes it, but a rollback done by hand does not make DVC re-run `evaluate`. The retrain in Stage 11 always runs from `train` onwards, so it is not affected.
+- **The window is short.** The comparison with the champion rests on 497 and 336 rows. A real improvement of a few percent is within the noise of that window, so the strict rule will sometimes reject a candidate that is slightly better and sometimes accept one that is slightly worse. I report it and did not tune it.
+- **The champion was trained before the window it is scored on in a retrain.** When Stage 11 retrains at a later cutoff, the new window is newer than the champion's training data. That is intended: the question is which model handles the latest hours better.
+
+### Viva questions I prepared
+
+**1. Why compare the candidate and the champion on the same window?** If each model were judged on its own window, a model could win only because its window was easier. Scoring both on the same rows is the only fair test.
+
+**2. Why is a tie rejected?** Promoting means the served model changes. A change with no measured gain has a cost (a restart, a new thing to explain) and no benefit.
+
+**3. Why not register the rejected candidate?** The registry should list only models that were served or could be rolled back to. The rejected run is still in MLflow with its reason, so nothing is lost.
+
+**4. How does a rollback work, and why is it safe?** It moves two aliases in the registry. No model files are touched, so it is instant, and the old champion becomes `previous`, so the rollback can be undone.
+
+**5. Why not use Ridge when it ties LightGBM?** LightGBM is the main model in the design, and a tie gives no reason to switch.
+
+### Next: Stage 9
+
+Stage 9 serves the `champion` alias with `mlflow models serve` in a container and measures `/invocations` latency. I have no open question that blocks it. Waiting for your go-ahead.

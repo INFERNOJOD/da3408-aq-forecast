@@ -46,7 +46,7 @@ def register(
     doc: dict[str, Any] = {
         "promoted": gate["passed"],
         "version": None,
-        "previous_champion": old,
+        "champion_before": old,
         "mlflow_run_id": run_id,
         "reasons": gate["reasons"],
         "cutoff": params["cutoff"],

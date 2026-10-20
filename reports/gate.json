@@ -1,0 +1,15 @@
+{
+  "passed": false,
+  "reasons": [
+    "mean MAE 9.018 is not lower than champion v1 9.018 on the same window"
+  ],
+  "first_model": false,
+  "ratio_to_best_baseline": {
+    "1h": 0.8937334243192068,
+    "24h": 0.9500567953554543
+  },
+  "max_ratio": 1.02,
+  "candidate_mean_mae": 9.017997778336687,
+  "champion_mean_mae": 9.017997778336687,
+  "candidate_run_id": "abc58d10452442ebace465cb62488db2"
+}

@@ -264,3 +264,19 @@ Per city, LightGBM against the best baseline on the same rows: better in 5 of 7 
 These are the same cities as before, with 71 and 48 rows per city. Error on hours with PM2.5 at
 or above 121: 14.7 on 13 hours at 1 h and 61.2 on 10 hours at 24 h. The training stage takes
 23.4 s.
+
+## Stage 8: evaluate, test, register (no Spark)
+
+Measured with `dvc repro` on the same data as Stage 7. The three stages are small because they
+score about 830 rows and write a few JSON files.
+
+| Stage | Time | Rows | What it does |
+|-------|-----:|-----:|--------------|
+| train | 25.9 s | 505,852 | unchanged work, now also saves the chosen model per horizon |
+| evaluate | 0.7 s | 833 (497 at 1 h, 336 at 24 h) | loads the candidate (and the champion, if there is one) as MLflow packages and scores them |
+| test | under 0.1 s | 1 | applies the promotion rule |
+| register | 0.4 to 0.6 s | 1 | creates a registry version and moves the aliases, or tags the run as rejected |
+
+Scoring through the package gives the same errors as the train stage within rounding (the package
+rounds predictions to 2 decimals): mean MAE 9.0180 against 9.0180, per horizon 4.4995 against
+4.4996 at 1 h and 13.5365 against 13.5364 at 24 h. LightGBM is served at both horizons.

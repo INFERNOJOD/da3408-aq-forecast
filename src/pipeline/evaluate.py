@@ -11,6 +11,7 @@ Run: ``python -m src.pipeline.evaluate``  ->  reports/eval.json
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,10 @@ from src.pipeline.registry import ModelRegistryClient
 from src.pipeline.train import INT_COLUMNS, load_features
 
 log = get_logger(__name__)
+
+# Loading a package imports its code. Without this, Python writes __pycache__
+# into models/candidate and DVC then sees the tracked folder as modified.
+sys.dont_write_bytecode = True
 
 
 def model_input(rows: pd.DataFrame, horizon: int) -> pd.DataFrame:
