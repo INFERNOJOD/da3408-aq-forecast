@@ -206,7 +206,7 @@ The stage is a chain of small functions, each taking a Spark DataFrame and retur
 
 I made four decisions that matter for correctness.
 
-**Lags count hours, not rows.** Several cities have missing hours in the source (Hyderabad has 85 fewer rows than a full hourly series). With row-based lags, "24 rows back" would then mean more than 24 hours. I first build a complete hourly grid per city, with null values for missing hours, and then take lags on that grid. This was the design I wanted from the start, but I only noticed how much it matters when I saw the Hyderabad count.
+**Lags count hours, not rows.** If an hour were missing from the source, a row-based lag of 24 would reach back more than 24 hours. So I first build a complete hourly grid per city, with null values for any missing hour, and take the lags on that grid. I assumed the source had such holes. When I checked at the end, it does not: none of the 7 selected cities has a single absent hourly row, and gaps in this data are null values, not missing rows. On this dataset the grid changes nothing. I kept it because retraining will see new data, and a hole there would shift every lag silently. A unit test covers a missing hour.
 
 **Short gaps are forward-filled, only for inputs.** A gap of up to 3 hours is filled with the last seen value. A longer gap stays null. Targets are never filled. A missing target stays missing, and the training stage drops it. I do not want the model to learn from numbers I invented.
 
@@ -222,7 +222,7 @@ The baseline file describes `pm25_lag_1` per city on the training rows. It store
 
 Unit tests cover the grid, lags across a gap, the forward-fill limit, targets, rolling windows, calendar features, the cutoff, the serving slice and the baseline. One test changes a later reading and checks that no earlier feature row changes. That is the test I trust most for leaks.
 
-I also did a stronger check outside the test suite. I recomputed every feature column in pandas, with plain `shift` and `rolling`, for Hyderabad (which has gaps) and Kolkata (which starts late). Each city had 4,368 serving rows and 21 columns, and there were 0 mismatches. In the training file no row has a target from after the cutoff.
+I also did a stronger check outside the test suite. I recomputed every feature column in pandas, with plain `shift` and `rolling`, for Hyderabad (7% of its PM2.5 values are missing) and Kolkata (which starts late). Each city had 4,368 serving rows and 21 columns, and there were 0 mismatches. In the training file no row has a target from after the cutoff.
 
 ### What went wrong
 
@@ -268,7 +268,7 @@ I changed `docs/LLD.md` for the new files and for the features stage inputs. I a
 ### Viva questions for Stage 6
 
 **1. Why build a complete hourly grid before computing lags?**
-Because the source has missing hours, and a row-based lag would then reach back more than the hours I mean. On the grid, "24 rows back" is exactly 24 hours back. Hyderabad has 85 fewer hourly rows than a full series, and other cities have longer gaps at the start.
+Because a row-based lag is only right if no hour is missing. On the grid, "24 rows back" is exactly 24 hours back, even if a row is absent. I should be honest that on this dataset it changes nothing: I checked, and none of the selected cities has an absent hourly row. Its gaps are null values. The grid is a safeguard for new data at retraining time.
 
 **2. How do you know the features do not leak the future?**
 Three ways. Every window and lag looks backwards only. A unit test changes a later reading and checks that every earlier feature row stays the same. And I recomputed all feature columns in pandas for two cities and found 0 mismatches. For training I also hide any target that lies after the cutoff.

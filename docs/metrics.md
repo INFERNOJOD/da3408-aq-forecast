@@ -106,7 +106,7 @@ Ingest at 2g is a single run, so I do not read anything into the 0.5 s differenc
 
 | What | Value |
 |------|-------|
-| Input | 287,083 `city_hour` rows of the 7 selected cities (`rows_in`). Filling the hourly grid adds the hours that are missing in the source |
+| Input | 287,083 `city_hour` rows of the 7 selected cities (`rows_in`). The hourly grid adds no rows on this data: none of the 7 cities has an absent hour, and gaps are null values |
 | Training rows (`train.parquet`, hours up to 2020-03-24 23:00) | 270,612 |
 | Serving rows (`serving.parquet`, 2020-01-01 to 2020-06-30) | 30,576 (4,368 per city) |
 | Stage time (5 runs) | 12.4 s, 13.0 s, 11.8 s, 12.3 s, 13.0 s |
