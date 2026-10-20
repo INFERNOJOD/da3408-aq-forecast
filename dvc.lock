@@ -10,7 +10,7 @@ stages:
       nfiles: 5
     - path: src/common
       hash: md5
-      md5: dc46e679c19aecae78805c2a80a47ed3.dir
+      md5: a11b2a6d81aa940b7ea353dab60c4351.dir
       size: 27499
       nfiles: 12
     - path: src/pipeline/ingest.py
@@ -32,13 +32,13 @@ stages:
           features_dir: data/features
           reports_dir: reports
         spark:
-          driver_memory: 3g
+          driver_memory: 2g
           shuffle_partitions: 8
           cores: 4
     outs:
     - path: data/interim
       hash: md5
-      md5: a2da63ab4b54b049590b598d6f081de6.dir
+      md5: 4051ae48eb1c77059671cb0ad277496d.dir
       size: 67319003
       nfiles: 36
   validate:
@@ -46,12 +46,12 @@ stages:
     deps:
     - path: data/interim
       hash: md5
-      md5: a2da63ab4b54b049590b598d6f081de6.dir
+      md5: 4051ae48eb1c77059671cb0ad277496d.dir
       size: 67319003
       nfiles: 36
     - path: src/common
       hash: md5
-      md5: dc46e679c19aecae78805c2a80a47ed3.dir
+      md5: a11b2a6d81aa940b7ea353dab60c4351.dir
       size: 27499
       nfiles: 12
     - path: src/pipeline/ingest.py
@@ -81,7 +81,7 @@ stages:
           start: '2020-03-25 00:00:00'
           end: '2020-06-30 23:00:00'
         spark:
-          driver_memory: 3g
+          driver_memory: 2g
           shuffle_partitions: 8
           cores: 4
         validate:

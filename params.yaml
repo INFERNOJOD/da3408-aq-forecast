@@ -7,7 +7,7 @@ paths:
   reports_dir: reports
 
 spark:
-  driver_memory: 3g          # machine limit: 8 GB RAM total
+  driver_memory: 2g          # machine limit: 8 GB RAM total (about 3.9 GB free)
   shuffle_partitions: 8
   cores: 4
 

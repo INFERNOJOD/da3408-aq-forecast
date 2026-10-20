@@ -33,7 +33,7 @@ flowchart TB
 
 **Main data table.** I use `city_hour.csv`. It matches the "city, 1h/24h" problem directly. The station files are ingested and validated but not modelled. They are 3.6x larger and add little for a city-level forecast.
 
-**Data engine.** Spark in local mode, with a 3g driver and 8 shuffle partitions, and Parquet after ingest. The course requires Spark. Parquet is columnar and compressed, so later stages read only the columns they need. On this small data pandas turned out about twice as fast as Spark at the ingest job (see `docs/metrics.md`). I keep Spark for the requirement and for data that would not fit in memory, but I have not measured the second reason.
+**Data engine.** Spark in local mode, with a 2g driver and 8 shuffle partitions, and Parquet after ingest. The course requires Spark. Parquet is columnar and compressed, so later stages read only the columns they need. On this small data pandas turned out about twice as fast as Spark at the ingest job (see `docs/metrics.md`). I keep Spark for the requirement and for data that would not fit in memory, but I have not measured the second reason.
 
 **Models.** Persistence, seasonal-naive (t-24h), Ridge and LightGBM, with one LightGBM per horizon. The baselines show whether the main model adds anything. I chose LightGBM because it handles NaNs and non-linear effects and is fast on CPU.
 
@@ -81,8 +81,8 @@ These are planned memory limits. I will measure real usage in Stage 13 and recor
 | Profile | Services | mem_limit (planned) |
 |---------|----------|---------------------|
 | serve | frontend 384m, backend 512m, model-server 768m, mlflow 512m, prometheus 384m, pushgateway 64m, alertmanager 64m, grafana 256m, node-exporter 64m | ≈ 3.0 GB |
-| batch | pipeline 3.5g (Spark driver 3g) | 3.5 GB |
-| during retrain | batch + serve without frontend and grafana | ≈ 6.1 GB |
+| batch | pipeline 2.5g (Spark driver 2g) | 2.5 GB |
+| during retrain | batch + serve without frontend and grafana | ≈ 4.9 GB |
 
 ## 6. Failure handling
 

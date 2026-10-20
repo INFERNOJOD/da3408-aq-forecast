@@ -14,11 +14,11 @@ def build_spark(
 ) -> SparkSession:
     """Return a local-mode SparkSession configured from params.yaml['spark'].
 
-    Memory is capped (default driver 3g) because the VM has only 8 GB RAM.
+    Memory is capped (default driver 2g) because the VM has only 8 GB RAM.
     Session time zone is UTC so timestamps keep the wall-clock values found in
     the CSV files (the data is in IST and we never convert it).
     """
-    p = {"driver_memory": "3g", "shuffle_partitions": 8, "cores": 4}
+    p = {"driver_memory": "2g", "shuffle_partitions": 8, "cores": 4}
     p.update(spark_params or {})
     spark = (
         SparkSession.builder.master(f"local[{p['cores']}]")

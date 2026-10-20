@@ -32,7 +32,7 @@ def test_load_params_not_mapping(tmp_path):
 
 def test_real_params_file_is_valid():
     params = config.load_params()
-    assert params["spark"]["driver_memory"] == "3g"
+    assert params["spark"]["driver_memory"] == "2g"
     assert params["spark"]["shuffle_partitions"] == 8
     assert len(params["cities"]) == 7
 

@@ -1,7 +1,7 @@
 # Measured Numbers
 
 All numbers were measured on the project VM (4 CPU, 7.2 GB RAM, ARM64, Ubuntu).
-Spark runs in local mode with driver memory 3g and 8 shuffle partitions.
+Spark runs in local mode with 8 shuffle partitions. The driver memory was 3g for the first measurements and was lowered to 2g afterwards (see "Driver memory 2g" at the end of this file). Each table says which one it used.
 
 ## Stage 4: ingest (CSV to Parquet, Spark)
 
@@ -71,8 +71,8 @@ to find duplicates. That distinct count needs a shuffle.
 
 On memory: the 3.4 GB peak is the JVM filling the heap it is allowed to use. It
 does not need that much. With a 1 GB driver the same run gives the same answer in
-almost the same time. We keep the 3 GB limit from `CLAUDE.md` for the later,
-heavier stages, and never run Spark together with the full serve stack.
+almost the same time. I first kept the 3 GB limit from `CLAUDE.md` for the later,
+heavier stages. I lowered it to 2 GB afterwards (see the last section). Spark never runs together with the full serve stack.
 
 Data facts found by validation (full list in `reports/validation.json`):
 no duplicate rows, no negative values, no missing ids or timestamps, all
@@ -87,3 +87,17 @@ timestamps on the hour. All 7 selected cities have PM2.5 for 99.9% to 100% of th
 | Output | 8 CSV files, 1,528 data rows in total (about 70 KB) |
 | Time | about 9.4 s in total (session start about 1.5 s) |
 | Plots | `python scripts/plot_eda.py` makes 6 PNG files in a few seconds |
+
+## Driver memory 2g
+
+The VM has about 3.9 GB free, and the 1 GB test above showed that validate does not need 3 GB.
+I set the Spark driver to 2g in `CLAUDE.md` and `params.yaml`, then ran the whole pipeline again.
+
+| What | Driver 3g | Driver 2g |
+|------|-----------|-----------|
+| ingest time | 8.0 to 8.4 s | 8.9 s |
+| validate time | 32.1 to 33.5 s | 33.3 s |
+| Peak Spark memory while both ran (JVM RSS) | 3.4 GB (validate alone) | about 2.4 GB (ingest and validate) |
+
+Both stages give the same results with 2g. The times are within the run-to-run spread I saw before.
+Ingest at 2g is a single run, so I do not read anything into the 0.5 s difference.

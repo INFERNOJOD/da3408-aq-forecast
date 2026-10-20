@@ -32,7 +32,7 @@ This stage had a problem. I had a broad `/data/*` rule in `.gitignore`, and DVC 
 
 `src/pipeline/ingest.py` reads the 5 CSV files with Spark and writes them as Parquet into `data/interim/`. Each column has a fixed type set in code, so a bad value stops the run instead of causing silent errors. After writing, the stage counts the CSV rows with plain Python and compares them with the Parquet row count. They must match.
 
-`src/common/stage_runner.py` wraps any stage. It records time, row count, rows per second, status and error message in `reports/runs.jsonl`, and pushes the numbers to the Pushgateway if `PUSHGATEWAY_URL` is set. If that server is down, the pipeline keeps going. The pipeline console will read the file later. `src/common/spark.py` starts Spark with the memory limits (3 GB driver, 8 shuffle partitions). `dvc.yaml` got its first stage, `ingest`, and I updated the ingest row of `docs/LLD.md` to match the real inputs and outputs.
+`src/common/stage_runner.py` wraps any stage. It records time, row count, rows per second, status and error message in `reports/runs.jsonl`, and pushes the numbers to the Pushgateway if `PUSHGATEWAY_URL` is set. If that server is down, the pipeline keeps going. The pipeline console will read the file later. `src/common/spark.py` starts Spark with the memory limits (driver memory and 8 shuffle partitions; the driver was 3 GB when I wrote this stage and is 2 GB now, see Part 3). `dvc.yaml` got its first stage, `ingest`, and I updated the ingest row of `docs/LLD.md` to match the real inputs and outputs.
 
 I chose Parquet because it is compressed and stored by column, so later stages read only the columns they need.
 
@@ -83,8 +83,8 @@ There are two checks. Spark reads with FAILFAST, so a malformed row stops the ru
 **4. What happens if a stage fails or the monitoring server is down?**
 `run_stage` catches the error, writes a "failed" record with the message to `runs.jsonl`, and raises a clear error. The pipeline console will show it. If the Pushgateway is down, a warning is logged and the pipeline still runs, because a monitoring outage should not stop data work.
 
-**5. Why local Spark with 3 GB and 8 partitions?**
-The VM has 8 GB RAM and 4 cores. Spark's default of 200 shuffle partitions creates many tiny tasks, which is slow on this small data. 8 partitions is about 2 per core. A 3 GB driver leaves room for the OS and Docker, and the measured peak was 1.2 GB.
+**5. Why local Spark with 2 GB and 8 partitions?**
+The VM has 8 GB RAM and 4 cores. Spark's default of 200 shuffle partitions creates many tiny tasks, which is slow on this small data. 8 partitions is about 2 per core. I started with a 3 GB driver to leave room for the OS and Docker, and the measured peak was 1.2 GB. I later lowered it to 2 GB (see Part 3).
 
 ---
 
@@ -179,3 +179,15 @@ Less sure than the naive numbers suggest. Comparing before and after 25 March gi
 
 **5. What data biases did you find, and what did you do about them?**
 Nine, listed in `docs/eda.md`. The main ones: missing data is concentrated in early years and some cities, so I do not make up values. The station network grew (Delhi 10 to 37), so city averages are not comparable across years, and I trust 2018 onwards most. Extreme hours are rare outside the north, so the model will under-predict peaks and I report high-value error separately. And I only model 7 cities, so the app only offers those.
+
+---
+
+## Part 3: Spark driver memory lowered to 2 GB
+
+I changed the driver memory from 3g to 2g in `CLAUDE.md` and `params.yaml`. The default in `src/common/spark.py`, one test, `docs/HLD.md` and `docs/PLAN.md` changed with it.
+
+The reason is the VM. Only about 3.9 GB is free, and the validate stage with a 3 GB driver grew to 3.4 GB of JVM memory. The earlier 1 GB test gave the same answer in almost the same time, so the extra memory was not doing useful work. With 2g, `dvc repro` ran both stages again with the same results: ingest 8.9 s, validate 33.3 s, and a peak of about 2.4 GB of JVM memory. The old numbers in `docs/metrics.md` stay as they were, labelled with the driver size they were measured with.
+
+In `docs/HLD.md` the planned batch container limit drops from 3.5g to 2.5g, and the planned total during a retrain from about 6.1 GB to about 4.9 GB. While rechecking that table I found the old 6.1 GB did not match its own parts (serve without frontend and Grafana is 2,368 MB, plus 3,584 MB is about 5.9 GB), so I fixed the arithmetic too. These are still planned figures. I measure real usage in Stage 13.
+
+I do not know yet whether the features stage fits in 2g. If it does not, I will say so here and raise it before changing the limit.
