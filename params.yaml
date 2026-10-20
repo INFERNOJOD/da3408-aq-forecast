@@ -64,7 +64,7 @@ features:
 # Settings for the train stage.
 train:
   experiment: aq-pm25
-  half_life_days: 30           # recency weight: a row this much older counts half as much
+  half_life_days: 90           # recency weight: a row this much older counts half as much
   seed: 42
   high_pm25_threshold: 121     # "Very Poor" and above: error on these hours is reported separately
   ridge:
