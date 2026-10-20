@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from src.backend import aqi
 from src.backend.app import create_app
 from src.backend.model_client import ModelServerClient, ModelUnavailableError
-from src.backend.ops import RetrainQueue
+from src.backend.ops import EpisodeGate, RetrainQueue
 from src.backend.registry_view import RegistryView
 from src.backend.replay import ReplayClock
 from src.backend.settings import Settings
@@ -669,3 +669,39 @@ def test_lld_lists_the_backend_routes(env):
             ("/ops", "/pipeline", "/aqi", "/health", "/cities", "/forecast", "/metrics")
         ):
             assert path in lld, path
+
+
+def test_episode_gate_closes_after_quiet_period(tmp_path):
+    gate = EpisodeGate(tmp_path, 72)
+    t0 = datetime(2020, 4, 1)
+    gate.observe(False, t0)  # nothing open: ignored
+    assert not gate.is_open()
+    gate.open_episode()
+    assert gate.is_open()
+    gate.observe(False, t0)  # quiet starts
+    gate.observe(False, datetime(2020, 4, 3, 23))  # 71 h: still open
+    assert gate.is_open()
+    gate.observe(True, datetime(2020, 4, 4))  # drift again: quiet count restarts
+    gate.observe(False, datetime(2020, 4, 4, 1))
+    gate.observe(False, datetime(2020, 4, 7, 0))  # 71 h since 4 Apr 01:00
+    assert gate.is_open()
+    gate.observe(False, datetime(2020, 4, 7, 1))
+    assert not gate.is_open()
+    assert not EpisodeGate(tmp_path, 72).is_open()  # state survives a restart
+
+
+def test_alerts_one_retrain_per_episode(tmp_path):
+    moment = {"now": datetime(2026, 10, 20, 10, 0, 0)}
+    gate = EpisodeGate(tmp_path, 72)
+    queue = RetrainQueue(tmp_path, 30, lambda: moment["now"], episode=gate)
+    payload = [alert()]
+    assert queue.from_alerts(payload, "2020-04-01 00:00:00") is True
+    record = json.loads(next((tmp_path / "requests").glob("*.json")).read_text())
+    (tmp_path / "requests" / f"{record['request_id']}.json").write_text(
+        json.dumps({**record, "status": "done"})
+    )
+    moment["now"] = datetime(2026, 10, 20, 12, 0, 0)  # cooldown is over
+    assert queue.from_alerts(payload, "2020-04-02 00:00:00") is False  # same episode
+    gate.observe(False, datetime(2020, 4, 5))
+    gate.observe(False, datetime(2020, 4, 8))  # rule false for 72 h
+    assert queue.from_alerts(payload, "2020-04-09 00:00:00") is True

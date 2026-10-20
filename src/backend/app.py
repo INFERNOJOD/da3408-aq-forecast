@@ -15,7 +15,7 @@ from src.backend.errors import ApiError, error_response, install_handlers
 from src.backend.forecaster import Forecaster
 from src.backend.metrics import Metrics
 from src.backend.model_client import ModelServerClient, ModelUnavailableError
-from src.backend.ops import RetrainQueue
+from src.backend.ops import EpisodeGate, RetrainQueue
 from src.backend.registry_view import RegistryView
 from src.backend.replay import MAX_SPEED, MIN_SPEED, ReplayClock
 from src.backend.settings import Settings
@@ -73,7 +73,10 @@ def create_app(
     registry = registry or RegistryView(ModelRegistryClient(settings.model_name))
     store = store or ServingStore(settings.serving_path)
     forecaster = Forecaster(store, client, registry, clock)
-    queue = RetrainQueue(settings.ops_dir, settings.retrain_cooldown_min)
+    episode = EpisodeGate(settings.ops_dir, settings.drift_episode_clear_h)
+    queue = RetrainQueue(
+        settings.ops_dir, settings.retrain_cooldown_min, episode=episode
+    )
     drift = DriftReport(
         settings.cities,
         clock,
@@ -84,6 +87,13 @@ def create_app(
         client,
         registry,
     )
+
+    def current_drift() -> dict:
+        """Evaluate the rule and tell the episode gate what it saw."""
+        report = drift.report()
+        episode.observe(report["any_drift"], datetime.fromisoformat(report["sim_time"]))
+        return report
+
     app = FastAPI(title="AQ forecast backend", version="1.0")
     install_handlers(app)
 
@@ -170,7 +180,7 @@ def create_app(
         version = registry.champion_version()
         if version and version.isdigit():
             metrics.model_version.set(int(version))
-        metrics.set_drift(drift.report())
+        metrics.set_drift(current_drift())
         return Response(
             generate_latest(metrics.registry), media_type=CONTENT_TYPE_LATEST
         )
@@ -179,7 +189,7 @@ def create_app(
 
     @app.get("/ops/drift", dependencies=ops)
     def ops_drift() -> dict:
-        report = drift.report()
+        report = current_drift()
         metrics.set_drift(report)
         return report
 
@@ -212,6 +222,7 @@ def create_app(
 
     @app.post("/ops/alerts", dependencies=ops)
     def alerts(body: AlertPayload) -> dict:
+        current_drift()
         requested = queue.from_alerts(
             body.alerts, clock.state()["sim_time"], drift.summary
         )

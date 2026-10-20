@@ -68,6 +68,7 @@ features:
 drift:
   min_cities: 4          # drift = at least this many voting cities above their PSI threshold
   mae_ratio_warn: 1.5    # pooled 72 h MAE ratio above this is a warning only, not a trigger
+  episode_clear_hours: 72  # one retrain per drift episode: it ends after the rule was false this many simulated hours
 
 # Settings for the train stage.
 train:

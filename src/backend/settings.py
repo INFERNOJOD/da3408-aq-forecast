@@ -24,6 +24,7 @@ class Settings:
     retrain_cooldown_min: int = 30
     drift_min_cities: int = 4
     drift_mae_ratio: float = 1.5
+    drift_episode_clear_h: int = 72
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -58,4 +59,5 @@ class Settings:
             drift_mae_ratio=float(
                 os.environ.get("DRIFT_MAE_RATIO", params["drift"]["mae_ratio_warn"])
             ),
+            drift_episode_clear_h=int(params["drift"]["episode_clear_hours"]),
         )

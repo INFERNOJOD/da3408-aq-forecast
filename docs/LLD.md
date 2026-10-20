@@ -171,7 +171,9 @@ Request:
 The Alertmanager webhook (payload format v4, unchanged). For each alert with `status=firing` and `labels.action="retrain"`,
 the backend creates a retrain request with reason `drift_alert:<alertname>`, `trigger: "drift_alert"` and a `drift`
 snapshot (`cities_exceeding`, `psi_max`, `mae_ratio_pooled` at that moment), unless one was created in the last
-`RETRAIN_COOLDOWN_MIN` (30) minutes or one is still queued or running. All alerts are logged.
+`RETRAIN_COOLDOWN_MIN` (30) minutes or one is still queued or running. A drift alert is also ignored while a drift
+episode is open: an episode opens when a drift alert creates a request and closes when the drift rule has been false for
+`drift.episode_clear_hours` (72) simulated hours in a row (state in `<OPS_DIR>/episode.json`). All alerts are logged.
 200: `{"received": 2, "retrain_requested": true}`
 
 ## 4. Model server contract (backend → MLflow)
@@ -304,6 +306,7 @@ Alert rules (`monitoring/alerts.yml`):
 | `OPS_DIR` | backend, ops runner | `<project>/ops` (request files go to `<OPS_DIR>/requests/`, run logs to `<OPS_DIR>/logs/`) |
 | `BACKEND_PORT` | backend | `8000` |
 | `DRIFT_MIN_CITIES` | backend | `drift.min_cities` in `params.yaml` (4) |
+| `drift.episode_clear_hours` | backend | `72` simulated hours (`params.yaml` only, no env override) |
 | `DRIFT_MAE_RATIO` | backend | `drift.mae_ratio_warn` in `params.yaml` (1.5); warning only |
 | `MODEL_SERVER_URL` | ops runner (smoke check) | `http://localhost:5001` |
 | `SMOKE_TIMEOUT_S` | ops runner | `180` (the watcher polls every 30 s and a start can take up to 90 s) |
