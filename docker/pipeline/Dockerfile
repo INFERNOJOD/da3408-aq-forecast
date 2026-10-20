@@ -12,7 +12,7 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY docker/pipeline/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 60 -r /tmp/requirements.txt
 
 USER app
 ENV PYTHONPATH=/app MLFLOW_DISABLE_AGENT_HINT=1

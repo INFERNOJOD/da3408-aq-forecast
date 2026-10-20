@@ -457,3 +457,51 @@ tests only. I did not make a real model fail.
 |----------|-------|
 | New tests (`test_drift`, `test_backend_drift`, `test_ops_runner`, `test_replay_script`, 2 in `test_features`) | 45 |
 | Whole suite | 293 passed, 0 failed |
+
+## Stage 13: serve stack in compose
+
+`docker compose --profile serve up -d` on the 8 GB arm64 VM, with the three a4-* containers of
+another project still running. Host ports 8000 (backend), 8501 (frontend), 5000 (MLflow), 19090,
+19093 and 13000 (Prometheus, Alertmanager, Grafana). The batch profile was not running.
+
+Memory from `docker stats --no-stream`, a few seconds after a forecast request (idle stack, replay
+stopped). The stack ran for about 30 minutes before I sampled.
+
+| Container | Memory used | `mem_limit` |
+|-----------|------------:|------------:|
+| model-server | 479.7 MiB | 768m |
+| mlflow | 345.8 MiB | 768m |
+| backend | 175.8 MiB | 512m |
+| grafana | 110.7 MiB | 256m |
+| frontend | 50.7 MiB | 384m |
+| prometheus | 42.8 MiB | 384m |
+| alertmanager | 15.7 MiB | 64m |
+| pushgateway | 11.6 MiB | 64m |
+| node-exporter | 9.0 MiB | 64m |
+| **Total** | **1,241 MiB** | 2,560m |
+
+The HLD planned about 3.0 GB for this profile. The measured 1.2 GB is idle: it has no replay
+running, Prometheus holds only a short history, and Grafana has no dashboards yet. The VM as a
+whole showed 4,509 MB used and 2,888 MB available, including the other containers and the desktop.
+
+**MLflow needed a bigger limit than I planned, then less work.** At 512m it was killed over and
+over (11 restarts in 5 minutes), and at 1 GiB it still hit the limit. The cause was the default of
+4 server workers plus MLflow's background job runner. With `--workers 1` and
+`MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false` it runs at about 350 MiB with 0 restarts, so the limit
+is now 768m. The backend and the model server had given up retrying while MLflow was down, so I
+restarted them.
+
+Checks through the containers: all services up, and backend, model-server, frontend and mlflow
+report `healthy`. `GET /forecast?city=Delhi` on the backend (which called the model server and
+read the registry through MLflow) answered with model version 4. From inside the frontend
+container, `BackendClient` (reading `BACKEND_URL=http://backend:8000`) got a Chennai forecast
+(1 h 21.7, 24 h 23.6 µg/m³, both Good), `/pipeline/stages` and `/pipeline/models`. The backend
+reaches the model server's `/ping` over the compose network. Five repeated Delhi forecast requests
+from the host took 0.009 to 0.018 s each (curl `time_total`). That is only five requests, so I
+treat it as a sanity check and not as a latency measurement.
+
+A second sample about an hour later, with the stack idle, was lower: about 0.83 GiB in total
+(model-server 343 MiB, mlflow 239 MiB, backend 137 MiB). The first table is the higher one, taken
+just after a forecast request.
+
+Image sizes: aq-frontend 825 MB, aq-backend 1.33 GB, aq-model-server 1.33 GB, aq-pipeline 2.57 GB.

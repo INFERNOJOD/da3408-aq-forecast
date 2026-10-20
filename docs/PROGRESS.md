@@ -899,5 +899,35 @@ The VM has 8 GB. Spark's driver alone takes 2 GB. Running the batch and the full
 ### What needs you
 
 1. Docker Hub login and QEMU/binfmt for the multi-arch push (needs sudo or your password).
-2. Screenshots of both pages (a browser on your desktop).
-3. Finish and measure the compose run: `docker compose --profile serve up -d`, then record the memory of each container in `docs/metrics.md`.
+2. Screenshots of both pages (a browser on your desktop). The stack is running; the frontend is at http://localhost:8501.
+
+## Part 12: running the serve stack in compose
+
+You asked me to build the pipeline image, bring up the serve stack, check it end to end, record memory, and leave it running.
+
+**The stack runs.** `docker compose --profile serve up -d` started all nine services. The backend, model-server, frontend and mlflow report `healthy`. I used host ports 8000, 8501, 5000, 19090, 19093 and 13000, so nothing collides with the a4-* containers (3000, 9090, 9093, 9100), which I did not touch. I created a gitignored `.env` with the API key (copied from `monitoring/secrets/ops_api_key`) and `HOST_PROJECT`, `HOST_UID`, `HOST_GID`.
+
+**End to end.** The backend answered `/forecast?city=Delhi` with model version 4 after calling the model server and reading the registry through the MLflow container. From inside the frontend container, `BackendClient` with `BACKEND_URL=http://backend:8000` got a Chennai forecast and the pipeline views. So frontend, backend, model server and registry talk to each other over the compose network. I did not click through the pages in a browser. That is what the screenshots are for.
+
+**What went wrong: MLflow kept dying.** At `mem_limit: 512m` it was OOM-killed 11 times in 5 minutes, and at 1 GiB it still hit the limit. MLflow 3.17's server starts 4 workers and a background job runner. I set `--workers 1` and `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false`; it now runs at about 350 MiB with 0 restarts, so I set 768m. Because MLflow was down for the first minutes, the backend and model server used up their retries and showed `unhealthy`. I restarted them. Two weaknesses remain: they have no wait-for-MLflow logic beyond `depends_on` (which only waits for the container to start), and a cold MLflow start takes a minute or more. I gave MLflow its own health check, because the image's built-in one checks port 5001.
+
+**Memory.** The nine containers use about 1.24 GiB in total at idle (table in `docs/metrics.md`). The HLD planned about 3 GB, so the plan was cautious. Idle is the key word: no replay is running and Grafana has no dashboards.
+
+**The pipeline image builds** (`aq-pipeline`, 2.57 GB, arm64). I only built it and checked that it imports pyspark 3.5.9, MLflow 3.17.1, DVC and LightGBM and has Java 21. I did not run it, as you asked, because the batch and the serve stack must not run together. The first two build attempts failed or hung: the 318 MB pyspark download is slow on this VM and one attempt ended with a broken pipe. I added `--retries 10 --timeout 60` to the pip line in `docker/pipeline/Dockerfile`, and the third attempt finished. I also had two duplicate builds running at once for a while, which slowed both.
+
+### Viva questions I prepared
+
+**0. Why does the pipeline image hold only the environment?**
+The project folder is mounted at its host path, so `dvc repro` works on the real repo, the DVC cache and `mlflow.db`. Baking the code in would give a second copy that could drift from git.
+
+**1. Why did `depends_on` not stop the backend from failing at start?**
+`depends_on` waits for the other container to start, not for the service inside it to answer. MLflow needed over a minute. A proper fix is `condition: service_healthy` on the dependency, which I have not added yet.
+
+**2. How did you find the MLflow memory problem?**
+`docker stats` showed it pinned at its limit, `docker inspect` showed 11 restarts and `OOMKilled`, and the logs showed worker processes dying. I then removed the two things that cost memory (extra workers, the job runner) instead of only raising the limit.
+
+**3. Why is idle memory so far below the plan?**
+The plan counted the limits, not use. At idle nothing is computing. Under a replay and a retrain the model server and backend grow, and Spark runs in the other profile.
+
+**4. How do you know the containers are really talking to each other?**
+The forecast comes from the model server (version 4 in the answer), the version metadata from the registry through MLflow, and the frontend client reached the backend by its compose name.

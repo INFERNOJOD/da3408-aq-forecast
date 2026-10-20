@@ -65,13 +65,20 @@ services:
     profiles: [serve]
     image: aq-model-server              # same image: it already has MLflow installed
     command: >
-      mlflow server --host 0.0.0.0 --port 5000
+      mlflow server --host 0.0.0.0 --port 5000 --workers 1
       --backend-store-uri sqlite:///${HOST_PROJECT}/mlflow.db
       --default-artifact-root ${HOST_PROJECT}/mlruns
       --allowed-hosts mlflow:5000,mlflow,localhost:${MLFLOW_HOST_PORT:-5000},localhost
-    mem_limit: 512m
+    healthcheck:                        # the image's own check is for port 5001
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+    mem_limit: 768m                     # 512m and 1g were killed with 4 workers and the job runner
     ports: ["${MLFLOW_HOST_PORT:-5000}:5000"]
-    environment: {MLFLOW_DISABLE_AGENT_HINT: "1"}
+    environment:
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+      MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"   # background job runner used the memory
     volumes:
       - ${HOST_PROJECT}/mlflow.db:${HOST_PROJECT}/mlflow.db
       - ${HOST_PROJECT}/mlruns:${HOST_PROJECT}/mlruns
