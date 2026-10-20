@@ -34,7 +34,12 @@ from src.common.errors import DataValidationError
 from src.common.logging_setup import configure_logging, get_logger
 from src.common.schema import FEATURE_COLUMNS, FEATURES, HORIZONS
 from src.common.stage_runner import run_stage
-from src.common.versioning import dir_md5, dvc_raw_md5, git_commit, git_dirty
+from src.common.versioning import (
+    dvc_raw_md5,
+    git_commit,
+    git_dirty,
+    parquet_data_md5,
+)
 from src.pipeline import modeling
 from src.pipeline.train_plots import plot_feature_importance, plot_residuals
 
@@ -346,7 +351,7 @@ def run_train(params: dict[str, Any]) -> dict[str, int]:
         "git_commit": git_commit(),
         "git_dirty": git_dirty(),
         "dvc_data_md5": dvc_raw_md5(paths["raw_dvc"]),
-        "features_md5": dir_md5(train_path),
+        "features_md5": parquet_data_md5(train_path),
     }
     candidate_dir = Path(paths["models_dir"]) / "candidate"
     run_id, model_uri = log_run(

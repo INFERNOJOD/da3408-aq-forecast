@@ -1,5 +1,7 @@
 import subprocess
 
+import numpy as np
+import pandas as pd
 import pytest
 from src.common import versioning
 from src.common.errors import ConfigError
@@ -20,21 +22,48 @@ def test_dvc_raw_md5_errors(tmp_path):
         versioning.dvc_raw_md5(bad)
 
 
-def test_dir_md5_changes_with_content_and_ignores_checksum_files(tmp_path):
-    d = tmp_path / "data.parquet"
-    d.mkdir()
-    (d / "part-0").write_bytes(b"abc")
-    first = versioning.dir_md5(d)
-    assert versioning.dir_md5(d) == first
-    (d / ".part-0.crc").write_bytes(b"ignored")  # Spark checksum file
-    assert versioning.dir_md5(d) == first
-    (d / "part-0").write_bytes(b"abd")
-    assert versioning.dir_md5(d) != first
+def make_data(path, order=(0, 1, 2), value=3.0):
+    df = pd.DataFrame(
+        {
+            "City": ["A", "A", "B"],
+            "Datetime": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-01"]),
+            "x": [1.0, np.nan, value],
+        }
+    )
+    df.iloc[list(order)].to_parquet(path, index=False)
 
 
-def test_dir_md5_missing_path(tmp_path):
-    with pytest.raises(ConfigError):
-        versioning.dir_md5(tmp_path / "missing")
+def test_parquet_data_md5_ignores_layout_and_row_order(tmp_path):
+    make_data(tmp_path / "a.parquet")
+    make_data(tmp_path / "b.parquet", order=(2, 0, 1))  # same rows, other order
+    assert versioning.parquet_data_md5(
+        tmp_path / "a.parquet"
+    ) == versioning.parquet_data_md5(tmp_path / "b.parquet")
+
+
+def test_parquet_data_md5_reads_a_folder_of_part_files(tmp_path):
+    folder = tmp_path / "data.parquet"
+    folder.mkdir()
+    make_data(folder / "part-00000-aaa.parquet")
+    first = versioning.parquet_data_md5(folder)
+    (folder / "part-00000-aaa.parquet").rename(folder / "part-00000-zzz.parquet")
+    assert versioning.parquet_data_md5(folder) == first  # a new random id, same data
+
+
+def test_parquet_data_md5_changes_when_a_value_changes(tmp_path):
+    make_data(tmp_path / "a.parquet")
+    make_data(tmp_path / "b.parquet", value=3.5)
+    assert versioning.parquet_data_md5(
+        tmp_path / "a.parquet"
+    ) != versioning.parquet_data_md5(tmp_path / "b.parquet")
+
+
+def test_parquet_data_md5_errors(tmp_path):
+    with pytest.raises(ConfigError, match="not found"):
+        versioning.parquet_data_md5(tmp_path / "missing")
+    make_data(tmp_path / "a.parquet")
+    with pytest.raises(ConfigError, match="missing columns"):
+        versioning.parquet_data_md5(tmp_path / "a.parquet", sort_by=("nope",))
 
 
 def test_git_commit_and_dirty_in_a_temp_repo(tmp_path, monkeypatch):

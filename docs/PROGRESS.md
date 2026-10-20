@@ -312,7 +312,7 @@ The model is one MLflow pyfunc, `AQForecaster` in `src/pipeline/aq_model.py`, th
 
 **What the MLflow run holds beyond autolog.** I do not use autolog at all. The run has these.
 
-- Tags: the full git commit hash, `git_dirty` (true if tracked files had uncommitted changes, so a hash is only a precise record when it is false), the DVC hash of the raw data, a hash of the feature files, the cutoff, what triggered the run, and the pipeline run id.
+- Tags: the full git commit hash, `git_dirty` (true if tracked files had uncommitted changes, so a hash is only a precise record when it is false), the DVC hash of the raw data, a hash of the feature values, the cutoff, what triggered the run, and the pipeline run id.
 - 88 metrics: MAE and RMSE for all four models, each horizon and each city, the comparison with the best baseline, error on high-pollution hours, fit times, and drift scores when a drift trigger file exists.
 - Artifacts: `per_city_mae.csv`, `feature_importance.png`, `residuals.png`, the drift baseline, the resolved settings, and the exact package versions.
 - The model, linked to the run, with a signature that matches the LLD columns.
@@ -341,6 +341,8 @@ At 1 h LightGBM beats the best baseline by 7%. At 24 h it is 2.2% worse than Rid
 **A hard-coded path.** The end-to-end test changes directory, and `data/raw.dvc` was not found. The location now comes from `params.yaml`. The code was wrong to depend on the current directory.
 
 **LightGBM was not repeatable.** The same stage gave 14.20 and then 14.13 at 24 h, with no change in code or data. I tested it: three identical fits differed by up to 5 µg/m³ on a single prediction. With `deterministic` and `force_row_wise` they are identical, and two forced reruns of the stage match. This is now the default in `build_lightgbm`, with a test. Without it, the guideline that every experiment is reproducible would not have held.
+
+**My data fingerprint was not stable.** I first hashed the Parquet files of the features. After rerunning the stage on identical data, the hash was different. Spark puts a random id in every part-file name, and I removed the names from the hash. Then I compared the folder written by the pipeline with a fresh run and the hash still differed. Only 63 of 3.2 million bytes were different, in the file footer, and pandas confirmed that all values were equal. So the byte-level hash cannot work. The version tag now hashes the values themselves, sorted by city and time. The pipeline output and two fresh runs give the same hash, and a test covers file layout, row order and a changed value. This is the sort of thing that would have gone unnoticed, because a tag that is always different looks like a tag that works.
 
 **`mlflow run` failed twice** because `python` was not on PATH when the virtualenv was not activated. It works after `source .venv/bin/activate`. I left the two failed runs out of the final experiment.
 
@@ -387,7 +389,7 @@ The full tables are in `docs/metrics.md`.
 The 24 h target of a training row at time t is the PM2.5 at t + 24 h. If t is within 24 hours of the start of the evaluation window, that target lies inside the window. The model would then train on values it is later scored on, and the error would look better than it is. So a row only trains if its target hour is before the window starts.
 
 **2. How do you know a result can be reproduced?**
-Each run is tagged with the full git commit hash, a flag that says whether tracked files had uncommitted changes, the DVC hash of the raw data and a hash of the feature files. The environment is pinned in `python_env.yaml` and matches `uv.lock`. Training is deterministic: I found that without two LightGBM settings, three identical runs differed by up to 5 µg/m³, so I turned them on and tested it. Running through `mlflow run` gave the same numbers as the pipeline.
+Each run is tagged with the full git commit hash, a flag that says whether tracked files had uncommitted changes, the DVC hash of the raw data and a hash of the feature values. The environment is pinned in `python_env.yaml` and matches `uv.lock`. Training is deterministic: I found that without two LightGBM settings, three identical runs differed by up to 5 µg/m³, so I turned them on and tested it. Running through `mlflow run` gave the same numbers as the pipeline.
 
 **3. Your 24-hour model is slightly worse than Ridge. Why call LightGBM the main model?**
 It is the model the design chose, and it is better at 1 h (7% below the best baseline) and on average (mean MAE 9.45 against 9.57 for Ridge). At 24 h the gap is 2.2% on 336 rows, which is within what a change of settings does. I report this openly, and the promotion rule decides what is served. If it keeps losing to Ridge in later retrains, the rule will block it.
@@ -396,4 +398,4 @@ It is the model the design chose, and it is better at 1 h (7% below the best bas
 Ridge is a pipeline with a median imputer that also adds a flag column for every input that had gaps. The imputer is learned from training rows only and is part of the model object, so scoring treats gaps the same way. I kept PM10 even though 40% of it is missing because the input list is fixed in the LLD, and because the flag lets the model use the fact that PM10 is missing. LightGBM handles nulls itself.
 
 **5. What does your MLflow run record that autolog would not?**
-Autolog records parameters and a generic metric set. I log the git commit and a dirty flag, the DVC data version, a hash of the features, errors for every model, horizon and city, the ratio to the best baseline, error on high-pollution hours, the drift baseline used for monitoring, feature importance and residual plots, the exact package versions, and drift scores when a drift alert caused the retrain.
+Autolog records parameters and a generic metric set. I log the git commit and a dirty flag, the DVC data version, a hash of the feature values, errors for every model, horizon and city, the ratio to the best baseline, error on high-pollution hours, the drift baseline used for monitoring, feature importance and residual plots, the exact package versions, and drift scores when a drift alert caused the retrain.

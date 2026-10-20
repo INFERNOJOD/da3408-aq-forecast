@@ -8,6 +8,7 @@ import hashlib
 import subprocess
 from pathlib import Path
 
+import pandas as pd
 import yaml
 
 from src.common.errors import ConfigError
@@ -58,24 +59,27 @@ def dvc_raw_md5(dvc_file: str | Path = "data/raw.dvc") -> str:
         raise ConfigError(f"No data hash in {path}") from exc
 
 
-def dir_md5(path: str | Path) -> str:
-    """Hash all files under a directory (names and contents) into one md5.
+def parquet_data_md5(
+    path: str | Path, sort_by: tuple[str, ...] = ("City", "Datetime")
+) -> str:
+    """Hash the values in a Parquet dataset, whatever the file layout.
 
     Used as the version of the feature files, which DVC only hashes after the
-    stage has finished.
+    stage has finished. Hashing the raw bytes does not work: Spark names every
+    part file with a random id, and I found that even the bytes inside a file can
+    differ between two runs on identical data. So the rows are sorted by
+    ``sort_by`` and hashed value by value, with the column names.
     """
-    root = Path(path)
-    if not root.exists():
-        raise ConfigError(f"Path not found: {root}")
-    files = (
-        [root] if root.is_file() else sorted(p for p in root.rglob("*") if p.is_file())
-    )
+    path = Path(path)
+    if not path.exists():
+        raise ConfigError(f"Path not found: {path}")
+    df = pd.read_parquet(path)
+    missing = [c for c in sort_by if c not in df.columns]
+    if missing:
+        raise ConfigError(f"Cannot sort {path} by missing columns {missing}")
+    df = df.sort_values(list(sort_by)).reset_index(drop=True)
+    row_hashes = pd.util.hash_pandas_object(df, index=False).to_numpy()
     digest = hashlib.md5()  # noqa: S324 - a version fingerprint, not security
-    for file in files:
-        if file.name.startswith(".") or file.name.endswith(".crc"):
-            continue  # Spark checksum files are not part of the data
-        digest.update(str(file.relative_to(root.parent)).encode())
-        with file.open("rb") as fh:
-            for chunk in iter(lambda: fh.read(1 << 20), b""):
-                digest.update(chunk)
+    digest.update(",".join(map(str, df.columns)).encode())
+    digest.update(row_hashes.tobytes())
     return digest.hexdigest()
