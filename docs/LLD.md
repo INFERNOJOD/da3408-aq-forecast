@@ -225,7 +225,8 @@ Alert rules (`monitoring/alerts.yml`):
 | `data/interim/*.parquet` | ingest | validate, features | Typed copies of the raw CSVs |
 | `data/features/train.parquet` | features | train, evaluate | Rows before the cutoff, with features and targets `y_1h`, `y_24h` |
 | `data/features/serving.parquet` | features | backend (ro) | All hours 2020-01-01..2020-06-30 for the 7 cities. Features are causal (past only) and `pm25` actuals are included for replay scoring. |
-| `reports/validation.json` | validate | console, docs | Check results |
+| `reports/validation.json` | validate | console, docs | `{status, n_checks, n_passed, n_warnings, n_failed, checks[], stats}`; each check is `{table, check, status: pass/warn/fail, detail, value}` |
+| `reports/eda/*.csv` | `python -m src.pipeline.eda` (manual, not a DVC stage) | `scripts/plot_eda.py`, docs | Small aggregates for `docs/eda.md` |
 | `reports/runs.jsonl` | every stage (via `stage_runner`) | backend `/pipeline/*` | One JSON line per stage execution: `{run_id, trigger, stage, status, started_at, duration_s, rows_in, rows_out, rows_per_sec, error, git_commit, cutoff}` |
 | `ops/requests/<id>.json` | backend | ops runner | `{request_id, reason, cutoff, created_at, status}`. The runner updates `status` (`queued → running → done / failed / rolled_back`). |
 | MLflow artifacts per run | train | backend, model server | `model/` (pyfunc), `drift_baseline.json`, `per_city_mae.csv`, `feature_importance.png`, `residuals.png` |
@@ -235,7 +236,7 @@ Alert rules (`monitoring/alerts.yml`):
 | Stage | Command | deps | outs / metrics |
 |-------|---------|------|----------------|
 | ingest | `python -m src.pipeline.ingest` | `data/raw`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, ingest` | `data/interim/` (one Parquet folder per table) |
-| validate | `python -m src.pipeline.validate` | `data/interim/` | `reports/validation.json` (metric) |
+| validate | `python -m src.pipeline.validate` | `data/interim/`, `src/pipeline/validate.py`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, cities, replay, validate` | `reports/validation.json` (metric, kept in git; written even when validation fails) |
 | features | `python -m src.pipeline.features` | `data/interim/`, params `cities, cutoff, features` | `data/features/` |
 | train | `python -m src.pipeline.train` | `data/features/train.parquet`, params `train, cutoff` | `models/candidate/`, `reports/train_metrics.json` |
 | evaluate | `python -m src.pipeline.evaluate` | `models/candidate/`, `data/features/train.parquet` | `reports/eval.json` (candidate vs champion) |

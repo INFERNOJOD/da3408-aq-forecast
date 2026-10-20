@@ -78,3 +78,12 @@ Data facts found by validation (full list in `reports/validation.json`):
 no duplicate rows, no negative values, no missing ids or timestamps, all
 timestamps on the hour. All 7 selected cities have PM2.5 for 99.9% to 100% of the
 2,352 replay hours (25 Mar to 30 Jun 2020).
+
+## Stage 5b: EDA aggregates (Spark)
+
+| What | Value |
+|------|-------|
+| Command | `python -m src.pipeline.eda` |
+| Output | 8 CSV files, 1,533 rows in total (about 100 KB) |
+| Time | about 9.4 s in total (session start about 1.5 s) |
+| Plots | `python scripts/plot_eda.py` makes 6 PNG files in a few seconds |
