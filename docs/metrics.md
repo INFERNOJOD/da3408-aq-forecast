@@ -300,3 +300,20 @@ The same test outside Docker gave 4.7 ms p50 for 1 row and 6.1 ms p50 for 14 row
 | Requests that failed while the champion was swapped (about 25 s of requests every 50 ms, run outside Docker) | 0 |
 
 During a swap two MLflow processes exist for a few seconds, so memory briefly rises above the 504 MiB. I did not measure that peak, and I will set the compose `mem_limit` in Stage 13 with that in mind.
+
+## Stage 10: backend
+
+Measured on this VM with the backend running locally (plain HTTP, one uvicorn worker) in front of the real model server on the same machine, serving champion v1. The client was a Python loop on the host with one request at a time, 200 requests per endpoint. This is serial latency, not a load test, and I did not measure the backend's memory.
+
+| Endpoint | p50 | p95 |
+|----------|-----|-----|
+| `GET /forecast?city=Delhi` (two model rows, one call to the model server) | 8.7 ms | 15.6 ms |
+| `GET /health` (includes a `/ping` to the model server) | 1.8 ms | 3.4 ms |
+| `GET /cities` | 0.5 ms | 1.2 ms |
+
+A forecast includes the feature lookup, one call to the model server and the registry cache. The model server alone took 6.5 ms at p50 for 14 rows in Stage 9, so most of the 8.7 ms is the model call. The replay clock ran at 20 simulated hours per second and reached 2020-03-27 12:00 after 3 seconds, as expected.
+
+| Test run | Count |
+|----------|-------|
+| Backend tests (`tests/test_backend.py`) | 92 passed |
+| Whole suite | 248 passed, 0 failed |

@@ -69,6 +69,7 @@ class ModelRegistryClient:
                 "version": str(v.version),
                 "aliases": aliases.get(str(v.version), []),
                 "mlflow_run_id": v.run_id,
+                "created_ms": v.creation_timestamp,
                 "tags": dict(v.tags),
             }
             for v in found

@@ -625,3 +625,88 @@ Tests: 12 new tests in `tests/test_model_server.py` for the proxy (forwarding, c
 ### Next: Stage 10
 
 Stage 10 builds the FastAPI backend from `docs/LLD.md`. It will call this server through `MODEL_SERVER_URL`. I have no open question that blocks it. Waiting for your go-ahead.
+
+## Part 9: Stage 10, the FastAPI backend
+
+### What I built
+
+The backend is the only service the frontend will talk to. It lives in `src/backend/` and follows `docs/LLD.md` route by route. I split it into small classes so each one can be tested alone.
+
+| File | What it does |
+|------|--------------|
+| `app.py` | `create_app(settings, ...)` builds the app and all routes. Collaborators are arguments, so tests pass fakes. |
+| `forecaster.py` | `Forecaster`: finds the city's feature row for the current replay hour, asks the model server for both horizons in one call, clips and rounds, adds the AQI category. |
+| `replay.py` | `ReplayClock`: the simulated "now". It has no thread. It stores where the replay was when it last changed and computes the current hour from the wall clock when asked. |
+| `store.py` | Reads `data/features/serving.parquet` once (30,576 rows) and looks up a (city, hour). |
+| `model_client.py` | Calls `/invocations` and `/ping`. Any failure becomes one error type, which the API turns into 503 `MODEL_UNAVAILABLE`. |
+| `registry_view.py` | The registry with a 30 s cache. If the registry is down, it returns what it knew before, and forecasts still work (their run id and commit become `null`). |
+| `pipeline_view.py` | Reads `reports/runs.jsonl` for `/pipeline/stages` and `/pipeline/runs`. |
+| `ops.py` | `RetrainQueue`: writes `ops/requests/<id>.json`, refuses a second one while one is active, and applies the 30-minute cooldown to alerts. |
+| `drift.py` | Builds the `/ops/drift` body. See the limits below. |
+| `metrics.py` | The backend metrics from LLD section 5. |
+| `errors.py` | One error body for every non-2xx answer, including FastAPI's own 422, 404 and 405. |
+
+The endpoints are `/health`, `/cities`, `/aqi/categories`, `/forecast`, `/pipeline/stages`, `/pipeline/runs`, `/pipeline/models`, `/metrics`, and the ops endpoints `/ops/drift`, `/ops/replay` (GET and POST), `/ops/retrain`, `/ops/rollback` and `/ops/alerts`. The ops endpoints need `Authorization: Bearer <OPS_API_KEY>`. I compare the key with `hmac.compare_digest`, and the backend refuses to start without a key.
+
+**Input checking.** `city` is checked against the list of seven cities (404 for anything else, 422 if missing). The request bodies are Pydantic models with ranges (`speed_hps` 0.1-20, `reason` 1-200 characters, `limit` 1-100). Malformed JSON gives a 422. A crash inside an endpoint is caught by a middleware, logged with its traceback and returned as a generic 500 with no internals.
+
+**Metrics.** A middleware counts and times every request. The path label is the route template, and a path that matches no route is labelled `unmatched`. I did this so a scanner hitting random URLs cannot create unlimited label values.
+
+I changed `ModelRegistryClient.versions()` to also return the creation time, because `/pipeline/models` shows it. Nothing else in the pipeline changed.
+
+### How to run it
+
+```
+export PATH=$PWD/.venv/bin:$PATH
+MLFLOW_TRACKING_URI=sqlite:///mlflow.db python -m src.model_server.serve &   # ports 5001, 8001
+OPS_API_KEY=anything MODEL_SERVER_URL=http://localhost:5001 \
+  MLFLOW_TRACKING_URI=sqlite:///mlflow.db OPS_DIR=/tmp/ops python -m src.backend.main
+curl localhost:8000/health
+curl 'localhost:8000/forecast?city=Delhi'
+curl -H 'Authorization: Bearer anything' -X POST localhost:8000/ops/replay \
+  -H 'content-type: application/json' -d '{"action":"start","speed_hps":20}'
+```
+
+There is no certificate yet, so the backend serves plain HTTP and says so in the log. HTTPS comes in Stage 15. The tests run without any server: `pytest tests/test_backend.py`.
+
+### What I ran and measured
+
+I ran the backend against the real model server with champion v1. The forecast for Delhi at the replay start returned 28.2 µg/m³ at 1 h (Good) and 51.4 at 24 h (Satisfactory), with run id `0b70053677db...` and commit `feab67a` from the registry. `/ops/drift` without a key returned 401. After `start` at 20 hours per second, the clock read 2020-03-27 12:00 three seconds later. `/forecast` took 8.7 ms at p50 and 15.6 ms at p95 over 200 serial calls (table in `docs/metrics.md`). The new tests are 92, and the whole suite is 248 passed, 0 failed. `ruff` is clean.
+
+### What went wrong
+
+**`pkill -f` killed my shell again.** I repeated the Stage 9 mistake while restarting the model server, and the command ended with exit code 144. I now list processes with `ps`, pick the PIDs and kill those. Nothing was damaged.
+
+**I started the model server without the virtual environment on `PATH`.** `mlflow models serve` calls `uvicorn` by name and failed with code 127. Putting `.venv/bin` on `PATH` fixed it.
+
+**My first version called a run "running".** `runs.jsonl` cannot tell me that a run is in progress, and DVC skips unchanged stages, so a run with only two lines is normal. A run with no failed stage is now `success`. I also stopped attaching `register.json` to a run that did not run the register stage, because it would show another run's promotion result.
+
+**One test I left half-written.** I had a placeholder test for `NO_DATA`. I replaced it with a real one that starts the clock outside the stored period.
+
+### Limits you should know about
+
+- **`/ops/drift` returns the shape, not the scores.** All PSI and MAE numbers are `null` and `any_drift` is always false. The drift computation, the thresholds file and the acceptance test belong to Stage 11 in the plan, and I did not want to build half of it here. The LLD says so. Until Stage 11, `aq_drift_detected` stays at 0.
+- **`/pipeline/runs` knows `promoted` only for the newest run.** The file stores no promotion result per run. Older runs show `null`.
+- **The replay clock lives in memory.** If the backend restarts, the replay goes back to the start and stops.
+- **A forecast needs a feature row for the exact replay hour.** If the data has a gap, the answer is 503 `NO_DATA`, as in the LLD.
+- **The retrain request is only a file.** Nothing consumes it until the ops runner exists (Stage 11). I tested the file and the cooldown, not a real retrain.
+- **No Dockerfile yet.** It comes with Stage 13. I did not measure the backend's memory.
+- **No TLS yet** (Stage 15).
+
+### Viva questions I prepared
+
+**1. Why does the replay clock have no thread?** A thread needs starting, stopping and locking, and a test would have to wait for real time. The clock only stores its state and computes the hour when asked, so a test passes a fake timer and checks exact values.
+
+**2. Why does the backend send the model both horizons in one call?** One request costs less than two, and both answers come from the same model version. The backend checks that the two predictions report the same version, and answers 503 if they do not.
+
+**3. Why does the backend not run `dvc repro` itself?** Training needs Spark and 2 GB of memory, and the backend container has a small limit. It writes a request file and a separate runner on the host does the work. That also means the backend never needs Docker access.
+
+**4. What happens if the registry is down?** Forecasts still work. The model version comes from the model server's own answer, and the run id and commit become `null`. `/pipeline/models` returns the last list it knew.
+
+**5. Why does every error have the same JSON shape?** The frontend can show one friendly message from `error.code` and never has to guess the format. I overrode FastAPI's default 422, 404 and 405 bodies for this reason.
+
+**6. Why is the API key compared with `compare_digest`?** A normal string comparison stops at the first different character, so its timing can leak how much of a guess was right.
+
+### Next: Stage 11
+
+Stage 11 builds the drift module and the replay script, the ops runner that turns a request file into `dvc repro`, and the acceptance test: the lockdown replay must trigger drift at least once, and normal weeks of earlier years must not. It also fills in `/ops/drift`. I have no open question that blocks it. Waiting for your go-ahead.

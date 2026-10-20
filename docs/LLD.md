@@ -20,6 +20,8 @@ This document is the interface contract. Code must match it exactly; any endpoin
 | 400 | `BAD_REQUEST` | Semantically invalid request (e.g. rollback to a non-existent version) |
 | 401 | `UNAUTHORIZED` | Missing or wrong API key on `/ops/*` |
 | 404 | `UNKNOWN_CITY` | City not in the supported list |
+| 404 | `NOT_FOUND` | No such route |
+| 405 | `METHOD_NOT_ALLOWED` | Route exists, method does not |
 | 409 | `CONFLICT` | Retrain already pending or running; replay already in the requested state |
 | 422 | `VALIDATION_ERROR` | Wrong type, missing field, value out of range |
 | 503 | `MODEL_UNAVAILABLE` | Model server unreachable or returned an error |
@@ -33,7 +35,7 @@ This document is the interface contract. Code must match it exactly; any endpoin
 ```json
 {"status": "ok", "model_server": "up", "model_version": "3", "sim_time": "2020-03-25T14:00:00", "replay_running": true}
 ```
-`status` is `"degraded"` when `model_server` is `"down"`. The endpoint still returns 200, so it works as a liveness probe.
+`status` is `"degraded"` when `model_server` is `"down"` (`GET /ping` failed). The endpoint still returns 200, so it works as a liveness probe. `model_version` is the registry's `champion` version (cached for 30 s), or `null` if the registry cannot be read.
 
 ### GET `/cities`
 200:
@@ -69,7 +71,7 @@ The `max` of the last category (`Severe`) is `null`.
   "model": {"name": "aq-pm25", "version": "3", "mlflow_run_id": "8f1c...", "git_commit": "6b50365"}
 }
 ```
-`pm25` is in µg/m³, rounded to 1 decimal and clipped at 0. `latest_observed_pm25` may be `null` if the current hour is missing.
+`pm25` is in µg/m³, rounded to 1 decimal and clipped at 0. `latest_observed_pm25` may be `null` if the current hour is missing. `model.version` is the version the model server reported in its answer; `mlflow_run_id` and `git_commit` (7 characters) come from that version's registry entry and are `null` if the registry cannot be read. The category of a value is the one whose lowest value is not above it, so 30.5 is `Good` and 31 is `Satisfactory`.
 Errors: 404 `UNKNOWN_CITY`, 422, 503 `MODEL_UNAVAILABLE` / `NO_DATA`.
 
 ### GET `/pipeline/stages`
@@ -92,7 +94,7 @@ The DVC DAG with the status of each stage in the most recent run.
    "error": "PM2.5 > 1000 in 12 rows", "git_commit": "abc1234", "mlflow_run_id": null, "promoted": false}
 ]}
 ```
-`trigger` ∈ `manual | drift_alert | initial`. `started_at` is wall-clock time (not simulated).
+`trigger` ∈ `manual | drift_alert | initial`. `started_at` is wall-clock time (not simulated). A run is all lines of `runs.jsonl` with the same `run_id`. Its `status` is `failed` if any stage failed and `success` otherwise (DVC skips unchanged stages, so a run does not always contain all seven, and the file cannot say that a run is still going). `promoted` and `mlflow_run_id` come from `reports/register.json`, so they are filled only for the newest run and only if it ran the `register` stage; otherwise they are `null`.
 
 ### GET `/pipeline/models`
 Registry versions of `aq-pm25`, newest first.
@@ -117,6 +119,8 @@ Prometheus text format (see §5).
  "cities_exceeding": 4, "mae_ratio_pooled": 1.7,
  "psi_condition": true, "mae_condition": true, "any_drift": true}
 ```
+**Stage 10 status:** the endpoint and its shape exist, but the scores are not computed yet. Every `psi`, `exceeds` and `mae_ratio_*` value is `null`, `votes` is false, `cities_exceeding` is 0 and `any_drift` is false. `psi_threshold` is read from `reports/drift_thresholds.json` if that file exists. Stage 11 fills in the numbers.
+
 `any_drift` is `psi_condition` and `mae_condition`. `psi_condition` is true when at least `min_cities` cities have `exceeds` true. `mae_condition` is true when `mae_ratio_pooled` is above `mae_ratio_threshold`. A city with `psi_threshold` null (fewer than three reference years, so no threshold could be computed) does not vote.
 
 `psi` compares the last 168 replayed hours with the same-season reference block `reference_block` = `h // 168` in `reports/baseline_stats.json`, where `h` is the replay hour of the window's last hour. `exceeds` is `psi > psi_threshold`, with the per-city threshold from `reports/drift_thresholds.json`. `mae_ratio_1h` is the city's 1 h MAE over the last 72 replayed hours divided by the model's 1 h MAE on its evaluation window. `mae_ratio_pooled` is the same ratio over all cities together. `psi` and `exceeds` are `null` until 168 replayed hours exist. The MAE ratios are `null` until 24 replayed hours exist.
@@ -139,7 +143,7 @@ Request:
 ```json
 {"reason": "manual"}
 ```
-`reason`: string, 1-200 chars. The cutoff is set to the current `sim_time`.
+`reason`: string, 1-200 chars. The cutoff is set to the current `sim_time`. `request_id` is `rt-` plus the wall-clock time to the second.
 
 202:
 ```json
@@ -287,7 +291,9 @@ Alert rules (`monitoring/alerts.yml`):
 | `MODEL_PORT`, `METRICS_PORT` | model server | `5001`, `8001` |
 | `REPLAY_SPEED_HPS` | backend | `1.0` |
 | `RETRAIN_COOLDOWN_MIN` | backend | `30` |
+| `OPS_DIR` | backend | `<project>/ops` (request files go to `<OPS_DIR>/requests/`) |
+| `BACKEND_PORT` | backend | `8000` |
 | `DRIFT_MIN_CITIES` | backend | `3` |
 | `DRIFT_MAE_RATIO` | backend | `1.5` |
-| `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key` |
+| `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key`. If either file is missing the backend serves plain HTTP and logs a warning (Stage 15 creates the certificate). |
 | `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` |
