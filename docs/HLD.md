@@ -51,7 +51,9 @@ The `evaluate` stage loads the candidate and the champion as MLflow packages, th
 
 **Registry and rollback.** MLflow aliases `champion` and `previous` do the work. Rollback moves `champion` back to `previous`, or to a version I name. It is a metadata change, so it is instant, auditable and reversible.
 
-**Model reload.** A watcher in the model-server container polls the `champion` alias every 30 seconds and restarts `mlflow models serve` when it changes. The backend never needs Docker access, and a promotion takes effect without manual steps.
+**Model reload.** A watcher in the model-server container polls the `champion` alias every 30 seconds. When it moves, the watcher starts a second `mlflow models serve` process with the new version on a spare internal port, waits until it answers, points the proxy at it and stops the old one. I chose this over a plain restart because a restart drops requests for the few seconds the model takes to load. If the new model fails to start, the old one keeps serving. The backend never needs Docker access, and a promotion takes effect without manual steps.
+
+**Model server proxy.** `mlflow models serve` has no Prometheus endpoint, so a thin proxy sits on port 5001 in front of it, counts rows per horizon, times each call and serves `/metrics` on port 8001. The cost is one extra local hop; the latencies in `docs/metrics.md` include it.
 
 **Live traffic.** The backend's `ReplayClock` advances simulated time from 2020-03-25 at `REPLAY_SPEED_HPS` (default: 1 simulated hour per second). Forecasts use the features at the simulated "now". Actual values are revealed only when the clock passes them. This gives realistic, time-ordered traffic and lets a demo show drift within minutes.
 

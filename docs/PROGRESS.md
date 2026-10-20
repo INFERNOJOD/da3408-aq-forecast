@@ -550,3 +550,78 @@ Stage times are in `docs/metrics.md`: `evaluate` 0.7 s, `test` under 0.1 s, `reg
 ### Next: Stage 9
 
 Stage 9 serves the `champion` alias with `mlflow models serve` in a container and measures `/invocations` latency. I have no open question that blocks it. Waiting for your go-ahead.
+
+## Part 8: Stage 9, the model server
+
+### What I built
+
+The model server is one container that serves the registered model through the MLflow API. It has three parts, all in `src/model_server/`.
+
+**`mlflow models serve`.** This is the part the course asks for. It loads the package of the `champion` version and answers `POST /invocations` and `GET /ping`. I use one worker and `--env-manager local`, which means it runs in the container's own Python environment instead of building a new one. The container pins the same package versions as `python_env.yaml`.
+
+**`proxy.py`, a small proxy on port 5001.** `mlflow models serve` cannot export Prometheus metrics, and the plan says every component must. So the public port belongs to my proxy. It forwards each request to MLflow, times `/invocations`, counts the rows per horizon, and serves `aq_model_predictions_total`, `aq_model_predict_duration_seconds` and `aq_model_loaded_version` on port 8001. If MLflow is down it answers 503, which the backend already treats as "model unavailable" (LLD section 1). Errors from MLflow, such as a bad horizon, pass through with their own status.
+
+**`supervisor.py`, the watcher.** Every 30 seconds it reads the `champion` alias. If it moved, it downloads that version, starts a second MLflow process on the spare internal port (5002 or 5003), waits for `/ping`, switches the proxy to it, and stops the old process. A promotion and a rollback look the same to it, because both just move the alias. If the new model does not start, the old one keeps serving.
+
+`docker/model_server/Dockerfile` builds the image from `python:3.12-slim`. It needs `libgomp1` for LightGBM, copies only the code it needs, and runs as a non-root user. `.dockerignore` keeps the data, the MLflow files and the virtual environment out of the build context.
+
+I updated the LLD (the server layout, two ports, the new environment variables), the HLD (reload and proxy), the architecture text, `docs/PLAN.md` and `docs/metrics.md`.
+
+### How to run it
+
+Locally, from the repo with the virtual environment active:
+
+```
+MLFLOW_TRACKING_URI=sqlite:///mlflow.db python -m src.model_server.serve
+curl localhost:5001/ping
+curl localhost:5001/invocations -H 'Content-Type: application/json' -d @models/candidate/serving_input_example.json
+curl localhost:8001/metrics | grep aq_model
+```
+
+In Docker (the registry is still a file on the host, so I mount the project at the same path; Stage 13 replaces this with an MLflow service):
+
+```
+docker build -f docker/model_server/Dockerfile -t aq-model-server .
+docker run -d --name aq-model-server --memory 1g --user $(id -u):$(id -g) \
+  -v "$PWD:$PWD" -e MLFLOW_TRACKING_URI="sqlite:///$PWD/mlflow.db" \
+  -p 15001:5001 -p 18001:8001 aq-model-server
+```
+
+I mapped to ports 15001 and 18001 because the `a4-alertmanager` container posts to port 5001 on this machine, and I did not want it to hit my proxy.
+
+### What I ran and what I measured
+
+A sample call with the saved example row returned `{"predictions": [{"pm25": 119.9, "model_version": "1"}]}`. The container reported `healthy`. Serial latency through the proxy in the container: 1 row p50 4.9 ms, p95 8.1 ms; 14 rows (what the backend will send) p50 6.5 ms, p95 9.9 ms. The container used 504 MiB. The full table is in `docs/metrics.md`.
+
+**Hot swap drill.** With the server running locally and polling every 5 seconds, I registered a second version, which moved `champion` to it, while a client sent a request every 50 ms for 25 seconds. The client saw both versions, `1` then `3`, and 0 failed requests. Then I rolled back, and 12 seconds later the server answered with version 1 again. I deleted the extra version and the `previous` alias afterwards, so the registry is back to version 1 as champion. (The extra version is numbered 3, not 2, because the Stage 8 drill version used the number 2 earlier.) I ran this drill outside Docker, not inside the container.
+
+Tests: 12 new tests in `tests/test_model_server.py` for the proxy (forwarding, counting, error pass-through, 503 cases) and the watcher (first load, swap, rollback, failed load keeps the old model). The full suite is 156 passed, 0 failed, and `ruff` is clean.
+
+### What went wrong
+
+**My cleanup command killed my own shell.** I used `pkill -f` with a pattern that also matched the command line running it. I now find the process IDs with `ps` and kill them. Nothing was damaged, and I checked the registry afterwards.
+
+**The first Docker build took several minutes.** Installing the full MLflow package on ARM is slow. Later builds reuse the cached layer.
+
+### Limits you should know about
+
+- **The container reads the registry through a bind mount.** MLflow stores absolute paths to the model files, so the host path has to exist inside the container. This works for the demo, and it is not a clean design. In Stage 13 the registry should be served by an MLflow service, and the old versions' paths need checking when I do it.
+- **Memory doubles briefly during a swap.** Two models are loaded for a few seconds. I measured 504 MiB with one, not the peak with two.
+- **One architecture only.** I built and ran the image on ARM64 only. Multi-arch comes in Stage 13.
+- **The hot swap was not tested inside the container.** The same code ran there for the first load only.
+
+### Viva questions I prepared
+
+**1. Why a proxy in front of `mlflow models serve`?** MLflow gives no Prometheus metrics. The proxy is the smallest place to count predictions and time them without changing the model package.
+
+**2. Why start the new model before stopping the old one?** A restart would drop requests during the load. Starting beside the old process and switching after `/ping` succeeds means no request fails, and a broken new model never replaces a working one.
+
+**3. How does a rollback reach the server?** `scripts.rollback` moves the `champion` alias. The watcher sees a different version at its next poll and swaps to it, within 30 seconds.
+
+**4. Why does every response carry `model_version`?** The version is set as an environment variable when the process starts, so a forecast can always be traced to the registry version, and from there to the run, the git commit and the data version.
+
+**5. Why `--env-manager local`?** The container already has the pinned packages. Building a separate environment for each version would be slow and need network access.
+
+### Next: Stage 10
+
+Stage 10 builds the FastAPI backend from `docs/LLD.md`. It will call this server through `MODEL_SERVER_URL`. I have no open question that blocks it. Waiting for your go-ahead.

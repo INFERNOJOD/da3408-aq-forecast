@@ -188,7 +188,17 @@ Response:
 ```
 `GET /ping` returns 200 when the model is loaded.
 
-The model is one MLflow pyfunc (`src/pipeline/aq_model.py`) that holds both horizon models and picks one per row from `horizon_h`. Rows come back in the order they were sent. `pm25` is in µg/m³, rounded to 2 decimals and never below 0. A request with a missing column or a `horizon_h` other than 1 or 24 is rejected with an error. `model_version` is read from the environment variable `AQ_MODEL_VERSION`, which the model-server wrapper sets from the registry version it loaded (Stage 9). It is `unversioned` when the variable is not set. The input columns must be integers for `horizon_h`, `city_code`, `hour`, `dow`, `month` and `is_weekend`, and numbers (null allowed) for the rest. The same list is the MLflow model signature.
+The model is one MLflow pyfunc (`src/pipeline/aq_model.py`) that holds both horizon models and picks one per row from `horizon_h`. Rows come back in the order they were sent. `pm25` is in µg/m³, rounded to 2 decimals and never below 0. A request with a missing column or a `horizon_h` other than 1 or 24 is rejected with an error. `model_version` is read from the environment variable `AQ_MODEL_VERSION`, which the model-server wrapper sets from the registry version it loaded (`src/model_server/supervisor.py`). It is `unversioned` when the variable is not set. The input columns must be integers for `horizon_h`, `city_code`, `hour`, `dow`, `month` and `is_weekend`, and numbers (null allowed) for the rest. The same list is the MLflow model signature.
+
+**How the model server is laid out (Stage 9).** The container runs one entry point, `python -m src.model_server.serve`, which starts three things.
+
+| Part | Port | What it does |
+|------|------|--------------|
+| Proxy (`proxy.py`) | 5001 (public) | Forwards `/invocations` and `/ping` to MLflow unchanged, times `/invocations` and counts rows per horizon. Answers 503 `{"error": "model unavailable"}` if MLflow cannot be reached, or `{"error": "no model loaded"}` before the first champion is loaded. Errors from MLflow (for example 400 for a bad horizon) are passed through with their status. |
+| `mlflow models serve` | 5002 or 5003 (internal, 127.0.0.1) | The real model API. One worker. The watcher uses the port that is free. |
+| Metrics (`prometheus_client`) | 8001 | `/metrics` with the three model-server metrics in section 5. |
+
+The watcher (`supervisor.py`) reads the `champion` alias every `POLL_SECONDS` (30). If the version changed it downloads the package, starts MLflow on the spare port, waits for `/ping`, switches the proxy and then stops the old process. If the new model does not start within 90 s, the old model keeps serving and the next poll tries again. A rollback is the same event: the alias moves, so the watcher swaps to the older version.
 
 ## 5. Prometheus metrics
 
@@ -273,6 +283,8 @@ Alert rules (`monitoring/alerts.yml`):
 | `OPS_API_KEY` | backend, frontend (console), alertmanager | — (required, in `.env`) |
 | `MODEL_SERVER_URL` | backend | `http://model-server:5001` |
 | `MLFLOW_TRACKING_URI` | backend, pipeline, model server | `http://mlflow:5000` |
+| `MODEL_NAME`, `POLL_SECONDS` | model server | `aq-pm25`, `30` |
+| `MODEL_PORT`, `METRICS_PORT` | model server | `5001`, `8001` |
 | `REPLAY_SPEED_HPS` | backend | `1.0` |
 | `RETRAIN_COOLDOWN_MIN` | backend | `30` |
 | `DRIFT_MIN_CITIES` | backend | `3` |

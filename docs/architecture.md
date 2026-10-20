@@ -54,7 +54,7 @@ flowchart LR
 
 **Backend (FastAPI).** This is the single REST API the UI talks to. It builds the feature row for a city at the simulated "now", calls the model server, and turns PM2.5 into an AQI category with advice. It also runs the lockdown replay clock, computes drift and rolling error, handles the ops actions behind the API key, and receives Alertmanager webhooks. I put all the logic here so the UI stays thin, and so `docs/LLD.md` is the one contract between the UI and the system.
 
-**Model server (MLflow).** It serves the registered pyfunc model `aq-pm25` at the alias `champion` through `/invocations`. A small watcher inside the container restarts serving when the alias moves, which happens on promotion or rollback. The course asks for MLflow to expose the model as an API, and this also keeps the model runtime separate from the API logic.
+**Model server (MLflow).** It serves the registered pyfunc model `aq-pm25` at the alias `champion` through `/invocations`. A small watcher inside the container starts the new version next to the old one when the alias moves (promotion or rollback), then switches over, so no request fails. A thin proxy in front of `mlflow models serve` provides the Prometheus metrics. The course asks for MLflow to expose the model as an API, and this also keeps the model runtime separate from the API logic.
 
 **MLflow tracking and registry.** It stores runs (parameters, metrics, artifacts, git commit, data hash) and model versions with the aliases `champion` and `previous`. Tracking, promotion and rollback all go through this one registry.
 

@@ -1,0 +1,13 @@
+# Pinned to the versions in uv.lock / python_env.yaml, so the container loads
+# the model in the same environment it was trained in.
+mlflow==3.17.1
+lightgbm==4.7.0
+scikit-learn==1.9.1
+pandas==3.0.6
+pyarrow==25.0.1
+numpy==2.5.4
+pyyaml==6.0.3
+python-dotenv==1.2.4
+prometheus-client==0.26.0
+requests==2.34.2
+uvicorn==0.54.0

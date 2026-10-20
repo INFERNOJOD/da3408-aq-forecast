@@ -280,3 +280,23 @@ score about 830 rows and write a few JSON files.
 Scoring through the package gives the same errors as the train stage within rounding (the package
 rounds predictions to 2 decimals): mean MAE 9.0180 against 9.0180, per horizon 4.4995 against
 4.4996 at 1 h and 13.5365 against 13.5364 at 24 h. LightGBM is served at both horizons.
+
+## Stage 9: model server
+
+Measured on this VM (4 CPU, ARM64) with the container `aq-model-server` run with `--memory 1g`, serving champion v1 (LightGBM at both horizons). The client was a Python loop on the host calling through the proxy (port 5001 inside the container), one request at a time, 300 requests per row. This is serial latency, not a load test.
+
+| Request | p50 | p95 | p99 | Throughput (serial) |
+|---------|----:|----:|----:|--------------------:|
+| 1 row | 4.9 ms | 8.1 ms | 9.6 ms | 188 req/s |
+| 14 rows (7 cities x 2 horizons, what the backend sends) | 6.5 ms | 9.9 ms | 12.5 ms | 141 req/s |
+
+The same test outside Docker gave 4.7 ms p50 for 1 row and 6.1 ms p50 for 14 rows, so the container adds no visible cost.
+
+| Item | Value |
+|------|------:|
+| Time from the proxy start to "Serving champion v1" in the log (package download and model load) | 3 s |
+| Memory of the container after the tests | 504 MiB (of the 1 GiB limit) |
+| Image size | 291 MB |
+| Requests that failed while the champion was swapped (about 25 s of requests every 50 ms, run outside Docker) | 0 |
+
+During a swap two MLflow processes exist for a few seconds, so memory briefly rises above the 504 MiB. I did not measure that peak, and I will set the compose `mem_limit` in Stage 13 with that in mind.
