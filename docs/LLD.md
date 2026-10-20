@@ -114,7 +114,7 @@ Prometheus text format (see §5).
  "cities": [{"city": "Delhi", "psi": 0.41, "mae_ratio_1h": 1.8, "drifted": true}, "..."],
  "any_drift": true}
 ```
-`psi` and `mae_ratio_1h` are `null` until 24 replayed hours exist for that city.
+`psi` and `mae_ratio_1h` are `null` until 24 replayed hours exist for that city. `psi` compares the last 168 replayed hours with the same-season reference block `h // 168` in `reports/baseline_stats.json`, where `h` is the replay hour of the window's last hour.
 
 ### GET `/ops/replay`  ·  POST `/ops/replay`
 Request (POST):
@@ -183,6 +183,8 @@ Response:
 ```
 `GET /ping` returns 200 when the model is loaded.
 
+The model is one MLflow pyfunc (`src/pipeline/aq_model.py`) that holds both horizon models and picks one per row from `horizon_h`. Rows come back in the order they were sent. `pm25` is in µg/m³, rounded to 2 decimals and never below 0. A request with a missing column or a `horizon_h` other than 1 or 24 is rejected with an error. `model_version` is read from the environment variable `AQ_MODEL_VERSION`, which the model-server wrapper sets from the registry version it loaded (Stage 9). It is `unversioned` when the variable is not set. The input columns must be integers for `horizon_h`, `city_code`, `hour`, `dow`, `month` and `is_weekend`, and numbers (null allowed) for the rest. The same list is the MLflow model signature.
+
 ## 5. Prometheus metrics
 
 | Component | Metric | Type | Labels |
@@ -225,12 +227,15 @@ Alert rules (`monitoring/alerts.yml`):
 | `data/interim/*.parquet` | ingest | validate, features | Typed copies of the raw CSVs |
 | `data/features/train.parquet` | features | train, evaluate | Spark Parquet folder. One row per city and hour with `Datetime <= cutoff`: `City`, `Datetime`, the stored feature columns (section 4 without `horizon_h`), `pm25` (observed value at the hour) and targets `y_1h`, `y_24h`. A target is null if its hour is missing or falls after the cutoff, so training never sees the future. Hours missing in the source are present as rows with null values. |
 | `data/features/serving.parquet` | features | backend (ro) | Same columns as `train.parquet`, for every hour 2020-01-01 00:00 .. 2020-06-30 23:00 and the 7 cities (4,368 rows per city). Features are causal (past only). `pm25`, `y_1h` and `y_24h` are the actuals the backend reveals when its replay clock passes them. `y_24h` is null for the last 23 hours because the data ends on 2020-07-01 00:00. |
-| `reports/baseline_stats.json` | features | train (logged as `drift_baseline.json`), backend | PSI baseline of `pm25_lag_1` per city: `n`, `edges`, `proportions`, `mean`, `std`, `min`, `max`. Bin index of a value is the number of edges `e` with `e <= value`. |
+| `reports/baseline_stats.json` | features | train (logged as `drift_baseline.json`), backend | Same-season PSI reference for `pm25_lag_1`. Top level: `feature`, `reference`, `years` (default `[2016, 2019]`), `replay_start`, `replay_hours`, `week_hours` (168), `n_bins`, `bin_rule`, `week_rule`, `cities`. Each city has `years` (years that had data) and `weeks`: a list of `{week, n, edges, proportions}`, one block per 168 replay hours (14 blocks for the default replay). The reference values of block `k` are `pm25_lag_1` at the same calendar hours of the earlier years (aligned on the replay start's month and day). Bin index of a value is the number of edges `e` with `e <= value`. A live window whose last hour is replay hour `h` uses block `h // 168`. |
 | `reports/validation.json` | validate | console, docs | `{status, n_checks, n_passed, n_warnings, n_failed, checks[], stats}`; each check is `{table, check, status: pass/warn/fail, detail, value}` |
 | `reports/eda/*.csv` | `python -m src.pipeline.eda` (manual, not a DVC stage) | `scripts/plot_eda.py`, docs | Small aggregates for `docs/eda.md` |
 | `reports/runs.jsonl` | every stage (via `stage_runner`) | backend `/pipeline/*` | One JSON line per stage execution: `{run_id, trigger, stage, status, started_at, duration_s, rows_in, rows_out, rows_per_sec, error, git_commit, cutoff}` |
 | `ops/requests/<id>.json` | backend | ops runner | `{request_id, reason, cutoff, created_at, status}`. The runner updates `status` (`queued → running → done / failed / rolled_back`). |
-| MLflow artifacts per run | train | backend, model server | `model/` (pyfunc), `drift_baseline.json`, `per_city_mae.csv`, `feature_importance.png`, `residuals.png` |
+| MLflow artifacts per run | train | backend, model server | The model as an MLflow logged model linked to the run (pyfunc with `h1.txt`, `h24.txt`, `meta.json`; its URI is `model_uri` in `reports/train_metrics.json`), `drift_baseline.json`, `per_city_mae.csv`, `feature_importance.png`, `residuals.png`, `params_resolved.json`, `environment_pins.txt` |
+| MLflow tags and metrics per run | train | register, console | Tags: `git_commit` (full hash), `git_dirty`, `dvc_data_md5` (raw data version), `features_md5`, `cutoff`, `trigger`, `pipeline_run_id`. Metrics: `<model>_mae_<h>h`, `<model>_rmse_<h>h` and `<model>_mae_<h>h_<city>` for `persistence`, `seasonal_naive`, `ridge`, `lightgbm`; `<model>_mean_mae`; `ratio_lightgbm_to_best_baseline_<h>h`; `best_baseline_mae_<h>h`; `lightgbm_mae_<h>h_high_pm25`; `fit_seconds_*`; `drift_*` when a drift trigger file exists. |
+| `reports/drift_trigger.json` | ops runner (Stage 11) | train | Optional. Flat JSON of the drift scores that caused a retrain, for example `{"psi_max": 0.41, "mae_ratio_max": 1.8}`. Numbers are logged as `drift_<name>` metrics. |
+| `reports/train_metrics.json` | train | register, evaluate | `run_id`, `model_uri`, `experiment`, `git_commit`, `git_dirty`, `dvc_data_md5`, `features_md5`, `cutoff`, `eval_window`, `mean_mae` per model, `ratio_to_best_baseline` per horizon, and per horizon `n_train`, `n_eval`, `metrics` per model, `best_baseline`, `high_value`. |
 
 ## 7. Pipeline stage contracts (`dvc.yaml`)
 
@@ -239,7 +244,7 @@ Alert rules (`monitoring/alerts.yml`):
 | ingest | `python -m src.pipeline.ingest` | `data/raw`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, ingest` | `data/interim/` (one Parquet folder per table) |
 | validate | `python -m src.pipeline.validate` | `data/interim/`, `src/pipeline/validate.py`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, cities, replay, validate` | `reports/validation.json` (metric, kept in git; written even when validation fails) |
 | features | `python -m src.pipeline.features` | `data/interim/`, `reports/validation.json` (the stage refuses to run unless its `status` is `passed`), `src/pipeline/features.py`, `src/common`, params `paths, spark, cities, cutoff, replay, features` | `data/features/`, `reports/baseline_stats.json` (kept in git) |
-| train | `python -m src.pipeline.train` | `data/features/train.parquet`, params `train, cutoff` | `models/candidate/`, `reports/train_metrics.json` |
+| train | `python -m src.pipeline.train` | `data/features/train.parquet`, `reports/baseline_stats.json`, `src/pipeline/train.py`, `modeling.py`, `aq_model.py`, `train_plots.py`, `src/common`, params `paths, cities, cutoff, eval_window_days, train` | `models/candidate/` (MLflow pyfunc model), `reports/train_metrics.json` (kept in git). Also writes one MLflow run to the tracking URI (`MLFLOW_TRACKING_URI`, default `sqlite:///mlflow.db`). |
 | evaluate | `python -m src.pipeline.evaluate` | `models/candidate/`, `data/features/train.parquet` | `reports/eval.json` (candidate vs champion) |
 | test | `python -m src.pipeline.test_gate` | `reports/eval.json` | `reports/gate.json` (`{"passed": bool, "reasons": [...]}`) |
 | register | `python -m src.pipeline.register` | `reports/gate.json`, `models/candidate/` | `reports/register.json` (version, promoted) |

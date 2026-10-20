@@ -281,3 +281,119 @@ The `features` stage depends on `reports/validation.json`, so `dvc repro` runs v
 
 **5. What is in the drift baseline, and how is it used?**
 For each city it stores the quantile bin edges of `pm25_lag_1` on the training rows and the share of rows in each bin. At Stage 11 I bin the last 168 live hours with the same edges and compare the shares to the baseline with PSI. A PSI above 0.2 means a clear shift. The weakness is that the baseline mixes seasons, so a seasonal change can look like drift.
+
+---
+
+## Part 5: your two decisions, and Stage 7 (train)
+
+I applied both decisions and built Stage 7. At the end `ruff check` passed and `pytest` gave 114 passed and 0 failed. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone. Results are in `docs/metrics.md`. This part also lists three open decisions for you; they are at the end of "Open decisions".
+
+### Your two decisions
+
+**PM10 and Ridge.** I kept the PM10 column. Ridge is an sklearn pipeline that starts with a median imputer with a missing-indicator flag for every column that had gaps, then scales the numbers and one-hot encodes city, hour, weekday and month. The imputer is fitted on training rows only and travels inside the pipeline object, so training and scoring treat gaps the same way. LightGBM takes the nulls as they are. A test shows that the flag works: when I made the target higher whenever PM10 was missing, Ridge predicted more than 10 µg/m³ higher for a row with PM10 removed. I wrote this into `docs/HLD.md`. One honest note: Ridge is only a baseline here, so it is scored but never served.
+
+**Same-season drift reference.** The features stage now builds the reference from the same hours of the calendar in 2016-2019. It cuts the replay (25 March to 30 June, 2,352 hours) into 14 blocks of 168 hours and computes decile bins of `pm25_lag_1` for each city and block. A live window whose last hour is replay hour `h` uses block `h // 168`. Years are aligned on 25 March at 00:00, so leap years do not shift the blocks. Kolkata has two reference years and Jaipur three, because they started measuring later. The stage fails if any city and block has fewer than 100 reference values, and it refuses baseline years that reach into the replay year. I updated `docs/HLD.md`, `docs/LLD.md` and `docs/eda.md`.
+
+I then tested whether it works, and the result is not what I hoped. See "Open decisions", point 1.
+
+### What I built in Stage 7
+
+`src/pipeline/train.py` fits Ridge and LightGBM for each horizon (1 h and 24 h). It scores them together with two rule-based baselines, persistence and seasonal naive, on the same evaluation window and the same rows. It then writes one MLflow run and saves the candidate model in `models/candidate/`. The pure parts (splits, weights, models, scores) are in `src/pipeline/modeling.py`, so they are easy to test without MLflow.
+
+Three decisions in the evaluation protocol matter.
+
+**Training rows are purged.** A row only trains if its target hour is before the start of the evaluation window. Otherwise the 24 h target of a late training row would fall inside the window I score on.
+
+**Everything is scored on the same rows.** Rows need the two lags that the naive baselines use. This keeps the comparison fair, at the cost of dropping a few rows.
+
+**Recency weights follow the design.** A row from 30 days before the cutoff counts half as much as a recent one. This is what the HLD says, but it means the model is in practice trained on about 14.5k effective rows out of 253k.
+
+The model is one MLflow pyfunc, `AQForecaster` in `src/pipeline/aq_model.py`, that holds both horizon models and picks one from `horizon_h`. It returns `pm25` and `model_version`. The file imports nothing from the rest of the project. I checked this by copying the saved model to another folder, hiding my source file, and loading it: it predicted correctly. That matters for Stage 9, where the model will run in a container without my source tree.
+
+**What the MLflow run holds beyond autolog.** I do not use autolog at all. The run has these.
+
+- Tags: the full git commit hash, `git_dirty` (true if tracked files had uncommitted changes, so a hash is only a precise record when it is false), the DVC hash of the raw data, a hash of the feature files, the cutoff, what triggered the run, and the pipeline run id.
+- 88 metrics: MAE and RMSE for all four models, each horizon and each city, the comparison with the best baseline, error on high-pollution hours, fit times, and drift scores when a drift trigger file exists.
+- Artifacts: `per_city_mae.csv`, `feature_importance.png`, `residuals.png`, the drift baseline, the resolved settings, and the exact package versions.
+- The model, linked to the run, with a signature that matches the LLD columns.
+
+`MLproject` and `python_env.yaml` make the training run the same way everywhere. A test checks that every pinned version in `python_env.yaml` matches `uv.lock`. `mlflow run . -e main --env-manager local` gave the same numbers as the pipeline. I have not tried it with a fresh virtualenv, which would need to download everything again over a slow connection.
+
+### Results
+
+On the 3-day evaluation window, the mean absolute error in µg/m³ is below. The 3-day window has 497 rows at 1 h and 336 at 24 h.
+
+| Model | 1 h | 24 h |
+|-------|----:|-----:|
+| Persistence | 5.13 | 14.70 |
+| Seasonal naive | 15.49 | 14.70 |
+| Ridge | 5.31 | 13.83 |
+| LightGBM | 4.76 | 14.13 |
+
+At 1 h LightGBM beats the best baseline by 7%. At 24 h it is 2.2% worse than Ridge. With 336 rows that gap is within noise, and a change of half-life or loss function moved it across the line. The model is weaker in Kolkata and Lucknow, and for high-pollution hours (error of 61 on 10 hours at 24 h). The feature importance plot shows what I expected: the 1 h model relies on the current PM2.5 for 54% of its gain, and the 24 h model spreads its reliance across many inputs.
+
+### What went wrong
+
+**The install took about 35 minutes.** The connection to the package index ran at roughly 100 KB/s. My first `uv add` looked stuck and I killed it, then ran `uv sync` in the background. Nothing was broken. I wrote the code and tests while it ran.
+
+**Spark's Python worker did not match.** My new baseline tests failed with "Python in worker has different version (3, 14) than that in driver 3.12". Spark starts its own Python workers, and they used the system Python 3.14. I set `PYSPARK_PYTHON` inside `build_spark`, which fixes it for every stage. The earlier stages never hit this because they never made a DataFrame from a Python list.
+
+**A hard-coded path.** The end-to-end test changes directory, and `data/raw.dvc` was not found. The location now comes from `params.yaml`. The code was wrong to depend on the current directory.
+
+**LightGBM was not repeatable.** The same stage gave 14.20 and then 14.13 at 24 h, with no change in code or data. I tested it: three identical fits differed by up to 5 µg/m³ on a single prediction. With `deterministic` and `force_row_wise` they are identical, and two forced reruns of the stage match. This is now the default in `build_lightgbm`, with a test. Without it, the guideline that every experiment is reproducible would not have held.
+
+**`mlflow run` failed twice** because `python` was not on PATH when the virtualenv was not activated. It works after `source .venv/bin/activate`. I left the two failed runs out of the final experiment.
+
+**A sloppy test.** One of my tests used `a == b or c >= 1`, which can never fail. I replaced it with a check that the flag column exists for PM10.
+
+### Open decisions for you
+
+**1. The drift threshold does not work as designed (important for Stage 11).** I tested the same-season reference. A single week of PM2.5, compared with ten decile bins, gives a PSI far above 0.2 even in normal years. In the weeks of 2016-2019 compared with the other years, the median PSI is 0.64 to 1.08 and the 90th percentile 1.8 to 4.1. Lockdown weeks are higher in most cities (median 1.3 to 5.4) but overlap with normal weeks. In Hyderabad no lockdown week stands out. The reference helps in Delhi and Lucknow and does not in the southern cities. So `PSI > 0.2` would fire almost every week. The rolling-MAE signal does not have this problem. I suggest that in Stage 11 I set the PSI threshold per city from the leave-one-year-out values (for example their 95th percentile) and alarm only when several cities exceed it, with the MAE ratio as a second condition. This changes the thresholds in `docs/HLD.md` and the alert rules, so I want your agreement first. The full numbers are in `docs/metrics.md`.
+
+**2. The half-life.** The design says 30 days. In my experiment on a 28-day window, 30 days was the weakest setting at 24 h: about 0.7 µg/m³ worse than 90 or 365 days. On the 3-day window the comparison is mixed. I left it at 30 days. I would change it to 90 days, but it is your design.
+
+**3. The first model and the 1.02 rule.** At 24 h the model is 1.022 times the best baseline, so the Stage 8 promotion rule, applied literally, would block the first model. The comparison rests on 336 rows. The options are to relax the limit for the first model (there is no champion to beat yet), to judge the baseline condition on a longer window, or to accept the block and see what a retrain does. Tell me which, or I will ask again at the start of Stage 8.
+
+I changed one thing without asking you: LightGBM now uses the median (L1) loss, because the models are compared by MAE and it was better or equal in all 8 cells of my test. It is one line in `params.yaml` (`train.lightgbm.objective`).
+
+### How to run
+
+```bash
+source .venv/bin/activate
+ruff check . && pytest -q                          # 114 tests (about 35 s)
+dvc repro                                          # whole pipeline; only changed stages run
+python -m src.pipeline.train                       # the train stage alone (about 25 s)
+mlflow run . -e main --env-manager local           # the same through MLproject
+cat reports/train_metrics.json | head -40          # numbers and versions of the last run
+mlflow ui --backend-store-uri sqlite:///mlflow.db  # browse runs at http://127.0.0.1:5000
+```
+
+### Measured numbers
+
+The full tables are in `docs/metrics.md`.
+
+| What | Value |
+|------|-------|
+| Train stage time | 23.6 to 26.7 s (4 runs); 10.3 s with the squared loss |
+| Whole pipeline, one `dvc repro` | ingest 10 s, validate 35 s, features 14 s, train 26 s |
+| LightGBM fit per horizon | about 11 s |
+| Saved model | 3.0 MB |
+| Metrics per MLflow run | 88 |
+| Tests | 114 passed |
+
+### Viva questions for Stage 7
+
+**1. Why do you purge training rows, and what would go wrong without it?**
+The 24 h target of a training row at time t is the PM2.5 at t + 24 h. If t is within 24 hours of the start of the evaluation window, that target lies inside the window. The model would then train on values it is later scored on, and the error would look better than it is. So a row only trains if its target hour is before the window starts.
+
+**2. How do you know a result can be reproduced?**
+Each run is tagged with the full git commit hash, a flag that says whether tracked files had uncommitted changes, the DVC hash of the raw data and a hash of the feature files. The environment is pinned in `python_env.yaml` and matches `uv.lock`. Training is deterministic: I found that without two LightGBM settings, three identical runs differed by up to 5 µg/m³, so I turned them on and tested it. Running through `mlflow run` gave the same numbers as the pipeline.
+
+**3. Your 24-hour model is slightly worse than Ridge. Why call LightGBM the main model?**
+It is the model the design chose, and it is better at 1 h (7% below the best baseline) and on average (mean MAE 9.45 against 9.57 for Ridge). At 24 h the gap is 2.2% on 336 rows, which is within what a change of settings does. I report this openly, and the promotion rule decides what is served. If it keeps losing to Ridge in later retrains, the rule will block it.
+
+**4. How does Ridge handle missing values, and why not just drop PM10?**
+Ridge is a pipeline with a median imputer that also adds a flag column for every input that had gaps. The imputer is learned from training rows only and is part of the model object, so scoring treats gaps the same way. I kept PM10 even though 40% of it is missing because the input list is fixed in the LLD, and because the flag lets the model use the fact that PM10 is missing. LightGBM handles nulls itself.
+
+**5. What does your MLflow run record that autolog would not?**
+Autolog records parameters and a generic metric set. I log the git commit and a dirty flag, the DVC data version, a hash of the features, errors for every model, horizon and city, the ratio to the best baseline, error on high-pollution hours, the drift baseline used for monitoring, feature importance and residual plots, the exact package versions, and drift scores when a drift alert caused the retrain.

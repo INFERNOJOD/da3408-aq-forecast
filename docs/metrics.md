@@ -128,3 +128,115 @@ features 13.0 s, about 55 s in total.
 Correctness check (not a speed number): I recomputed every feature column in pandas for
 Hyderabad (has gaps) and Kolkata (starts late), 4,368 serving rows each, 21 columns. There were
 0 mismatches. In the training file, no row has a target from after the cutoff.
+
+## Stage 7: train (Ridge, LightGBM and two baselines, no Spark)
+
+Training does not use Spark. It reads `train.parquet` with pandas. Settings: cutoff
+2020-03-24 23:00, evaluation window 3 days, recency half-life 30 days, LightGBM with L1 loss
+and 400 trees, fixed seed, deterministic.
+
+| What | 1 h ahead | 24 h ahead |
+|------|----------:|-----------:|
+| Training rows | 252,949 | 252,903 |
+| Effective training rows (weights, see below) | 14,542 | 14,542 |
+| Evaluation rows (7 cities) | 497 | 336 |
+| Evaluation rows per city | 71 | 48 |
+
+Mean absolute error on the evaluation window, in µg/m³. All four models are scored on the same rows.
+
+| Model | 1 h | 24 h | Mean of both |
+|-------|----:|-----:|-------------:|
+| Persistence | 5.13 | 14.70 | 9.92 |
+| Seasonal naive | 15.49 | 14.70 | 15.10 |
+| Ridge | 5.31 | 13.83 | 9.57 |
+| LightGBM | 4.76 | 14.13 | 9.45 |
+| LightGBM / best baseline | 0.927 | 1.022 | |
+
+Seasonal naive equals persistence at 24 h by construction: the value one day before the target
+hour is the current hour. The promotion rule in `docs/HLD.md` needs a ratio of at most 1.02, so
+at 24 h this model misses it by 0.002 on 336 rows.
+
+Per city (LightGBM against the best baseline, same rows): at 1 h it is better in 5 of 7 cities
+and worse in Kolkata and Lucknow. At 24 h it is better in 4 (Delhi 16.95 against 22.67,
+Hyderabad 7.00 against 8.67) and worse in Chennai, Kolkata and Lucknow. With 48 to 71 rows per
+city these are weak comparisons. The full table is `per_city_mae.csv` in the MLflow run.
+
+Error on high hours (actual PM2.5 at or above 121): 17.6 on 13 hours at 1 h and 60.7 on 10
+hours at 24 h. The sample is too small to conclude anything. It does show that peaks are the weak
+spot, as `docs/eda.md` predicted.
+
+Cost and size:
+
+| What | Value |
+|------|-------|
+| Whole stage (4 runs, L1 loss) | 23.6 s, 25.1 s, 26.4 s, 26.7 s |
+| Same stage with the default squared loss | 10.3 s |
+| LightGBM fit, per horizon | about 11 s |
+| Ridge fit, per horizon | about 0.5 s |
+| Saved model folder | 3.0 MB |
+| Metrics in one MLflow run | 88 |
+
+Why only 14.5k effective rows: the 30-day half-life gives a row from 30 days before the cutoff
+half the weight of a recent one. The effective sample size, (sum of weights)² divided by the sum
+of squared weights, is 14,542 out of 252,949 rows. The model is in practice trained on the last
+few months.
+
+### Experiment: recency half-life and loss function
+
+I ran this once, outside the pipeline (script not kept), with the same code as the stage. LightGBM
+only, mean absolute error in µg/m³. The 28-day window has 4,697 rows at 1 h and 4,536 at 24 h.
+Persistence on that window: 5.92 at 1 h and 16.26 at 24 h.
+
+| Half-life | 1 h, squared loss | 1 h, L1 | 24 h, squared loss | 24 h, L1 |
+|-----------|------------------:|--------:|-------------------:|---------:|
+| 30 days | 4.89 | 4.88 | 15.70 | 14.97 |
+| 90 days | 4.85 | 4.78 | 15.00 | 14.31 |
+| 365 days | 4.98 | 4.70 | 14.96 | 14.23 |
+| no weighting | 5.27 | 4.74 | 15.29 | 14.28 |
+
+L1 is better or equal in all 8 cells. A half-life of 30 days is the weakest choice at 24 h: it is
+about 0.7 µg/m³ worse than 90 or 365 days. On the 3-day window the same comparison is mixed,
+which is what a 336-row window should look like. This experiment ran before I made training
+deterministic, so differences below about 0.1 are noise. I kept the 30-day half-life from the
+design and did not change it.
+
+### Check: is training repeatable?
+
+| Setting | Three runs identical? | Largest difference between runs |
+|---------|-----------------------|---------------------------------|
+| LightGBM defaults | no | 4.99 µg/m³ on a single prediction |
+| `deterministic` and `force_row_wise` | yes | 0 |
+
+I use the second setting. Two forced reruns of the stage gave the same MAE (14.13 at 24 h).
+`mlflow run . -e main --env-manager local` also gave 14.13. I have not run it with the
+virtualenv environment manager, which would build a fresh environment.
+
+### Check: the same-season drift reference (from Stage 6)
+
+PSI of `pm25_lag_1` over 168 hours with 10 bins, against the reference in
+`reports/baseline_stats.json`. "Normal weeks" are the weeks 1 to 13 of the replay calendar in
+2016-2019, each compared with the other years (a reference needs at least 3 years). "Lockdown
+weeks" are the same 13 weeks in 2020 against the saved reference. The common alarm level is 0.2.
+
+| City | Normal weeks: n | median | 90th percentile | max | Lockdown weeks: median | min | max |
+|------|----:|----:|----:|----:|----:|----:|----:|
+| Delhi | 52 | 0.66 | 1.83 | 3.24 | 1.94 | 0.50 | 5.44 |
+| Chennai | 50 | 0.67 | 4.07 | 6.12 | 3.98 | 1.77 | 8.29 |
+| Lucknow | 48 | 0.64 | 2.21 | 5.03 | 2.58 | 0.99 | 5.75 |
+| Hyderabad | 52 | 1.08 | 3.42 | 4.27 | 1.26 | 0.10 | 2.96 |
+| Bengaluru | 46 | 0.64 | 1.87 | 2.50 | 1.67 | 0.54 | 4.38 |
+| Jaipur | 28 | 0.91 | 2.56 | 2.90 | 1.59 | 0.20 | 7.24 |
+| Kolkata | too few years | | | | 5.37 | 0.41 | 8.38 |
+
+A single normal week already scores well above 0.2 in every city. The lockdown is higher in most
+cities, but the two overlap, and Hyderabad shows no separation at all (0 of 13 lockdown weeks
+above its normal 90th percentile). In a separate check of one week only (1 to 7 April 2019 as the live window, with references
+built from 2016-2018), the same-season reference
+helped Delhi (PSI 0.42 against all seasons, 0.07 against the same season) and Lucknow (1.02 and
+0.19), and did not help Chennai (0.47 and 0.69) or Jaipur (1.31 and 1.28). Bengaluru fell from
+3.55 to 1.66, which is still far above 0.2.
+
+Two reasons I can name: a week of PM2.5 values is strongly correlated hour to hour, so 10 bins
+are too fine for it, and the network of stations changed between years (Bengaluru went from 2 to
+8 stations in 2018). So a fixed PSI threshold of 0.2 does not work for a one-week window. This is
+the main open point for Stage 11.

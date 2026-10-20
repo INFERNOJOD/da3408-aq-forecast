@@ -1,0 +1,85 @@
+"""The packaged model: one MLflow pyfunc that answers both forecast horizons.
+
+MLflow loads this file by itself inside the model server (the "models from code"
+way), so it imports nothing from the rest of ``src``. The feature names and the
+number of cities come from ``meta.json``, which the training stage saves next to
+the two LightGBM files.
+
+Input: a DataFrame with the columns listed in docs/LLD.md section 4, one row per
+(city, horizon). The column ``horizon_h`` (1 or 24) picks the model.
+Output: a DataFrame with ``pm25`` (µg/m³, never below 0) and ``model_version``.
+"""
+
+import json
+import logging
+import os
+
+import lightgbm as lgb
+import mlflow
+import mlflow.pyfunc
+import pandas as pd
+
+log = logging.getLogger(__name__)
+
+VERSION_ENV = "AQ_MODEL_VERSION"  # set by the model server wrapper (see LLD)
+
+
+def lgbm_frame(
+    df: pd.DataFrame, feature_columns: list[str], n_cities: int
+) -> pd.DataFrame:
+    """Return the model input: columns in training order, city_code as category.
+
+    LightGBM was trained with ``city_code`` as a categorical column with the
+    fixed categories 0..n_cities-1. The same cast is needed at prediction time.
+    """
+    frame = df[feature_columns].copy()
+    frame["city_code"] = (
+        frame["city_code"]
+        .astype(int)
+        .astype(pd.CategoricalDtype(list(range(n_cities))))
+    )
+    return frame
+
+
+class AQForecaster(mlflow.pyfunc.PythonModel):
+    """Forecast PM2.5 for 1 h and 24 h ahead with one LightGBM per horizon."""
+
+    def load_context(self, context) -> None:
+        """Load the two boosters and the metadata from the model artifacts."""
+        with open(context.artifacts["meta"], encoding="utf-8") as fh:
+            self.meta = json.load(fh)
+        self.boosters = {
+            int(h): lgb.Booster(model_file=context.artifacts[f"h{h}"])
+            for h in self.meta["horizons"]
+        }
+        log.info("Loaded AQ model for horizons %s", sorted(self.boosters))
+
+    def predict(self, context, model_input, params=None) -> pd.DataFrame:
+        """Predict PM2.5 for every input row, keeping the row order."""
+        df = pd.DataFrame(model_input)
+        wanted = ["horizon_h", *self.meta["feature_columns"]]
+        missing = [c for c in wanted if c not in df.columns]
+        if missing:
+            raise ValueError(f"Missing input columns: {missing}")
+        horizons = df["horizon_h"].astype(int)
+        unknown = sorted(set(horizons) - set(self.boosters))
+        if unknown:
+            raise ValueError(
+                f"Unsupported horizon_h {unknown}; use one of {sorted(self.boosters)}"
+            )
+        out = pd.Series(0.0, index=df.index)
+        for horizon, booster in self.boosters.items():
+            rows = df[horizons == horizon]
+            if rows.empty:
+                continue
+            frame = lgbm_frame(
+                rows, self.meta["feature_columns"], self.meta["n_cities"]
+            )
+            out.loc[rows.index] = booster.predict(frame)
+        version = os.environ.get(VERSION_ENV, "unversioned")
+        return pd.DataFrame(
+            {"pm25": out.clip(lower=0.0).round(2).to_numpy(), "model_version": version}
+        )
+
+
+mlflow.models.set_model(AQForecaster())

@@ -3,7 +3,7 @@
 Output (see docs/LLD.md, sections 4, 6 and 7):
   data/features/train.parquet    hours up to the cutoff, features + targets
   data/features/serving.parquet  hours of the live replay, features + actuals
-  reports/baseline_stats.json    drift baseline for pm25_lag_1 (PSI bins)
+  reports/baseline_stats.json    same-season drift baseline for pm25_lag_1 (PSI bins)
 
 Features only run after validate has passed (see require_validation_passed).
 
@@ -22,6 +22,7 @@ Run: ``python -m src.pipeline.features``
 """
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -195,49 +196,120 @@ def make_serving_set(df: DataFrame, start: str, end: str) -> DataFrame:
     )
 
 
-def baseline_stats(train: DataFrame, cities: list[str], n_bins: int) -> dict[str, Any]:
-    """Describe pm25_lag_1 per city on the training rows, for PSI drift checks.
+def replay_hours(replay: dict[str, str]) -> int:
+    """Count the hours in the replay window, start and end both included."""
+    start = datetime.fromisoformat(replay["start"])
+    end = datetime.fromisoformat(replay["end"])
+    return int((end - start).total_seconds() // 3600) + 1
 
-    Bin edges are the quantiles 1/n, 2/n, ... of the training values. Bin index
-    of a value x is the number of edges e with e <= x, so bins are
-    [-inf, e1), [e1, e2), ..., [e_last, +inf). Stage 11 uses the same rule on
-    live data, so the proportions here are directly comparable.
+
+def baseline_stats(
+    df: DataFrame,
+    cities: list[str],
+    replay: dict[str, str],
+    years: list[int],
+    n_bins: int,
+    week_hours: int,
+    min_n: int,
+) -> dict[str, Any]:
+    """Describe pm25_lag_1 in the same season of earlier years, for PSI drift checks.
+
+    The live replay covers a few calendar months. Comparing it with all seasons
+    mixed would flag the normal change of season as drift. So the reference for
+    each block of ``week_hours`` hours of the replay is the same hours of the
+    calendar in earlier years (``years``, both ends included). Years are aligned
+    on the replay start's month and day, so leap years do not shift the blocks.
+
+    For each city and block, bin edges are the quantiles 1/n, 2/n, ... of the
+    reference values. The bin index of a value x is the number of edges e with
+    e <= x, so bins are [-inf, e1), [e1, e2), ..., [e_last, +inf). Stage 11 uses
+    the same rule on live data.
     """
-    quantiles = [i / n_bins for i in range(1, n_bins)]
+    start = datetime.fromisoformat(replay["start"])
+    n_hours = replay_hours(replay)
+    n_weeks = -(-n_hours // week_hours)  # ceiling division
+    anchor = spark_fn.expr(
+        f"make_timestamp(year(Datetime), {start.month}, {start.day}, "
+        f"{start.hour}, {start.minute}, {start.second})"
+    )
+    replay_hour = (
+        (spark_fn.col("Datetime").cast("long") - anchor.cast("long")) / 3600
+    ).cast("int")
+    base = (
+        df.filter(
+            spark_fn.col("City").isin(cities)
+            & spark_fn.col("pm25_lag_1").isNotNull()
+            & spark_fn.year("Datetime").between(years[0], years[1])
+        )
+        .withColumn("x", spark_fn.col("pm25_lag_1"))
+        .withColumn("rh", replay_hour)
+        .filter((spark_fn.col("rh") >= 0) & (spark_fn.col("rh") < n_hours))
+        .withColumn("week", (spark_fn.col("rh") / week_hours).cast("int"))
+        .select("City", "week", "x", spark_fn.year("Datetime").alias("year"))
+        .cache()
+    )
+
+    quantiles = ", ".join(str(i / n_bins) for i in range(1, n_bins))
+    raw = (
+        base.groupBy("City", "week")
+        .agg(
+            spark_fn.expr(f"percentile_approx(x, array({quantiles}), 10000)").alias(
+                "raw_edges"
+            ),
+        )
+        .collect()
+    )
+    # Drop duplicate edges caused by tied values, then use these exact edges.
+    edge_rows = [(r["City"], r["week"], sorted(set(r["raw_edges"]))) for r in raw]
+    edges_df = base.sparkSession.createDataFrame(
+        edge_rows, "City string, week int, edges array<double>"
+    )
+    binned = base.join(edges_df, ["City", "week"]).withColumn(
+        "bin",
+        spark_fn.size(spark_fn.filter("edges", lambda e: e <= spark_fn.col("x"))),
+    )
+    counts = {
+        (r["City"], r["week"], r["bin"]): r["n"]
+        for r in binned.groupBy("City", "week", "bin")
+        .agg(spark_fn.count(spark_fn.lit(1)).alias("n"))
+        .collect()
+    }
+    years_used = {
+        r["City"]: sorted(r["ys"])
+        for r in base.groupBy("City")
+        .agg(spark_fn.collect_set("year").alias("ys"))
+        .collect()
+    }
+    edges_by_key = {(c, w): e for c, w, e in edge_rows}
+
     out: dict[str, Any] = {}
+    problems = []
     for city in cities:
-        values = train.filter(
-            (spark_fn.col("City") == city) & spark_fn.col("pm25_lag_1").isNotNull()
-        ).select(spark_fn.col("pm25_lag_1").alias("x"))
-        n = values.count()
-        if n == 0:
-            raise DataValidationError(f"No pm25_lag_1 values for {city} in training")
-        raw_edges = values.stat.approxQuantile("x", quantiles, 0.001)
-        edges = sorted(set(raw_edges))  # drop duplicate edges from tied values
-        index = sum((spark_fn.col("x") >= spark_fn.lit(e)).cast("int") for e in edges)
-        counts = {
-            r["bin"]: r["n"]
-            for r in values.groupBy(index.alias("bin"))
-            .agg(spark_fn.count(spark_fn.lit(1)).alias("n"))
-            .collect()
-        }
-        stats = values.agg(
-            spark_fn.avg("x").alias("mean"),
-            spark_fn.stddev("x").alias("std"),
-            spark_fn.min("x").alias("min"),
-            spark_fn.max("x").alias("max"),
-        ).collect()[0]
-        out[city] = {
-            "n": n,
-            "edges": [round(e, 4) for e in edges],
-            "proportions": [
-                round(counts.get(i, 0) / n, 6) for i in range(len(edges) + 1)
-            ],
-            "mean": round(stats["mean"], 4),
-            "std": round(stats["std"], 4),
-            "min": stats["min"],
-            "max": stats["max"],
-        }
+        weeks = []
+        for week in range(n_weeks):
+            edges = edges_by_key.get((city, week))
+            if edges is None:
+                problems.append(f"{city} week {week}: no reference values")
+                continue
+            per_bin = [counts.get((city, week, i), 0) for i in range(len(edges) + 1)]
+            n = sum(per_bin)
+            if n < min_n:
+                problems.append(f"{city} week {week}: only {n} reference values")
+            weeks.append(
+                {
+                    "week": week,
+                    "n": n,
+                    "edges": [round(e, 4) for e in edges],
+                    "proportions": [round(c / n, 6) for c in per_bin] if n else [],
+                }
+            )
+        out[city] = {"years": years_used.get(city, []), "weeks": weeks}
+    base.unpersist()
+    if problems:
+        raise DataValidationError(
+            f"Drift baseline needs at least {min_n} values per city and week: "
+            + "; ".join(problems[:5])
+        )
     return out
 
 
@@ -270,6 +342,12 @@ def run_features(params: dict[str, Any]) -> dict[str, int]:
     cities = params["cities"]
     cutoff = params["cutoff"]
     fp = params["features"]
+    replay_year = int(params["replay"]["start"][:4])
+    if fp["baseline_years"][1] >= replay_year:
+        raise DataValidationError(
+            f"baseline_years {fp['baseline_years']} must end before the replay "
+            f"year {replay_year}, or the baseline would contain the replay itself"
+        )
     spark = build_spark("aq-features", params["spark"])
     try:
         city_hour = spark.read.parquet(str(interim / "city_hour"))
@@ -290,7 +368,11 @@ def run_features(params: dict[str, Any]) -> dict[str, int]:
         stats = baseline_stats(
             spark.read.parquet(str(out_dir / "train.parquet")),
             cities,
+            params["replay"],
+            fp["baseline_years"],
             fp["psi_bins"],
+            fp["drift_window_hours"],
+            fp["baseline_min_n"],
         )
     finally:
         spark.stop()
@@ -298,9 +380,15 @@ def run_features(params: dict[str, Any]) -> dict[str, int]:
     reports.mkdir(parents=True, exist_ok=True)
     doc = {
         "feature": "pm25_lag_1",
-        "cutoff": cutoff,
+        "reference": "same hours of the calendar in earlier years",
+        "years": fp["baseline_years"],
+        "replay_start": params["replay"]["start"],
+        "replay_hours": replay_hours(params["replay"]),
+        "week_hours": fp["drift_window_hours"],
         "n_bins": fp["psi_bins"],
         "bin_rule": "bin index = number of edges e with e <= value",
+        "week_rule": "a live window whose last hour is replay hour h "
+        "(hours since replay_start) uses week h // week_hours",
         "cities": stats,
     }
     (reports / "baseline_stats.json").write_text(

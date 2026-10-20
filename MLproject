@@ -1,0 +1,10 @@
+name: aq-forecast
+
+# Same pinned environment for dev, test and the batch container (python_env.yaml).
+python_env: python_env.yaml
+
+entry_points:
+  main:
+    # Trains the candidate model and logs one MLflow run. Reads params.yaml and
+    # data/features/train.parquet (made by the features stage).
+    command: "python -m src.pipeline.train"

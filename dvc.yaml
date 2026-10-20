@@ -48,3 +48,24 @@ stages:
       - data/features
       - reports/baseline_stats.json:
           cache: false
+
+  train:
+    cmd: python -m src.pipeline.train
+    deps:
+      - data/features/train.parquet
+      - reports/baseline_stats.json
+      - src/pipeline/train.py
+      - src/pipeline/modeling.py
+      - src/pipeline/aq_model.py
+      - src/pipeline/train_plots.py
+      - src/common
+    params:
+      - paths
+      - cities
+      - cutoff
+      - eval_window_days
+      - train
+    outs:
+      - models/candidate
+      - reports/train_metrics.json:
+          cache: false

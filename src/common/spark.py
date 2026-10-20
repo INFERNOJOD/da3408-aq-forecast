@@ -1,5 +1,7 @@
 """Create the local Spark session with the project's memory limits."""
 
+import os
+import sys
 from typing import Any
 
 from pyspark.sql import SparkSession
@@ -18,6 +20,10 @@ def build_spark(
     Session time zone is UTC so timestamps keep the wall-clock values found in
     the CSV files (the data is in IST and we never convert it).
     """
+    # Spark starts its own Python workers (for example when a DataFrame is made
+    # from a Python list). Without this they use the system Python, which here is
+    # 3.14 and does not match the 3.12 project environment.
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     p = {"driver_memory": "2g", "shuffle_partitions": 8, "cores": 4}
     p.update(spark_params or {})
     spark = (
