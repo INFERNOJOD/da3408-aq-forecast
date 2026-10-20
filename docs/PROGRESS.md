@@ -866,7 +866,7 @@ BACKEND_URL=http://localhost:8000 PYTHONPATH=. streamlit run src/frontend/app.py
 **Checked:** `docker compose --profile serve --profile batch config` is valid.
 
 **Not checked, and why:**
-- **Image builds.** I started the frontend and backend builds, but pip downloads on this VM are very slow (Streamlit and MLflow are large). When I wrote this, neither build had finished, so I have **not** run the stack in compose. Whether the images start, and the memory use of each container, are unmeasured. I did not want to leave a half-run `docker compose up` while you were away.
+- **Image builds.** pip downloads on this VM are very slow (Streamlit and MLflow are large), so the builds took many minutes. Both finished afterwards: `aq-frontend` (825 MB) and `aq-backend` (1.33 GB) build on arm64. The pipeline image is not built. I have **not** started any container or run the stack in compose, so whether the images start, and the memory use of each container, are unmeasured.
 - **Multi-arch push.** It needs `docker login` (your Docker Hub password) and QEMU emulation for amd64 on this arm64 VM, which I cannot set up without sudo. The script is written but untested. This is a blocker for you to decide.
 - **Pushgateway and Grafana wiring.** The services exist, but Prometheus still scrapes only the backend and Grafana has no dashboards. That is Stage 14.
 
