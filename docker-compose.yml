@@ -1,0 +1,135 @@
+# Two profiles, never run together (8 GB machine):
+#   serve  the always-on stack:  docker compose --profile serve up -d
+#   batch  Spark + training:     docker compose --profile batch run --rm pipeline
+# Before the batch, stop the stack:  docker compose --profile serve down
+# Needs HOST_PROJECT (absolute path of this folder) and OPS_API_KEY in .env.
+# MLflow stores absolute artifact paths, so the folder is mounted at the same
+# path inside the containers that read model files.
+
+x-host-user: &host-user
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"   # so files written to mounts stay yours
+
+
+services:
+  frontend:
+    profiles: [serve]
+    build: {context: ., dockerfile: docker/frontend/Dockerfile}
+    image: aq-frontend
+    mem_limit: 384m
+    ports: ["8501:8501"]
+    environment:
+      BACKEND_URL: http://backend:8000
+      MLFLOW_URL: http://localhost:${MLFLOW_HOST_PORT:-5000}
+      GRAFANA_URL: http://localhost:${GRAFANA_HOST_PORT:-13000}
+      PROMETHEUS_URL: http://localhost:${PROMETHEUS_HOST_PORT:-19090}
+    depends_on: [backend]
+    restart: unless-stopped
+
+  backend:
+    <<: *host-user
+    profiles: [serve]
+    build: {context: ., dockerfile: docker/backend/Dockerfile}
+    image: aq-backend
+    mem_limit: 512m
+    ports: ["8000:8000"]
+    environment:
+      OPS_API_KEY: ${OPS_API_KEY:?set OPS_API_KEY in .env}
+      MODEL_SERVER_URL: http://model-server:5001
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      OPS_DIR: /app/ops
+      REPLAY_SPEED_HPS: ${REPLAY_SPEED_HPS:-1.0}
+      RETRAIN_COOLDOWN_MIN: ${RETRAIN_COOLDOWN_MIN:-30}
+    volumes:
+      - ./data/features:/app/data/features:ro
+      - ./reports:/app/reports:ro
+      - ./ops:/app/ops
+    depends_on: [model-server, mlflow]
+    restart: unless-stopped
+
+  model-server:
+    profiles: [serve]
+    build: {context: ., dockerfile: docker/model_server/Dockerfile}
+    image: aq-model-server
+    mem_limit: 768m
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: aq-pm25
+      POLL_SECONDS: "30"
+    volumes:
+      - ${HOST_PROJECT}/mlruns:${HOST_PROJECT}/mlruns:ro
+    depends_on: [mlflow]
+    restart: unless-stopped
+
+  mlflow:
+    <<: *host-user
+    profiles: [serve]
+    image: aq-model-server              # same image: it already has MLflow installed
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:///${HOST_PROJECT}/mlflow.db
+      --default-artifact-root ${HOST_PROJECT}/mlruns
+      --allowed-hosts mlflow:5000,mlflow,localhost:${MLFLOW_HOST_PORT:-5000},localhost
+    mem_limit: 512m
+    ports: ["${MLFLOW_HOST_PORT:-5000}:5000"]
+    environment: {MLFLOW_DISABLE_AGENT_HINT: "1"}
+    volumes:
+      - ${HOST_PROJECT}/mlflow.db:${HOST_PROJECT}/mlflow.db
+      - ${HOST_PROJECT}/mlruns:${HOST_PROJECT}/mlruns
+    restart: unless-stopped
+
+  prometheus:
+    profiles: [serve]
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+    mem_limit: 384m
+    ports: ["${PROMETHEUS_HOST_PORT:-19090}:9090"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    restart: unless-stopped
+
+  alertmanager:
+    profiles: [serve]
+    image: prom/alertmanager:v0.28.1
+    mem_limit: 64m
+    ports: ["${ALERTMANAGER_HOST_PORT:-19093}:9093"]
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./monitoring/secrets:/etc/alertmanager/secrets:ro
+    restart: unless-stopped
+
+  pushgateway:
+    profiles: [serve]
+    image: prom/pushgateway:v1.11.1
+    mem_limit: 64m
+    restart: unless-stopped
+
+  node-exporter:
+    profiles: [serve]
+    image: prom/node-exporter:v1.9.1
+    mem_limit: 64m
+    restart: unless-stopped
+
+  grafana:
+    profiles: [serve]
+    image: grafana/grafana:12.0.0
+    mem_limit: 256m
+    ports: ["${GRAFANA_HOST_PORT:-13000}:3000"]
+    restart: unless-stopped
+
+  pipeline:
+    <<: *host-user
+    profiles: [batch]
+    build: {context: ., dockerfile: docker/pipeline/Dockerfile}
+    image: aq-pipeline
+    mem_limit: 2560m                    # Spark driver 2g + Python and JVM overhead
+    working_dir: ${HOST_PROJECT}
+    environment:
+      PYTHONPATH: ${HOST_PROJECT}
+      MLFLOW_TRACKING_URI: sqlite:///${HOST_PROJECT}/mlflow.db
+      PUSHGATEWAY_URL: http://pushgateway:9091
+      HOME: /tmp
+    volumes:
+      - ${HOST_PROJECT}:${HOST_PROJECT}

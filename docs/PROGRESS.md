@@ -819,3 +819,85 @@ The cutoff is the input that decides which hours the model trains on, and DVC tr
 ### Next: Stage 12
 
 Stage 12 is the Streamlit frontend: the forecast page for non-technical users and the pipeline console. The console will show the drift status from `/ops/drift` and the retrain requests. I have no open question that blocks it. Waiting for your go-ahead.
+
+## Part 11: the episode gate, Stage 12 (frontend) and Stage 13 (Docker), written while you were away
+
+You asked for three things back to back. The first two are done and committed. The third is only partly done, and I say exactly where it stops below.
+
+### 1. One retrain per drift episode (commit `9e2273a`)
+
+**The problem.** After a retrain the PSI reference does not change, so the lockdown still looks like drift and the alert keeps firing. Only the 30-minute cooldown held it back, which in real time means a retrain every half hour.
+
+**What I built.** `EpisodeGate` in `src/backend/ops.py`. A drift alert that creates a retrain request opens an episode. While it is open, further drift alerts are ignored. The episode closes when the drift rule has been false for `drift.episode_clear_hours` simulated hours in a row. The backend feeds the gate with the rule's value on every Prometheus scrape, every `/ops/drift` call and every alert. The state is in `ops/episode.json`, so a restart does not forget an open episode.
+
+**Why 72 hours.** I took it from `reports/drift_replay.json`. The first four lockdown episodes are separated by gaps of 28, 49 and 37 hours, so 72 merges them into one. The fifth starts 250 hours after the fourth, so it counts as a second one. The cost is that a real second shift within 72 hours of a retrain is not retrained on until the rule has been quiet. Manual retrains do not open an episode.
+
+**Tests.** `test_episode_gate_closes_after_quiet_period` (71 hours is not enough, a drift hour restarts the count, 72 closes it, state survives a restart) and `test_alerts_one_retrain_per_episode` (cooldown over, still ignored, then allowed after the quiet period). Settings: `drift.episode_clear_hours` in `params.yaml`. HLD and LLD are updated.
+
+### 2. Stage 12: Streamlit frontend (commit `d5f38cf`)
+
+| File | What it does |
+|------|--------------|
+| `src/frontend/client.py` | `BackendClient`, the only door to the backend. Reads `BACKEND_URL` (and `BACKEND_CA_FILE` for the self-signed certificate of Stage 15). Sends the API key only to the paths where the caller passes one. Turns every failure into a `BackendError` with a code. Times each call and counts failures. |
+| `src/frontend/forecast_page.py` | City dropdown filled from `/cities`, one colour card per horizon, advice text, colour guide, Refresh button, plain sentences when the backend or the model is down. |
+| `src/frontend/console_page.py` | Health and replay status, the DVC DAG drawn with Graphviz and coloured by each stage's last status, the stage table (duration, rows, rows/sec), successful and failed run counts with the run table (it has the error column), model versions, links to MLflow, Grafana and Prometheus. After the operator types the API key: drift status and the replay, retrain and rollback buttons. |
+| `src/frontend/helpers.py` | Pure functions (text colour, time format, card HTML, DAG source) so they can be unit tested. |
+| `src/frontend/metrics.py` | `aq_ui_page_views_total`, `aq_ui_backend_call_duration_seconds`, `aq_ui_backend_errors_total` on port 8502. |
+
+**Decisions.** The console does not read `OPS_API_KEY` from the environment. If it did, anyone who could open the page could press retrain. The operator types the key, and the first `/ops/drift` call is the check: a wrong key shows an error and no buttons. A test caught my first version, which still showed the buttons after a wrong key. The LLD environment table is changed to say this. Card text is HTML-escaped, and a test checks that. The page layout is Streamlit's own column flow, which stacks on a narrow screen. I did not test it on a real phone.
+
+**What I ran.** I started the real model server and backend and checked the client against them: `/pipeline/stages`, `/pipeline/runs`, `/pipeline/models` and `/ops/drift` return what the pages need, a wrong key gives `UNAUTHORIZED` (401), an unknown city gives `UNKNOWN_CITY`, and a dead port gives `UNREACHABLE`. Streamlit served `/console` with HTTP 200. The page tests use Streamlit's `AppTest` with a fake backend. Test count after this stage: 311 passed, ruff clean.
+
+**Not done: the screenshots.** The only browser on this VM is Firefox as a snap, and headless mode hangs on it. I tried to install Playwright and its Chromium, but even the pip download of Playwright stalled and I stopped it (the VM's network is slow, the same reason the image builds below are slow). The screenshots of both pages for the user manual are still missing. To take them: run the stack (below) and use the browser on your desktop.
+
+**Run it.**
+
+```
+export PATH=$PWD/.venv/bin:$PATH MLFLOW_TRACKING_URI=sqlite:///mlflow.db OPS_API_KEY=<key>
+python -m src.model_server.serve &
+python -m src.backend.main &
+BACKEND_URL=http://localhost:8000 PYTHONPATH=. streamlit run src/frontend/app.py
+```
+
+### 3. Stage 13: Docker (partly done, committed with these notes)
+
+**Written:** a Dockerfile for the frontend, backend and pipeline (the model server already had one), each with a pinned `requirements.txt`, non-root user, health check and only the source folders it needs. `docker-compose.yml` has the `serve` profile (frontend, backend, model-server, mlflow, prometheus, alertmanager, pushgateway, node-exporter, grafana) and the `batch` profile (pipeline), `mem_limit` on every service, and ports for Prometheus, Alertmanager, Grafana and MLflow that do not collide with the other project's containers (19090, 19093, 13000, 5000). `scripts/build_multiarch.sh` builds and pushes the amd64 and arm64 images.
+
+**Checked:** `docker compose --profile serve --profile batch config` is valid.
+
+**Not checked, and why:**
+- **Image builds.** I started the frontend and backend builds, but pip downloads on this VM are very slow (Streamlit and MLflow are large). When I wrote this, neither build had finished, so I have **not** run the stack in compose. Whether the images start, and the memory use of each container, are unmeasured. I did not want to leave a half-run `docker compose up` while you were away.
+- **Multi-arch push.** It needs `docker login` (your Docker Hub password) and QEMU emulation for amd64 on this arm64 VM, which I cannot set up without sudo. The script is written but untested. This is a blocker for you to decide.
+- **Pushgateway and Grafana wiring.** The services exist, but Prometheus still scrapes only the backend and Grafana has no dashboards. That is Stage 14.
+
+**Design points to defend.**
+- *The same absolute path inside containers.* MLflow stores artifact locations as absolute host paths (`/home/.../mlruns/1/...`). The model server cannot find a model there unless the same path exists inside the container, so compose mounts `mlruns` and `mlflow.db` at `${HOST_PROJECT}`. It is ugly, and it is honest: the registry was created on the host. A clean fix is to log new runs with `--serve-artifacts` through the MLflow server, but that does not rescue the existing versions.
+- *The MLflow service reuses the model-server image.* It already contains MLflow, and a fourth Python image would cost another gigabyte on a small disk.
+- *`user: HOST_UID:HOST_GID`.* The backend writes request files into `./ops` and MLflow writes the SQLite file. The image has a non-root user (10001), but bind mounts owned by my user would be read-only to it. Running as the host user keeps it non-root and writable.
+- *The pipeline image holds only the environment.* The project folder is mounted, so `dvc repro` works on the real repo and DVC cache.
+
+### Viva questions I prepared
+
+**1. Why does a retrain not simply restart whenever the cooldown ends?**
+Because the cooldown measures real time, and drift is a property of the simulated data. During a 75-day lockdown the rule stays true for days. The episode gate links the end of the suppression to the rule itself, so one episode gives one retrain.
+
+**2. How did you pick 72 hours?**
+From the measured gaps between lockdown episodes: 28, 49 and 37 hours join together, 250 hours stays separate. The limit of that is that I chose it on this one replay.
+
+**3. Why is the API key typed into the console and not set as an environment variable?**
+A key in the frontend's environment means the frontend acts for every visitor. Typing it keeps the authority with the person, and the backend is still what decides, in constant time.
+
+**4. Why does the frontend import nothing from the backend?**
+So it can be rebuilt, moved or replaced knowing only `BACKEND_URL` and `docs/LLD.md`. Its image copies `src/frontend` and two small shared helpers, nothing else.
+
+**5. Why does MLflow need the project mounted at the same path?**
+Run artifact locations are stored as absolute paths when the run is logged. A container with a different path cannot open them.
+
+**6. Why `mem_limit` on every service, and why two profiles?**
+The VM has 8 GB. Spark's driver alone takes 2 GB. Running the batch and the full stack at once would push the machine into swap, so compose makes them separate profiles and the runner refuses to start with less than 2,500 MB free.
+
+### What needs you
+
+1. Docker Hub login and QEMU/binfmt for the multi-arch push (needs sudo or your password).
+2. Screenshots of both pages (a browser on your desktop).
+3. Finish and measure the compose run: `docker compose --profile serve up -d`, then record the memory of each container in `docs/metrics.md`.
