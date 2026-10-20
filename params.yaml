@@ -19,3 +19,33 @@ cities: [Delhi, Chennai, Lucknow, Hyderabad, Bengaluru, Jaipur, Kolkata]
 
 cutoff: "2020-03-24 23:00:00"   # last hour used for training
 eval_window_days: 3
+
+# Replay of the 2020 lockdown as simulated live traffic (inclusive hours).
+replay:
+  start: "2020-03-25 00:00:00"
+  end: "2020-06-30 23:00:00"
+
+# Limits used by the validate stage. "Hard" failures stop the pipeline.
+validate:
+  time_range:                       # any timestamp outside this is a hard failure
+    min: "2015-01-01 00:00:00"
+    max: "2020-12-31 23:59:59"
+  # Keys are quoted on purpose: an unquoted NO is read by YAML as boolean false.
+  max_values:                       # sensor ceilings; above this is a hard failure
+    "PM2.5": 1000
+    "PM10": 1000
+    "NO": 500
+    "NO2": 500
+    "NOx": 500
+    "NH3": 500
+    "CO": 500
+    "SO2": 500
+    "O3": 1000
+    "Benzene": 500
+    "Toluene": 500
+    "Xylene": 500
+    "AQI": 5000
+  warn_missing_share: 0.5           # warning if a table misses more PM2.5 than this
+  min_city_hours: 15000             # selected cities need at least this many hourly rows
+  min_city_pm25_share: 0.7          # ... and this share of non-missing PM2.5 values
+  min_replay_coverage: 0.5          # ... and this share of PM2.5 hours inside the replay window

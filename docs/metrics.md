@@ -51,3 +51,30 @@ the whole table in memory, so the same code keeps working if the data grows beyo
 RAM. We have not tested larger data, so that point is a design reason, not a
 measured result. The two memory numbers are measured differently, so compare them
 only roughly.
+
+## Stage 5: validate (Spark)
+
+| What | Value |
+|------|-------|
+| Tables checked | 4 measurement tables, plus stations and the 7 selected cities |
+| Rows scanned | 3,434,524 (the 230 station rows are checked separately) |
+| Checks run | 48 (48 passed, 0 warnings, 0 failed) |
+| Stage time (4 runs, driver 3 GB) | 32.3 s, 32.1 s, 33.5 s, 32.3 s |
+| Throughput | about 102,000 to 107,000 rows/s |
+| Slowest table | station_hour (2.59 M rows), about 16 s |
+| Peak Spark memory, driver 3 GB | about 3.4 GB (JVM RSS) |
+| Same run, driver 1 GB | finished in 34.2 s, peak about 1.4 GB |
+
+Why validate is slower than ingest (about 105 k rows/s against about 420 k rows/s):
+it computes about 70 counters per table, and it counts distinct (id, time) pairs
+to find duplicates. That distinct count needs a shuffle.
+
+On memory: the 3.4 GB peak is the JVM filling the heap it is allowed to use. It
+does not need that much. With a 1 GB driver the same run gives the same answer in
+almost the same time. We keep the 3 GB limit from `CLAUDE.md` for the later,
+heavier stages, and never run Spark together with the full serve stack.
+
+Data facts found by validation (full list in `reports/validation.json`):
+no duplicate rows, no negative values, no missing ids or timestamps, all
+timestamps on the hour. All 7 selected cities have PM2.5 for 99.9% to 100% of the
+2,352 replay hours (25 Mar to 30 Jun 2020).

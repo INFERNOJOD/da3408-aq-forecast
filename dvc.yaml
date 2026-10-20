@@ -12,3 +12,20 @@ stages:
       - ingest
     outs:
       - data/interim
+
+  validate:
+    cmd: python -m src.pipeline.validate
+    deps:
+      - data/interim
+      - src/pipeline/validate.py
+      - src/pipeline/ingest.py
+      - src/common
+    params:
+      - paths
+      - spark
+      - cities
+      - replay
+      - validate
+    metrics:
+      - reports/validation.json:
+          cache: false

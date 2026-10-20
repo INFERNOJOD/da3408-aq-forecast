@@ -41,3 +41,73 @@ stages:
       md5: a2da63ab4b54b049590b598d6f081de6.dir
       size: 67319003
       nfiles: 36
+  validate:
+    cmd: python -m src.pipeline.validate
+    deps:
+    - path: data/interim
+      hash: md5
+      md5: a2da63ab4b54b049590b598d6f081de6.dir
+      size: 67319003
+      nfiles: 36
+    - path: src/common
+      hash: md5
+      md5: dc46e679c19aecae78805c2a80a47ed3.dir
+      size: 27499
+      nfiles: 12
+    - path: src/pipeline/ingest.py
+      hash: md5
+      md5: 2e69e97eb2a9f6ab92df687207d2329a
+      size: 5128
+    - path: src/pipeline/validate.py
+      hash: md5
+      md5: 9f52fb1feb228b01f9e30fcc9d224879
+      size: 18181
+    params:
+      params.yaml:
+        cities:
+        - Delhi
+        - Chennai
+        - Lucknow
+        - Hyderabad
+        - Bengaluru
+        - Jaipur
+        - Kolkata
+        paths:
+          raw_dir: data/raw
+          interim_dir: data/interim
+          features_dir: data/features
+          reports_dir: reports
+        replay:
+          start: '2020-03-25 00:00:00'
+          end: '2020-06-30 23:00:00'
+        spark:
+          driver_memory: 3g
+          shuffle_partitions: 8
+          cores: 4
+        validate:
+          time_range:
+            min: '2015-01-01 00:00:00'
+            max: '2020-12-31 23:59:59'
+          max_values:
+            PM2.5: 1000
+            PM10: 1000
+            NO: 500
+            NO2: 500
+            NOx: 500
+            NH3: 500
+            CO: 500
+            SO2: 500
+            O3: 1000
+            Benzene: 500
+            Toluene: 500
+            Xylene: 500
+            AQI: 5000
+          warn_missing_share: 0.5
+          min_city_hours: 15000
+          min_city_pm25_share: 0.7
+          min_replay_coverage: 0.5
+    outs:
+    - path: reports/validation.json
+      hash: md5
+      md5: 0d004c03bed196b8e1fa3953f9fcd050
+      size: 12607

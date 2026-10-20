@@ -1,0 +1,528 @@
+{
+  "status": "passed",
+  "n_checks": 48,
+  "n_passed": 48,
+  "n_warnings": 0,
+  "n_failed": 0,
+  "checks": [
+    {
+      "table": "city_day",
+      "check": "schema",
+      "status": "pass",
+      "detail": "Columns and types match the expected schema",
+      "value": null
+    },
+    {
+      "table": "city_day",
+      "check": "not_empty",
+      "status": "pass",
+      "detail": "29531 rows",
+      "value": 29531
+    },
+    {
+      "table": "city_day",
+      "check": "no_null_key_or_time",
+      "status": "pass",
+      "detail": "No missing ids or timestamps",
+      "value": 0
+    },
+    {
+      "table": "city_day",
+      "check": "no_duplicates",
+      "status": "pass",
+      "detail": "Every (id, time) pair is unique",
+      "value": 0
+    },
+    {
+      "table": "city_day",
+      "check": "time_range",
+      "status": "pass",
+      "detail": "Times run from 2015-01-01 00:00:00 to 2020-07-01 00:00:00",
+      "value": [
+        "2015-01-01 00:00:00",
+        "2020-07-01 00:00:00"
+      ]
+    },
+    {
+      "table": "city_day",
+      "check": "no_negative_values",
+      "status": "pass",
+      "detail": "No negative values",
+      "value": 0
+    },
+    {
+      "table": "city_day",
+      "check": "values_below_ceiling",
+      "status": "pass",
+      "detail": "All values are at or below the sensor ceilings",
+      "value": 0
+    },
+    {
+      "table": "city_day",
+      "check": "aqi_bucket_names",
+      "status": "pass",
+      "detail": "AQI_Bucket values are all known",
+      "value": null
+    },
+    {
+      "table": "city_day",
+      "check": "pm25_missing_share",
+      "status": "pass",
+      "detail": "PM2.5 missing in 15.6% of rows (warn above 50%)",
+      "value": 0.1557
+    },
+    {
+      "table": "city_hour",
+      "check": "schema",
+      "status": "pass",
+      "detail": "Columns and types match the expected schema",
+      "value": null
+    },
+    {
+      "table": "city_hour",
+      "check": "not_empty",
+      "status": "pass",
+      "detail": "707875 rows",
+      "value": 707875
+    },
+    {
+      "table": "city_hour",
+      "check": "no_null_key_or_time",
+      "status": "pass",
+      "detail": "No missing ids or timestamps",
+      "value": 0
+    },
+    {
+      "table": "city_hour",
+      "check": "no_duplicates",
+      "status": "pass",
+      "detail": "Every (id, time) pair is unique",
+      "value": 0
+    },
+    {
+      "table": "city_hour",
+      "check": "time_range",
+      "status": "pass",
+      "detail": "Times run from 2015-01-01 01:00:00 to 2020-07-01 00:00:00",
+      "value": [
+        "2015-01-01 01:00:00",
+        "2020-07-01 00:00:00"
+      ]
+    },
+    {
+      "table": "city_hour",
+      "check": "on_the_hour",
+      "status": "pass",
+      "detail": "All timestamps are on the hour",
+      "value": 0
+    },
+    {
+      "table": "city_hour",
+      "check": "no_negative_values",
+      "status": "pass",
+      "detail": "No negative values",
+      "value": 0
+    },
+    {
+      "table": "city_hour",
+      "check": "values_below_ceiling",
+      "status": "pass",
+      "detail": "All values are at or below the sensor ceilings",
+      "value": 0
+    },
+    {
+      "table": "city_hour",
+      "check": "aqi_bucket_names",
+      "status": "pass",
+      "detail": "AQI_Bucket values are all known",
+      "value": null
+    },
+    {
+      "table": "city_hour",
+      "check": "pm25_missing_share",
+      "status": "pass",
+      "detail": "PM2.5 missing in 20.5% of rows (warn above 50%)",
+      "value": 0.205
+    },
+    {
+      "table": "station_day",
+      "check": "schema",
+      "status": "pass",
+      "detail": "Columns and types match the expected schema",
+      "value": null
+    },
+    {
+      "table": "station_day",
+      "check": "not_empty",
+      "status": "pass",
+      "detail": "108035 rows",
+      "value": 108035
+    },
+    {
+      "table": "station_day",
+      "check": "no_null_key_or_time",
+      "status": "pass",
+      "detail": "No missing ids or timestamps",
+      "value": 0
+    },
+    {
+      "table": "station_day",
+      "check": "no_duplicates",
+      "status": "pass",
+      "detail": "Every (id, time) pair is unique",
+      "value": 0
+    },
+    {
+      "table": "station_day",
+      "check": "time_range",
+      "status": "pass",
+      "detail": "Times run from 2015-01-01 00:00:00 to 2020-07-01 00:00:00",
+      "value": [
+        "2015-01-01 00:00:00",
+        "2020-07-01 00:00:00"
+      ]
+    },
+    {
+      "table": "station_day",
+      "check": "no_negative_values",
+      "status": "pass",
+      "detail": "No negative values",
+      "value": 0
+    },
+    {
+      "table": "station_day",
+      "check": "values_below_ceiling",
+      "status": "pass",
+      "detail": "All values are at or below the sensor ceilings",
+      "value": 0
+    },
+    {
+      "table": "station_day",
+      "check": "aqi_bucket_names",
+      "status": "pass",
+      "detail": "AQI_Bucket values are all known",
+      "value": null
+    },
+    {
+      "table": "station_day",
+      "check": "pm25_missing_share",
+      "status": "pass",
+      "detail": "PM2.5 missing in 20.0% of rows (warn above 50%)",
+      "value": 0.2002
+    },
+    {
+      "table": "station_hour",
+      "check": "schema",
+      "status": "pass",
+      "detail": "Columns and types match the expected schema",
+      "value": null
+    },
+    {
+      "table": "station_hour",
+      "check": "not_empty",
+      "status": "pass",
+      "detail": "2589083 rows",
+      "value": 2589083
+    },
+    {
+      "table": "station_hour",
+      "check": "no_null_key_or_time",
+      "status": "pass",
+      "detail": "No missing ids or timestamps",
+      "value": 0
+    },
+    {
+      "table": "station_hour",
+      "check": "no_duplicates",
+      "status": "pass",
+      "detail": "Every (id, time) pair is unique",
+      "value": 0
+    },
+    {
+      "table": "station_hour",
+      "check": "time_range",
+      "status": "pass",
+      "detail": "Times run from 2015-01-01 01:00:00 to 2020-07-01 00:00:00",
+      "value": [
+        "2015-01-01 01:00:00",
+        "2020-07-01 00:00:00"
+      ]
+    },
+    {
+      "table": "station_hour",
+      "check": "on_the_hour",
+      "status": "pass",
+      "detail": "All timestamps are on the hour",
+      "value": 0
+    },
+    {
+      "table": "station_hour",
+      "check": "no_negative_values",
+      "status": "pass",
+      "detail": "No negative values",
+      "value": 0
+    },
+    {
+      "table": "station_hour",
+      "check": "values_below_ceiling",
+      "status": "pass",
+      "detail": "All values are at or below the sensor ceilings",
+      "value": 0
+    },
+    {
+      "table": "station_hour",
+      "check": "aqi_bucket_names",
+      "status": "pass",
+      "detail": "AQI_Bucket values are all known",
+      "value": null
+    },
+    {
+      "table": "station_hour",
+      "check": "pm25_missing_share",
+      "status": "pass",
+      "detail": "PM2.5 missing in 25.0% of rows (warn above 50%)",
+      "value": 0.2502
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Delhi",
+      "status": "pass",
+      "detail": "48192 rows, PM2.5 present 99%, replay coverage 100%",
+      "value": {
+        "hours": 48192,
+        "pm25_share": 0.9922,
+        "replay_coverage": 1.0
+      }
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Chennai",
+      "status": "pass",
+      "detail": "48192 rows, PM2.5 present 93%, replay coverage 100%",
+      "value": {
+        "hours": 48192,
+        "pm25_share": 0.9312,
+        "replay_coverage": 1.0
+      }
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Lucknow",
+      "status": "pass",
+      "detail": "48192 rows, PM2.5 present 93%, replay coverage 100%",
+      "value": {
+        "hours": 48192,
+        "pm25_share": 0.9344,
+        "replay_coverage": 1.0
+      }
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Hyderabad",
+      "status": "pass",
+      "detail": "48107 rows, PM2.5 present 93%, replay coverage 100%",
+      "value": {
+        "hours": 48107,
+        "pm25_share": 0.9252,
+        "replay_coverage": 1.0
+      }
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Bengaluru",
+      "status": "pass",
+      "detail": "48192 rows, PM2.5 present 90%, replay coverage 100%",
+      "value": {
+        "hours": 48192,
+        "pm25_share": 0.9039,
+        "replay_coverage": 1.0
+      }
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Jaipur",
+      "status": "pass",
+      "detail": "26705 rows, PM2.5 present 98%, replay coverage 100%",
+      "value": {
+        "hours": 26705,
+        "pm25_share": 0.9762,
+        "replay_coverage": 0.9991
+      }
+    },
+    {
+      "table": "city_hour",
+      "check": "city_Kolkata",
+      "status": "pass",
+      "detail": "19503 rows, PM2.5 present 93%, replay coverage 100%",
+      "value": {
+        "hours": 19503,
+        "pm25_share": 0.9261,
+        "replay_coverage": 1.0
+      }
+    },
+    {
+      "table": "stations",
+      "check": "unique_ids",
+      "status": "pass",
+      "detail": "StationId is unique",
+      "value": 0
+    },
+    {
+      "table": "station_day",
+      "check": "stations_known",
+      "status": "pass",
+      "detail": "All StationIds are listed in stations.csv",
+      "value": 0
+    },
+    {
+      "table": "station_hour",
+      "check": "stations_known",
+      "status": "pass",
+      "detail": "All StationIds are listed in stations.csv",
+      "value": 0
+    }
+  ],
+  "stats": {
+    "city_day": {
+      "rows": 29531,
+      "time_min": "2015-01-01 00:00:00",
+      "time_max": "2020-07-01 00:00:00",
+      "missing_share": {
+        "PM2.5": 0.1557,
+        "PM10": 0.3772,
+        "NO": 0.1213,
+        "NO2": 0.1214,
+        "NOx": 0.1417,
+        "NH3": 0.3497,
+        "CO": 0.0697,
+        "SO2": 0.1305,
+        "O3": 0.1362,
+        "Benzene": 0.1904,
+        "Toluene": 0.2723,
+        "Xylene": 0.6132,
+        "AQI": 0.1585
+      },
+      "values_at_sensor_ceiling": {
+        "PM10": 1
+      }
+    },
+    "city_hour": {
+      "rows": 707875,
+      "time_min": "2015-01-01 01:00:00",
+      "time_max": "2020-07-01 00:00:00",
+      "missing_share": {
+        "PM2.5": 0.205,
+        "PM10": 0.4192,
+        "NO": 0.1648,
+        "NO2": 0.1655,
+        "NOx": 0.1741,
+        "NH3": 0.385,
+        "CO": 0.1222,
+        "SO2": 0.1842,
+        "O3": 0.1825,
+        "Benzene": 0.2312,
+        "Toluene": 0.3116,
+        "Xylene": 0.6439,
+        "AQI": 0.1823
+      },
+      "values_at_sensor_ceiling": {
+        "PM10": 57
+      }
+    },
+    "station_day": {
+      "rows": 108035,
+      "time_min": "2015-01-01 00:00:00",
+      "time_max": "2020-07-01 00:00:00",
+      "missing_share": {
+        "PM2.5": 0.2002,
+        "PM10": 0.3953,
+        "NO": 0.1583,
+        "NO2": 0.1532,
+        "NOx": 0.1435,
+        "NH3": 0.4453,
+        "CO": 0.1203,
+        "SO2": 0.2333,
+        "O3": 0.2367,
+        "Benzene": 0.2912,
+        "Toluene": 0.3582,
+        "Xylene": 0.7881,
+        "AQI": 0.1945
+      },
+      "values_at_sensor_ceiling": {
+        "PM2.5": 1,
+        "PM10": 1
+      }
+    },
+    "station_hour": {
+      "rows": 2589083,
+      "time_min": "2015-01-01 01:00:00",
+      "time_max": "2020-07-01 00:00:00",
+      "missing_share": {
+        "PM2.5": 0.2502,
+        "PM10": 0.4323,
+        "NO": 0.2139,
+        "NO2": 0.2043,
+        "NOx": 0.1896,
+        "NH3": 0.4776,
+        "CO": 0.1928,
+        "SO2": 0.2869,
+        "O3": 0.2804,
+        "Benzene": 0.3328,
+        "Toluene": 0.4026,
+        "Xylene": 0.8015,
+        "AQI": 0.2202
+      },
+      "values_at_sensor_ceiling": {
+        "PM2.5": 182,
+        "PM10": 189,
+        "NO": 1,
+        "NOx": 4
+      }
+    },
+    "selected_cities": {
+      "Bengaluru": {
+        "hours": 48192,
+        "pm25_present": 43561,
+        "replay_present": 2352
+      },
+      "Delhi": {
+        "hours": 48192,
+        "pm25_present": 47817,
+        "replay_present": 2352
+      },
+      "Chennai": {
+        "hours": 48192,
+        "pm25_present": 44876,
+        "replay_present": 2352
+      },
+      "Hyderabad": {
+        "hours": 48107,
+        "pm25_present": 44507,
+        "replay_present": 2352
+      },
+      "Jaipur": {
+        "hours": 26705,
+        "pm25_present": 26070,
+        "replay_present": 2350
+      },
+      "Lucknow": {
+        "hours": 48192,
+        "pm25_present": 45032,
+        "replay_present": 2352
+      },
+      "Kolkata": {
+        "hours": 19503,
+        "pm25_present": 18061,
+        "replay_present": 2352
+      }
+    },
+    "stations": {
+      "rows": 230,
+      "duplicate_ids": 0,
+      "unknown_ids": {
+        "station_day": 0,
+        "station_hour": 0
+      }
+    }
+  }
+}
