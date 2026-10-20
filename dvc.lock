@@ -134,8 +134,8 @@ stages:
       nfiles: 18
     - path: src/monitoring/drift.py
       hash: md5
-      md5: baeee0b32905999617785cb47522723d
-      size: 7356
+      md5: da073e2069ea4259b2945a567b3bbbc2
+      size: 7336
     - path: src/pipeline/features.py
       hash: md5
       md5: b9fd0948be96acb434446e768a2fd00d
@@ -150,7 +150,7 @@ stages:
         - Bengaluru
         - Jaipur
         - Kolkata
-        cutoff: '2020-03-24 23:00:00'
+        cutoff: '2020-04-02 19:00:00'
         features:
           max_ffill_hours: 3
           serving_start: '2020-01-01 00:00:00'
@@ -182,8 +182,8 @@ stages:
     outs:
     - path: data/features
       hash: md5
-      md5: 0f77194f816bc2c1e2144fe723e35e99.dir
-      size: 17013428
+      md5: e22007313f3c35331b308ed189bae8a2.dir
+      size: 17088542
       nfiles: 18
     - path: reports/baseline_stats.json
       hash: md5
@@ -198,8 +198,8 @@ stages:
     deps:
     - path: data/features/train.parquet
       hash: md5
-      md5: c90e20d9bef9292fa437cffb0f23a38d.dir
-      size: 15184333
+      md5: 1199b1a9e55e420b9e136e8fe19f73c8.dir
+      size: 15259447
       nfiles: 14
     - path: reports/baseline_stats.json
       hash: md5
@@ -236,7 +236,7 @@ stages:
         - Bengaluru
         - Jaipur
         - Kolkata
-        cutoff: '2020-03-24 23:00:00'
+        cutoff: '2020-04-02 19:00:00'
         eval_window_days: 3
         paths:
           raw_dir: data/raw
@@ -265,30 +265,30 @@ stages:
     outs:
     - path: models/candidate
       hash: md5
-      md5: 3fa70e6271c000df477fc9349ef5dc0a.dir
-      size: 3047198
+      md5: 5c028c6e6cd00d2b47b4e0e00367004e.dir
+      size: 3048632
       nfiles: 12
     - path: reports/train_metrics.json
       hash: md5
-      md5: 4069f13ca36c54010da96e2837375ee1
-      size: 2690
+      md5: 98f07f1f74476e8d9530aab3143902ac
+      size: 2515
   evaluate:
     cmd: python -m src.pipeline.evaluate
     deps:
     - path: data/features/train.parquet
       hash: md5
-      md5: c90e20d9bef9292fa437cffb0f23a38d.dir
-      size: 15184333
+      md5: 1199b1a9e55e420b9e136e8fe19f73c8.dir
+      size: 15259447
       nfiles: 14
     - path: models/candidate
       hash: md5
-      md5: 3fa70e6271c000df477fc9349ef5dc0a.dir
-      size: 3047198
+      md5: 5c028c6e6cd00d2b47b4e0e00367004e.dir
+      size: 3048632
       nfiles: 12
     - path: reports/train_metrics.json
       hash: md5
-      md5: 4069f13ca36c54010da96e2837375ee1
-      size: 2690
+      md5: 98f07f1f74476e8d9530aab3143902ac
+      size: 2515
     - path: src/common
       hash: md5
       md5: 83309660567efecaba130530efffb09f.dir
@@ -308,7 +308,7 @@ stages:
       size: 5110
     params:
       params.yaml:
-        cutoff: '2020-03-24 23:00:00'
+        cutoff: '2020-04-02 19:00:00'
         eval_window_days: 3
         paths:
           raw_dir: data/raw
@@ -321,15 +321,15 @@ stages:
     outs:
     - path: reports/eval.json
       hash: md5
-      md5: 11109dcef9f869e772f107695200b0a6
-      size: 1131
+      md5: 45bbda7288fe7f0ce63aa0ab5ee27dd3
+      size: 1135
   test:
     cmd: python -m src.pipeline.test_gate
     deps:
     - path: reports/eval.json
       hash: md5
-      md5: 11109dcef9f869e772f107695200b0a6
-      size: 1131
+      md5: 45bbda7288fe7f0ce63aa0ab5ee27dd3
+      size: 1135
     - path: src/common
       hash: md5
       md5: 83309660567efecaba130530efffb09f.dir
@@ -352,28 +352,28 @@ stages:
     outs:
     - path: reports/gate.json
       hash: md5
-      md5: 58df26754177915c9c7094fd5583a6d4
-      size: 400
+      md5: 75cc4f15b7c6747292261f4b586850c9
+      size: 320
   register:
     cmd: python -m src.pipeline.register
     deps:
     - path: models/candidate
       hash: md5
-      md5: 3fa70e6271c000df477fc9349ef5dc0a.dir
-      size: 3047198
+      md5: 5c028c6e6cd00d2b47b4e0e00367004e.dir
+      size: 3048632
       nfiles: 12
     - path: reports/eval.json
       hash: md5
-      md5: 11109dcef9f869e772f107695200b0a6
-      size: 1131
+      md5: 45bbda7288fe7f0ce63aa0ab5ee27dd3
+      size: 1135
     - path: reports/gate.json
       hash: md5
-      md5: 58df26754177915c9c7094fd5583a6d4
-      size: 400
+      md5: 75cc4f15b7c6747292261f4b586850c9
+      size: 320
     - path: reports/train_metrics.json
       hash: md5
-      md5: 4069f13ca36c54010da96e2837375ee1
-      size: 2690
+      md5: 98f07f1f74476e8d9530aab3143902ac
+      size: 2515
     - path: src/common
       hash: md5
       md5: 83309660567efecaba130530efffb09f.dir
@@ -389,7 +389,7 @@ stages:
       size: 5110
     params:
       params.yaml:
-        cutoff: '2020-03-24 23:00:00'
+        cutoff: '2020-04-02 19:00:00'
         paths:
           raw_dir: data/raw
           interim_dir: data/interim
@@ -401,5 +401,5 @@ stages:
     outs:
     - path: reports/register.json
       hash: md5
-      md5: 6230296a7987a288f087bacaec9fe5d9
-      size: 314
+      md5: 78ff73c065966807e4156e2a72780d2a
+      size: 233

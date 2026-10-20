@@ -710,3 +710,112 @@ I ran the backend against the real model server with champion v1. The forecast f
 ### Next: Stage 11
 
 Stage 11 builds the drift module and the replay script, the ops runner that turns a request file into `dvc repro`, and the acceptance test: the lockdown replay must trigger drift at least once, and normal weeks of earlier years must not. It also fills in `/ops/drift`. I have no open question that blocks it. Waiting for your go-ahead.
+
+---
+
+## Part 10: Stage 11, drift detection and automated retraining
+
+Stage 11 is done. The acceptance test passes, but not with the rule I designed. The first rule failed both conditions, so I measured why, and we changed it together before I built anything around it. At the end `ruff check` passed, `pytest` gave 293 passed and 0 failed, `dvc status` said up to date, and `python -m scripts.replay` exited with 0.
+
+### The rule changed, and why
+
+The HLD rule was: at least 3 cities above their own PSI threshold **and** a pooled 72 h MAE ratio above 1.5. Before writing the module, I scored every hour of the replay window in 2016-2019 and in 2020 with that rule. It fired for 13 hours in normal 2018, and it never fired during the lockdown.
+
+PSI was not the problem. The lockdown pushes up to 5 cities above their thresholds at once. The MAE condition was the problem. The model's error grows with the PM2.5 level, and lockdown PM2.5 is about half of a normal spring. So champion v1 made *smaller* errors during the lockdown than in any earlier year, in all 7 cities, and the ratio never got above 1.47. Earlier springs, with their higher levels, had ratios above 1.5 for hundreds of hours. The idea "PSI says the inputs changed, the MAE says it hurts" was wrong for this model: the lockdown changed the inputs a lot but did not hurt the 1 h forecast.
+
+The two fallbacks you gave me (2 cities instead of 3, then removing Hyderabad) both loosen only the PSI side. With either one, the lockdown still got 0 hours, because the MAE condition blocked it, and 2 cities made the false alarms worse. So I stopped and asked. You chose a PSI-only rule, with the number of cities set from normal weeks only. In 2016-2019 at most 3 cities were ever above threshold at the same hour, so the rule needs 4 of the 6 voting cities. The MAE ratio is still computed and exported, and it drives the `ForecastErrorHigh` warning, but it no longer starts a retrain. HLD, LLD and PLAN say this in the same words.
+
+### What I built
+
+| File | What it does |
+|------|--------------|
+| `src/monitoring/drift.py` | PSI, reference bins, leave-one-year-out thresholds and `DriftDetector`, which applies the rule for one hour. The features stage, the backend and the replay script all use this one module, so they cannot disagree. |
+| `src/pipeline/features.py` | Now also writes `reports/drift_thresholds.json`. Spark selects the reference values (about 60,000 numbers); the PSI is computed in Python with the module above. `reference_frame` is shared with the baseline code, so both use the same hours. |
+| `src/backend/drift.py` | `DriftReport` fills `/ops/drift` and the drift gauges with real numbers. PSI needs only the stored features, so drift is detected even when the model server is down. The MAE ratio asks the model server for the last 72 hours of 1 h forecasts in one call, divides by the champion's `mae_1h` tag, and is cached per replay hour and champion version. |
+| `src/backend/ops.py`, `app.py` | A drift alert now saves `trigger` and a `drift` snapshot in the request file. |
+| `src/ops/runner.py` | `OpsRunner`: takes the oldest queued request, checks free memory (2,500 MB), moves `cutoff` in `params.yaml` to the request's simulated time, writes `reports/drift_trigger.json`, runs `dvc repro` with `PIPELINE_TRIGGER` and `PIPELINE_RUN_ID`, reads `register.json`, and after a promotion runs the smoke check. If the new version does not answer within 180 s, it rolls back to `previous`. |
+| `scripts/replay.py` | The acceptance test. It replays 25 March to 30 June hour by hour for 2016-2019 (each year against a reference built without it) and for 2020 (against the saved reference), and writes `reports/drift_replay.json`. |
+| `monitoring/alerts.yml`, `prometheus.yml`, `alertmanager.yml` | The two drift alert rules and the webhook to `/ops/alerts` with the bearer key from a gitignored file. Only the backend is scraped so far. Stage 14 adds the rest. |
+
+New settings in `params.yaml`: `features.threshold_percentile` (95), `threshold_blocks` ([1, 13]), `threshold_min_years` (3), `drift.min_cities` (4) and `drift.mae_ratio_warn` (1.5).
+
+### How to run it
+
+```
+export PATH=$PWD/.venv/bin:$PATH MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+python -m scripts.replay --with-mae          # acceptance test, about 4 s
+
+# end to end (frontend and Grafana must not run)
+echo "$OPS_API_KEY" > monitoring/secrets/ops_api_key
+python -m src.model_server.serve &
+OPS_API_KEY=... MODEL_SERVER_URL=http://localhost:5001 OPS_DIR=$PWD/ops python -m src.backend.main &
+MODEL_SERVER_URL=http://localhost:5001 OPS_DIR=$PWD/ops python -m src.ops.runner &
+docker network create aq-s11
+docker run -d --name aq-s11-alertmanager --network aq-s11 --network-alias alertmanager \
+  --add-host backend:host-gateway -p 19093:9093 \
+  -v $PWD/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
+  -v $PWD/monitoring/secrets:/etc/alertmanager/secrets:ro prom/alertmanager:v0.28.1
+docker run -d --name aq-s11-prometheus --network aq-s11 --add-host backend:host-gateway \
+  -p 19090:9090 -v $PWD/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  -v $PWD/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro prom/prometheus:v3.5.0 \
+  --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=2d
+curl -H "Authorization: Bearer $OPS_API_KEY" -H 'content-type: application/json' \
+  -X POST localhost:8000/ops/replay -d '{"action":"start","speed_hps":0.5}'
+```
+
+I used ports 19090 and 19093 because 9090 and 9093 belong to another project's containers on this VM, which I did not touch. In Stage 13 these become compose services.
+
+### What I ran and what I measured
+
+All numbers are in `docs/metrics.md`, Stage 11. In short:
+
+- **Acceptance test: passed.** The lockdown triggers drift for 661 of 2,185 scored hours in 5 episodes, first at 2020-03-31 23:00, the first hour with a full window. Normal weeks of 2016-2019 trigger it for 0 hours.
+- **End to end:** I started the replay at 17:13:09. The rule became true at sim time 2020-03-31 23:00 (about 17:18:43). `PM25DriftHigh` fired at 17:20:09, the webhook wrote the request at 17:20:13, and the runner started `dvc repro` at 17:20:22 with the cutoff moved to 2020-04-02 19:00. At 17:21:30 the gate passed, v4 was registered as champion, the model server swapped to it, and the smoke check passed. From drift to new model was about 2 min 47 s.
+- **The gate:** on the lockdown evaluation window the candidate's mean MAE was 6.467 against 6.750 for v1, and 0.881 and 0.890 times the best baseline. The MLflow run is tagged `trigger=drift_alert` and has the `drift_*` metrics.
+- **Memory:** the whole VM peaked at 5,008 MB used, and never had less than 2,389 MB available, during the retrain with model server, backend, Prometheus and Alertmanager running.
+
+### What went wrong
+
+**The designed rule could not pass.** That is the main story of this stage (above). I am glad I measured before building, because otherwise I would have built the whole loop around a trigger that never fires.
+
+**My first scratch study understated the MAE ratio in normal years.** It reported a median of 1.16 for 2017, while `scripts/replay.py` later gave 2.53. I checked against the per-city error table, and the script is right: 2017 had 1 h errors of 5 to 21 µg/m³ against a denominator of 4.50. The bug was in the scratch script, which I did not keep. The lockdown numbers matched in both (max 1.47), so the decision did not change. The numbers in the docs come from the committed script, not the scratch study. The first numbers I showed you before you chose the rule came from the scratch study (for example "MAE > 1.5 in 2018: 52 h"; the correct figure is 1,949 h).
+
+**A test failed because of my test data.** In the replay test I shifted 2019 and expected 2017 to stay quiet. But 2017's leave-one-out reference contains 2019, so 2017 rightly looked drifted. I split it into a clean case and a shifted case.
+
+**Ruff found 31 problems** in my first version: long lines and docstrings not in the imperative. I fixed them and formatted only the files I had changed.
+
+**The architecture document promised things the runner does not do:** pausing the frontend and Grafana, and committing `dvc.lock`. Pausing needs the compose stack, so for now the runner refuses to start below 2,500 MB of free memory. I decided against the automatic commit: it would also commit the cutoff change in `params.yaml`, and the MLflow run already records the commit, the cutoff and the pipeline run id. I corrected the document.
+
+### Limits you should know about
+
+- **The margin is zero.** The most cities above threshold at once in a normal week is 3, and the rule needs 4. One unusual normal week would be a false alarm. The thresholds and the city count were also chosen on the same 2016-2019 weeks I count false alarms on, so the false-alarm result is in-sample. I never used lockdown data to tune.
+- **Hyderabad is above its threshold for only 1 hour of the lockdown**, so in practice the rule is 4 of 5 cities. 2016 has only 5 voters because Jaipur has no data that year.
+- **The MAE ratios for 2016-2019 are in-sample**, because those years are in the training data. That makes the normal years look better than they are, and they still had ratios far above 1.5.
+- **The alert keeps firing after a retrain.** The PSI reference stays the same-season history, so the lockdown still looks like drift to v4. The 30-minute cooldown is what limits retrains. At 0.5 h/s that is one retrain per 900 simulated hours. I stopped the replay after the first retrain.
+- **Auto-rollback is tested with fakes only.** I did not make a real model fail its smoke check. The smoke check only checks that the new version answers with a finite value of 0 or more for one stored row (Delhi, 1 January 2020). It does not check accuracy.
+- **The repository now holds the retrained state.** `params.yaml` has `cutoff: "2020-04-02 19:00:00"` and `dvc.lock` matches it. Champion v4 lives only in my local `mlflow.db`, which is not in git. The retrain run is tagged `git_dirty=true`, because the runner changed `params.yaml`. To repeat the demo from the start: `python -m scripts.rollback --version 1`, put the cutoff back to `2020-03-24 23:00:00`, run `dvc repro`, and delete `ops/requests/*`.
+- **Prometheus and Alertmanager ran as plain containers** for this test. Compose, memory limits and the other alert rules come in Stages 13 and 14.
+
+### Viva questions I prepared
+
+**1. Why did you drop the MAE condition? Isn't a retrain without lower accuracy pointless?**
+On this model the lockdown lowers the absolute error, because there is less PM2.5 to get wrong. So no error ratio above 1 could ever confirm it. The input shift is real and large, and a retrain on the new regime is still the right reaction. The promotion gate stops a retrain that does not help: v4 was promoted only because it beat v1 on the lockdown window (6.467 against 6.750).
+
+**2. How did you pick 4 cities without looking at the lockdown?**
+I counted, for every hour of 2016-2019, how many cities were above their threshold. The maximum was 3, so 4 is the smallest number that never fires on normal weeks. Only after fixing it did I score 2020.
+
+**3. Why compute the PSI thresholds in the features stage?**
+They depend only on the reference years, which the features stage already selects with Spark. Being a DVC output, they are versioned with the data and change only when the data or the settings change.
+
+**4. What stops a retrain storm?**
+Three things: the backend accepts no new request while one is queued or running, a 30-minute cooldown after each request, and Alertmanager's 30-minute repeat interval.
+
+**5. What happens if the new model is broken?**
+The runner waits up to 180 s for the model server to answer a test forecast with the new version and a sane value. If that does not happen, it moves `champion` back to `previous`, the watcher swaps the old model back in, and the request is marked `rolled_back`.
+
+**6. Why does the retrain change `params.yaml`?**
+The cutoff is the input that decides which hours the model trains on, and DVC tracks it as a parameter. Changing it is what makes `dvc repro` rebuild features and retrain. The MLflow run records the new cutoff, so the model can still be traced to its code and data.
+
+### Next: Stage 12
+
+Stage 12 is the Streamlit frontend: the forecast page for non-technical users and the pipeline console. The console will show the drift status from `/ops/drift` and the retrain requests. I have no open question that blocks it. Waiting for your go-ahead.

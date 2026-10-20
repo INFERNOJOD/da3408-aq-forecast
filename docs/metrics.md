@@ -317,3 +317,143 @@ A forecast includes the feature lookup, one call to the model server and the reg
 |----------|-------|
 | Backend tests (`tests/test_backend.py`) | 92 passed |
 | Whole suite | 248 passed, 0 failed |
+
+## Stage 11: drift detection and automated retraining
+
+### Per-city PSI thresholds
+
+Written by the features stage to `reports/drift_thresholds.json`. Each value is the 95th percentile
+of the leave-one-year-out PSI of `pm25_lag_1` over blocks 1 to 13 of every reference year (168 h
+windows, 10 bins, empty bins counted as 0.0001). Kolkata has only 2018-2019 and does not vote.
+
+| City | Threshold | Normal weeks scored | Reference years |
+|------|----:|----:|------|
+| Delhi | 2.031 | 52 | 2016-2019 |
+| Bengaluru | 2.041 | 46 | 2016-2019 |
+| Lucknow | 2.507 | 48 | 2016-2019 |
+| Jaipur | 2.748 | 28 | 2017-2019 |
+| Hyderabad | 3.586 | 52 | 2016-2019 |
+| Chennai | 5.203 | 50 | 2016-2019 |
+
+Computing them did not make the features stage measurably slower: it took 12.0 s, inside the
+11.8-13.0 s range of Stage 6. That `dvc repro` (features to register, original cutoff) took
+42.3 s, and the candidate was rejected because its mean MAE equalled the champion's (9.018).
+
+### Why the first rule failed
+
+The rule in the HLD before Stage 11: at least 3 cities above threshold **and** a pooled 72 h MAE
+ratio above 1.5 (champion v1, eval-window 1 h MAE 4.4995). I scored every hour from the first full
+window (replay hour 167) to the end, 2,185 hours per year. A normal year is scored against a
+reference built from the other years only. These counts come from a one-off check that reuses
+`scripts/replay.py`.
+
+| Year | PSI: ≥ 3 cities | MAE ratio > 1.5 | Both (old rule) |
+|------|----:|----:|----:|
+| 2016 | 0 h | 2,184 h | 0 h |
+| 2017 | 0 h | 1,840 h | 0 h |
+| 2018 | 14 h | 1,949 h | **13 h** (false alarm) |
+| 2019 | 44 h | 675 h | 0 h |
+| 2020 lockdown | 874 h | **0 h** | **0 h** (never fires) |
+
+The pooled 72 h MAE ratio of champion v1, from `python -m scripts.replay --with-mae`:
+
+| Year | median | 95th percentile | max |
+|------|----:|----:|----:|
+| 2016 | 2.31 | 6.00 | 14.68 |
+| 2017 | 2.53 | 5.38 | 6.83 |
+| 2018 | 2.04 | 3.42 | 4.14 |
+| 2019 | 1.36 | 1.86 | 2.17 |
+| 2020 lockdown | 0.88 | 1.16 | 1.47 |
+
+The model's error follows the PM2.5 level. Mean 1 h absolute error of v1 over the replay window,
+by year (2016-2019 are inside the training data, so these are in-sample and flattering):
+
+| City | 2016 | 2017 | 2018 | 2019 | 2020 | Mean PM2.5 2019 | Mean PM2.5 2020 |
+|------|----:|----:|----:|----:|----:|----:|----:|
+| Delhi | 13.60 | 20.84 | 8.43 | 6.40 | 4.74 | 79.3 | 47.9 |
+| Lucknow | 18.02 | 15.21 | 16.88 | 11.17 | 6.61 | 88.9 | 52.6 |
+| Chennai | 7.96 | 14.32 | 11.11 | 10.00 | 5.25 | 42.6 | 21.8 |
+| Jaipur | — | 9.05 | 9.47 | 5.58 | 4.94 | 51.3 | 33.7 |
+| Bengaluru | 8.11 | 5.40 | 10.14 | 4.59 | 2.78 | 38.8 | 21.8 |
+| Hyderabad | 15.29 | 4.76 | 2.77 | 2.98 | 2.40 | 35.8 | 26.9 |
+| Kolkata | — | — | 4.31 | 3.47 | 1.67 | 41.2 | 19.9 |
+
+Relative to persistence the model also does not get worse in 2020 (model MAE / persistence MAE
+between 0.87 and 1.04 per city). The fallbacks I had planned do not help: with 2 cities the PSI
+condition holds for 17 to 209 hours in each normal year, and removing Hyderabad changes almost
+nothing, while the MAE condition still blocks the lockdown in both cases.
+
+### Acceptance test with the rule in use (PSI only, at least 4 of 6 cities)
+
+`python -m scripts.replay` → `reports/drift_replay.json`, exit code 0. Runtime 3.8 s including
+loading the champion for the MAE part. Hours with at least k voting cities above threshold:
+
+| Year | Voting cities | k ≥ 2 | k ≥ 3 | k ≥ 4 (drift) | k ≥ 5 | Episodes | First drift |
+|------|----:|----:|----:|----:|----:|----:|------|
+| 2016 | 5 | 136 | 0 | 0 | 0 | 0 | — |
+| 2017 | 6 | 17 | 0 | 0 | 0 | 0 | — |
+| 2018 | 6 | 100 | 14 | 0 | 0 | 0 | — |
+| 2019 | 6 | 209 | 44 | 0 | 0 | 0 | — |
+| 2020 lockdown | 6 | 1,217 | 874 | **661** | 249 | 5 | 2020-03-31 23:00 |
+
+Result: **passed**. The lockdown triggers drift for 661 of 2,185 hours, and normal weeks trigger
+it for 0 hours. The lockdown episodes: 31 Mar 23:00 - 4 Apr 21:00 (95 h), 6-7 Apr (46 h),
+9-11 Apr (49 h), 13-14 Apr (11 h) and 24 Apr - 13 May (460 h). The largest number of cities above
+threshold at once in a normal year is 3, so the margin is zero. Hours each city was above its
+threshold during the lockdown: Delhi 1,258, Lucknow 1,239, Jaipur 1,028, Bengaluru 768, Chennai
+597, Hyderabad 1. Hyderabad almost never votes for drift, as the Stage 6 check predicted.
+
+### End-to-end run: drift → alert → retrain → promotion → new model served
+
+Run on this VM without Docker for the Python services: model server, backend (replay at 0.5
+simulated hours per second), ops runner, and Prometheus v3.5.0 and Alertmanager v0.28.1 in their
+own containers (ports 19090 and 19093, scrape and evaluation every 15 s). Frontend and Grafana
+were not running.
+
+| Wall clock | Event |
+|------|------|
+| 17:13:09 | Replay started at sim time 2020-03-25 00:00 |
+| ≈ 17:18:43 | Sim time 2020-03-31 23:00: 4 cities above threshold, `aq_drift_detected` = 1 |
+| 17:19:09 | `PM25DriftHigh` pending |
+| 17:20:09 | `PM25DriftHigh` firing (after `for: 1m`) |
+| 17:20:13 | Alertmanager webhook → backend wrote `rt-20261020-172013` (cutoff 2020-04-02 19:00, drift snapshot: 4 cities, PSI max 6.07, MAE ratio 0.83) |
+| 17:20:22 | Runner started pipeline run `20261020-172022`, cutoff moved from 2020-03-24 23:00 to 2020-04-02 19:00 |
+| 17:21:30 | Gate passed, v4 registered as champion, model server swapped to v4, smoke check passed |
+
+Drift to new champion in service: about 2 min 47 s, of which the alert's `for: 1m` and the
+scrape and evaluation steps took about 1.5 min.
+
+| Stage (run `20261020-172022`) | Duration | Rows out | Rows/s |
+|------|----:|----:|----:|
+| features | 12.2 s | 302,672 | 24,754 |
+| train | 24.5 s | 508,818 | 20,791 |
+| evaluate | 0.6 s | 833 | 1,424 |
+| test | 0.0 s | 1 | — |
+| register | 0.3 s | 1 | 3.0 |
+
+ingest and validate did not change, so DVC skipped them. Promotion decision on the window
+2020-03-30 20:00 to 2020-04-02 19:00 (497 rows at 1 h, 336 at 24 h, all inside the lockdown):
+
+| | 1 h MAE | 24 h MAE | Mean |
+|------|----:|----:|----:|
+| Candidate (LightGBM, both horizons) | 3.54 | 9.39 | 6.467 |
+| Champion v1 | 3.70 | 9.80 | 6.750 |
+| Best baseline | 4.02 (persistence) | 10.55 (Ridge) | |
+
+The candidate is 0.881 and 0.890 times the best baseline (limit 1.02) and beats v1, so it became
+v4 (versions 2 and 3 do not exist in the registry; MLflow does not reuse numbers). The MLflow run
+`498b149f…` is tagged `trigger=drift_alert`, `cutoff=2020-04-02 19:00:00`, `git_commit=b2eff79`
+and `git_dirty=true` (the runner changed `cutoff` in `params.yaml`), and has the metrics
+`drift_cities_exceeding` 4, `drift_psi_max` 6.073 and `drift_mae_ratio_pooled` 0.827. After the
+swap, `/forecast?city=Delhi` answered with version 4 and commit `b2eff79`.
+
+Memory over the whole run, sampled every 2 s with `free -m` (the whole VM, which also ran three
+unrelated containers): peak used 5,008 MB, lowest available 2,389 MB.
+
+The auto-rollback path (smoke check fails, so the runner moves `champion` back) is covered by unit
+tests only. I did not make a real model fail.
+
+| Test run | Count |
+|----------|-------|
+| New tests (`test_drift`, `test_backend_drift`, `test_ops_runner`, `test_replay_script`, 2 in `test_features`) | 45 |
+| Whole suite | 293 passed, 0 failed |

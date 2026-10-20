@@ -111,19 +111,22 @@ Prometheus text format (see §5).
 ## 3. Ops endpoints (Bearer API key)
 
 ### GET `/ops/drift`
+200 (example values):
 ```json
-{"sim_time": "2020-04-08T09:00:00", "window_h": 168, "reference_block": 1,
- "min_cities": 3, "mae_ratio_threshold": 1.5,
- "cities": [{"city": "Delhi", "psi": 4.1, "psi_threshold": 1.9, "exceeds": true, "votes": true, "mae_ratio_1h": 1.8},
-            {"city": "Kolkata", "psi": 5.2, "psi_threshold": null, "exceeds": false, "votes": false, "mae_ratio_1h": 1.4}, "..."],
- "cities_exceeding": 4, "mae_ratio_pooled": 1.7,
- "psi_condition": true, "mae_condition": true, "any_drift": true}
+{"sim_time": "2020-04-01T00:00:00", "window_h": 168, "reference_block": 1,
+ "min_cities": 4, "mae_ratio_threshold": 1.5,
+ "cities": [{"city": "Delhi", "psi": 3.37, "psi_threshold": 2.0307, "exceeds": true, "votes": true, "mae_ratio_1h": 0.71},
+            {"city": "Kolkata", "psi": 5.2, "psi_threshold": null, "exceeds": null, "votes": false, "mae_ratio_1h": 0.64}, "..."],
+ "cities_exceeding": 4, "mae_ratio_pooled": 0.76,
+ "psi_condition": true, "mae_condition": false, "any_drift": true}
 ```
-**Stage 10 status:** the endpoint and its shape exist, but the scores are not computed yet. Every `psi`, `exceeds` and `mae_ratio_*` value is `null`, `votes` is false, `cities_exceeding` is 0 and `any_drift` is false. `psi_threshold` is read from `reports/drift_thresholds.json` if that file exists. Stage 11 fills in the numbers.
+`any_drift` is `psi_condition`: at least `min_cities` (default 4, `drift.min_cities` in `params.yaml`) voting cities have `exceeds` true. A city with `psi_threshold` null (fewer than three reference years, so no threshold could be computed; this is Kolkata) does not vote, and its `exceeds` is `null`.
 
-`any_drift` is `psi_condition` and `mae_condition`. `psi_condition` is true when at least `min_cities` cities have `exceeds` true. `mae_condition` is true when `mae_ratio_pooled` is above `mae_ratio_threshold`. A city with `psi_threshold` null (fewer than three reference years, so no threshold could be computed) does not vote.
+`mae_condition` is true when `mae_ratio_pooled` is above `mae_ratio_threshold` (`drift.mae_ratio_warn`, 1.5). It is reported and drives the `ForecastErrorHigh` warning, but it is **not** part of `any_drift`. In Stage 11 I measured that the model's error during the lockdown is lower than in normal springs, so this condition never held on the lockdown and the old two-condition rule could not fire (`docs/metrics.md`, Stage 11).
 
-`psi` compares the last 168 replayed hours with the same-season reference block `reference_block` = `h // 168` in `reports/baseline_stats.json`, where `h` is the replay hour of the window's last hour. `exceeds` is `psi > psi_threshold`, with the per-city threshold from `reports/drift_thresholds.json`. `mae_ratio_1h` is the city's 1 h MAE over the last 72 replayed hours divided by the model's 1 h MAE on its evaluation window. `mae_ratio_pooled` is the same ratio over all cities together. `psi` and `exceeds` are `null` until 168 replayed hours exist. The MAE ratios are `null` until 24 replayed hours exist.
+`psi` compares the last 168 replayed hours of `pm25_lag_1` with the same-season reference block `reference_block` = `min(h // 168, 13)` in `reports/baseline_stats.json`, where `h` is the replay hour of the window's last hour. Bins with no values count as a share of 0.0001 on both sides, so the PSI stays finite. `exceeds` is `psi > psi_threshold`, with the per-city threshold from `reports/drift_thresholds.json`. `psi` and `exceeds` are `null` until 168 replayed hours exist, or when fewer than 84 of the 168 values are present.
+
+`mae_ratio_1h` is the city's 1 h MAE over the forecasts issued in the last 72 replayed hours whose actual value is already known, divided by the champion's 1 h MAE on its evaluation window (registry tag `mae_1h`). `mae_ratio_pooled` is the same ratio over all cities together. The backend asks the model server for those forecasts in one call and caches the result per replay hour and champion version. The MAE ratios are `null` until 24 replayed hours exist, and also when the model server or the champion's `mae_1h` is not available; PSI does not need the model, so drift detection keeps working without it.
 
 ### GET `/ops/replay`  ·  POST `/ops/replay`
 Request (POST):
@@ -143,7 +146,7 @@ Request:
 ```json
 {"reason": "manual"}
 ```
-`reason`: string, 1-200 chars. The cutoff is set to the current `sim_time`. `request_id` is `rt-` plus the wall-clock time to the second.
+`reason`: string, 1-200 chars. The cutoff is set to the current `sim_time`. `request_id` is `rt-` plus the wall-clock time to the second. The request is saved with `trigger: "manual"`.
 
 202:
 ```json
@@ -166,8 +169,9 @@ Request:
 
 ### POST `/ops/alerts`
 The Alertmanager webhook (payload format v4, unchanged). For each alert with `status=firing` and `labels.action="retrain"`,
-the backend creates a retrain request with reason `drift_alert:<alertname>`, unless one was created in the last
-`RETRAIN_COOLDOWN_MIN` (30) minutes. All alerts are logged.
+the backend creates a retrain request with reason `drift_alert:<alertname>`, `trigger: "drift_alert"` and a `drift`
+snapshot (`cities_exceeding`, `psi_max`, `mae_ratio_pooled` at that moment), unless one was created in the last
+`RETRAIN_COOLDOWN_MIN` (30) minutes or one is still queued or running. All alerts are logged.
 200: `{"received": 2, "retrain_requested": true}`
 
 ## 4. Model server contract (backend → MLflow)
@@ -237,8 +241,8 @@ Alert rules (`monitoring/alerts.yml`):
 
 | Alert | Expression (summary) | for | labels |
 |-------|----------------------|-----|--------|
-| `PM25DriftHigh` | `aq_drift_detected == 1` | 1m | `action=retrain` |
-| `ForecastErrorHigh` | `aq_rolling_mae_ratio_pooled > 1.5` | 5m | none (warning only; a retrain needs drift as well) |
+| `PM25DriftHigh` | `aq_drift_detected == 1` | 1m | `action=retrain`, `severity=critical` |
+| `ForecastErrorHigh` | `aq_rolling_mae_ratio_pooled > 1.5` | 5m | `severity=warning` (no retrain) |
 | `BackendErrorRateHigh` | 5xx share of `aq_http_requests_total` > 5% over 5m | 2m | — |
 | `TargetDown` | `up == 0` | 1m | — |
 | `PipelineStageFailed` | `aq_stage_status == 0` | 0m | — |
@@ -251,14 +255,16 @@ Alert rules (`monitoring/alerts.yml`):
 | `data/features/train.parquet` | features | train, evaluate | Spark Parquet folder. One row per city and hour with `Datetime <= cutoff`: `City`, `Datetime`, the stored feature columns (section 4 without `horizon_h`), `pm25` (observed value at the hour) and targets `y_1h`, `y_24h`. A target is null if its hour is missing or falls after the cutoff, so training never sees the future. Hours missing in the source are present as rows with null values. |
 | `data/features/serving.parquet` | features | backend (ro) | Same columns as `train.parquet`, for every hour 2020-01-01 00:00 .. 2020-06-30 23:00 and the 7 cities (4,368 rows per city). Features are causal (past only). `pm25`, `y_1h` and `y_24h` are the actuals the backend reveals when its replay clock passes them. `y_24h` is null for the last 23 hours because the data ends on 2020-07-01 00:00. |
 | `reports/baseline_stats.json` | features | train (logged as `drift_baseline.json`), backend | Same-season PSI reference for `pm25_lag_1`. Top level: `feature`, `reference`, `years` (default `[2016, 2019]`), `replay_start`, `replay_hours`, `week_hours` (168), `n_bins`, `bin_rule`, `week_rule`, `cities`. Each city has `years` (years that had data) and `weeks`: a list of `{week, n, edges, proportions}`, one block per 168 replay hours (14 blocks for the default replay). The reference values of block `k` are `pm25_lag_1` at the same calendar hours of the earlier years (aligned on the replay start's month and day). Bin index of a value is the number of edges `e` with `e <= value`. A live window whose last hour is replay hour `h` uses block `h // 168`. |
-| `reports/drift_thresholds.json` | features (to be built in Stage 11) | backend | Per-city PSI threshold: `percentile` (95), `years`, and per city `psi_threshold` and `n_values`. The threshold is the 95th percentile of the city's PSI in normal weeks: every block 1 to 13 of every reference year compared with the same block of the other years (leave-one-year-out). A city with fewer than 3 reference years (Kolkata) has no entry and does not vote. |
+| `reports/drift_thresholds.json` | features | backend, `scripts/replay.py` | Per-city PSI threshold. Top level: `feature`, `percentile` (95), `years`, `blocks` (`[1, 13]`), `rule`, `cities`. Each city has `psi_threshold`, `n_values` (how many normal weeks were scored) and `years`. The threshold is the 95th percentile of the city's PSI in normal weeks: every block 1 to 13 of every reference year compared with the same block of the other years (leave-one-year-out), computed with `src/monitoring/drift.py`. A city with fewer than 3 reference years (Kolkata) has no entry and does not vote. |
+| `reports/drift_replay.json` | `scripts/replay.py` | docs | Result of the offline acceptance replay: `rule`, `min_cities`, `thresholds`, `normal_years` and `lockdown` (each with `drift_hours`, `episodes`, `first_drift`, `max_cities_exceeding`, `hours_with_at_least_k_cities`, `exceed_hours_per_city`), `acceptance` (`lockdown_triggers`, `normal_weeks_quiet`, `false_alarm_hours`, `passed`) and, with `--with-mae`, `mae_ratio_pooled_72h` per year. |
 | `reports/validation.json` | validate | console, docs | `{status, n_checks, n_passed, n_warnings, n_failed, checks[], stats}`; each check is `{table, check, status: pass/warn/fail, detail, value}` |
 | `reports/eda/*.csv` | `python -m src.pipeline.eda` (manual, not a DVC stage) | `scripts/plot_eda.py`, docs | Small aggregates for `docs/eda.md` |
 | `reports/runs.jsonl` | every stage (via `stage_runner`) | backend `/pipeline/*` | One JSON line per stage execution: `{run_id, trigger, stage, status, started_at, duration_s, rows_in, rows_out, rows_per_sec, error, git_commit, cutoff}` |
-| `ops/requests/<id>.json` | backend | ops runner | `{request_id, reason, cutoff, created_at, status}`. The runner updates `status` (`queued → running → done / failed / rolled_back`). |
+| `ops/requests/<id>.json` | backend, ops runner | ops runner, backend | Written by the backend: `{request_id, reason, cutoff, created_at, status: "queued", trigger, drift}`. The runner sets `status` to `running` and adds `started_at` and `run_id` (the pipeline run id), then sets the final `status`: `done` (the gate decided: `promoted` true or false), `failed` (with `error`) or `rolled_back` (the new champion failed the smoke check; `rolled_back_to`). It also adds `cutoff` in params format, `promoted`, `version`, `mlflow_run_id`, `reasons`, `smoke` and `finished_at`. Files are replaced atomically. A request left `running` by a crashed runner is marked `failed` when the runner starts again. |
+| `ops/logs/<id>.log` | ops runner | people | Full output of the `dvc repro` run for one request. |
 | MLflow artifacts per run | train | backend, model server | The model as an MLflow logged model linked to the run (pyfunc with `meta.json` and, per horizon, `h1.txt` / `h24.txt` for a LightGBM booster or `h1.joblib` / `h24.joblib` for a Ridge pipeline; `meta.json` has `kinds`, for example `{"1": "lightgbm", "24": "ridge"}`; its URI is `model_uri` in `reports/train_metrics.json`), `drift_baseline.json`, `per_city_mae.csv`, `feature_importance.png`, `residuals.png`, `params_resolved.json`, `environment_pins.txt` |
 | MLflow tags and metrics per run | train | register, console | Tags: `git_commit` (full hash), `git_dirty` (true if code or settings differ from the commit; `dvc.lock` and `reports/` are ignored because the pipeline rewrites them), `dvc_data_md5` (raw data version), `features_md5` (hash of the values in `train.parquet`, independent of file layout), `cutoff`, `trigger`, `pipeline_run_id`, `chosen_1h`, `chosen_24h` (`ridge` or `lightgbm`), and after the register stage `promotion` (`promoted` or `rejected`), `registry_version` or `rejected_reasons`. Metrics: `<model>_mae_<h>h`, `<model>_rmse_<h>h` and `<model>_mae_<h>h_<city>` for `persistence`, `seasonal_naive`, `ridge`, `lightgbm`; `<model>_mean_mae`; `ratio_lightgbm_to_best_baseline_<h>h`; `best_baseline_mae_<h>h`; `chosen_mae_<h>h` and `ratio_chosen_to_best_baseline_<h>h` (the served model of the horizon); after the register stage also `eval_candidate_mean_mae` and `eval_champion_mean_mae`; `lightgbm_mae_<h>h_high_pm25`; `fit_seconds_*`; `drift_*` when a drift trigger file exists. |
-| `reports/drift_trigger.json` | ops runner (Stage 11) | train | Optional. Flat JSON of the drift scores that caused a retrain, for example `{"psi_max": 0.41, "mae_ratio_max": 1.8}`. Numbers are logged as `drift_<name>` metrics. |
+| `reports/drift_trigger.json` | ops runner | train | Optional, gitignored, deleted after the run. The `drift` snapshot of a `drift_alert` request, for example `{"cities_exceeding": 4, "psi_max": 6.07, "mae_ratio_pooled": 0.83}`. Numbers are logged as `drift_<name>` metrics. |
 | `reports/train_metrics.json` | train | register, evaluate | `run_id`, `model_uri`, `experiment`, `git_commit`, `git_dirty`, `dvc_data_md5`, `features_md5`, `cutoff`, `eval_window`, `mean_mae` per model plus `chosen` (mean MAE of the served models), `ratio_to_best_baseline` per horizon (LightGBM), and per horizon `n_train`, `n_eval`, `metrics` per model, `best_baseline`, `chosen` (`model`, `mae`, `ratio_to_best_baseline`), `high_value`. |
 | `reports/eval.json` | evaluate | test, register | `cutoff`, `eval_window`, `candidate` (`run_id`, `model_uri`, `mean_mae`, and per horizon `mae`, `rmse`, `n`, `model`, `best_baseline`) and `champion` (`version`, `mean_mae`, per horizon `mae`, `rmse`, `n`), or `null` when there is no champion yet. Both are scored through the MLflow package on the same rows. |
 | `reports/gate.json` | test | register | `passed`, `reasons[]`, `first_model`, `ratio_to_best_baseline` per horizon, `max_ratio`, `candidate_mean_mae`, `champion_mean_mae`, `candidate_run_id`. |
@@ -271,11 +277,15 @@ Alert rules (`monitoring/alerts.yml`):
 |-------|---------|------|----------------|
 | ingest | `python -m src.pipeline.ingest` | `data/raw`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, ingest` | `data/interim/` (one Parquet folder per table) |
 | validate | `python -m src.pipeline.validate` | `data/interim/`, `src/pipeline/validate.py`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, cities, replay, validate` | `reports/validation.json` (metric, kept in git; written even when validation fails) |
-| features | `python -m src.pipeline.features` | `data/interim/`, `reports/validation.json` (the stage refuses to run unless its `status` is `passed`), `src/pipeline/features.py`, `src/common`, params `paths, spark, cities, cutoff, replay, features` | `data/features/`, `reports/baseline_stats.json` (kept in git) |
+| features | `python -m src.pipeline.features` | `data/interim/`, `reports/validation.json` (the stage refuses to run unless its `status` is `passed`), `src/pipeline/features.py`, `src/monitoring/drift.py`, `src/common`, params `paths, spark, cities, cutoff, replay, features` | `data/features/`, `reports/baseline_stats.json`, `reports/drift_thresholds.json` (both kept in git) |
 | train | `python -m src.pipeline.train` | `data/features/train.parquet`, `reports/baseline_stats.json`, `src/pipeline/train.py`, `modeling.py`, `aq_model.py`, `train_plots.py`, `src/common`, params `paths, cities, cutoff, eval_window_days, train` | `models/candidate/` (MLflow pyfunc model), `reports/train_metrics.json` (kept in git). Also writes one MLflow run to the tracking URI (`MLFLOW_TRACKING_URI`, default `sqlite:///mlflow.db`). |
 | evaluate | `python -m src.pipeline.evaluate` | `models/candidate/`, `data/features/train.parquet`, `reports/train_metrics.json`, `src/pipeline/evaluate.py`, `registry.py`, `modeling.py`, `src/common`, params `paths, cutoff, eval_window_days, promotion.model_name` | `reports/eval.json` (metric, kept in git). Reads the `champion` alias from the registry, which DVC does not track. |
 | test | `python -m src.pipeline.test_gate` | `reports/eval.json`, `src/pipeline/test_gate.py`, `src/common`, params `paths, promotion.max_ratio_to_baseline` | `reports/gate.json` (metric, kept in git). A rejection is a success of the stage with `passed: false`. |
 | register | `python -m src.pipeline.register` | `reports/gate.json`, `reports/eval.json`, `reports/train_metrics.json`, `models/candidate/`, `src/pipeline/register.py`, `registry.py`, `src/common`, params `paths, cutoff, promotion.model_name` | `reports/register.json` (metric, kept in git). Creates a registry version and moves the aliases only when the gate passed. |
+
+`python -m scripts.replay [--with-mae]` runs the drift acceptance replay (section 6, `reports/drift_replay.json`); its exit code is 0 only if the test passed.
+
+`python -m src.ops.runner [--once] [--poll S]` is the ops runner on the host. For each queued request it checks free memory, sets `cutoff` in `params.yaml` to the request's cutoff (it must be after the current cutoff and not after the replay end), writes `reports/drift_trigger.json` for a drift request, runs `dvc repro` with `PIPELINE_TRIGGER` and `PIPELINE_RUN_ID`, reads `reports/register.json` and, after a promotion, runs the smoke check: it asks the model server for a 1 h forecast of one stored row until the new version answers with a finite value of 0 or more. If that does not happen within `SMOKE_TIMEOUT_S`, it moves `champion` back to `previous`.
 
 `python -m scripts.rollback [--version N] [--list]` moves `champion` to `previous` (or to version N) and `previous` to the old champion. It is the code behind `POST /ops/rollback`.
 
@@ -291,9 +301,13 @@ Alert rules (`monitoring/alerts.yml`):
 | `MODEL_PORT`, `METRICS_PORT` | model server | `5001`, `8001` |
 | `REPLAY_SPEED_HPS` | backend | `1.0` |
 | `RETRAIN_COOLDOWN_MIN` | backend | `30` |
-| `OPS_DIR` | backend | `<project>/ops` (request files go to `<OPS_DIR>/requests/`) |
+| `OPS_DIR` | backend, ops runner | `<project>/ops` (request files go to `<OPS_DIR>/requests/`, run logs to `<OPS_DIR>/logs/`) |
 | `BACKEND_PORT` | backend | `8000` |
-| `DRIFT_MIN_CITIES` | backend | `3` |
-| `DRIFT_MAE_RATIO` | backend | `1.5` |
+| `DRIFT_MIN_CITIES` | backend | `drift.min_cities` in `params.yaml` (4) |
+| `DRIFT_MAE_RATIO` | backend | `drift.mae_ratio_warn` in `params.yaml` (1.5); warning only |
+| `MODEL_SERVER_URL` | ops runner (smoke check) | `http://localhost:5001` |
+| `SMOKE_TIMEOUT_S` | ops runner | `180` (the watcher polls every 30 s and a start can take up to 90 s) |
+| `RUN_TIMEOUT_S` | ops runner | `3600` |
+| `RUNNER_MIN_FREE_MB` | ops runner | `2500` (the batch does not start with less memory available) |
 | `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key`. If either file is missing the backend serves plain HTTP and logs a warning (Stage 15 creates the certificate). |
 | `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` |
