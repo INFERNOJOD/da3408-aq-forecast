@@ -1,0 +1,74 @@
+{
+  "feature": "pm25_lag_1",
+  "percentile": 95,
+  "years": [
+    2016,
+    2019
+  ],
+  "blocks": [
+    1,
+    13
+  ],
+  "rule": "leave-one-year-out: each block of each reference year against the same block of the other years",
+  "cities": {
+    "Chennai": {
+      "psi_threshold": 5.2029,
+      "n_values": 50,
+      "years": [
+        2016,
+        2017,
+        2018,
+        2019
+      ]
+    },
+    "Jaipur": {
+      "psi_threshold": 2.7484,
+      "n_values": 28,
+      "years": [
+        2017,
+        2018,
+        2019
+      ]
+    },
+    "Lucknow": {
+      "psi_threshold": 2.5068,
+      "n_values": 48,
+      "years": [
+        2016,
+        2017,
+        2018,
+        2019
+      ]
+    },
+    "Delhi": {
+      "psi_threshold": 2.0307,
+      "n_values": 52,
+      "years": [
+        2016,
+        2017,
+        2018,
+        2019
+      ]
+    },
+    "Bengaluru": {
+      "psi_threshold": 2.0405,
+      "n_values": 46,
+      "years": [
+        2016,
+        2017,
+        2018,
+        2019
+      ]
+    },
+    "Hyderabad": {
+      "psi_threshold": 3.5857,
+      "n_values": 52,
+      "years": [
+        2016,
+        2017,
+        2018,
+        2019
+      ]
+    }
+  }
+}

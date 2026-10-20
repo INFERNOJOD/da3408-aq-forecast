@@ -36,6 +36,7 @@ stages:
       - data/interim
       - reports/validation.json
       - src/pipeline/features.py
+      - src/monitoring/drift.py
       - src/common
     params:
       - paths
@@ -47,6 +48,8 @@ stages:
     outs:
       - data/features
       - reports/baseline_stats.json:
+          cache: false
+      - reports/drift_thresholds.json:
           cache: false
 
   train:

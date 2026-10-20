@@ -371,7 +371,7 @@ def test_empty_key_refused(env):
 
 def test_ops_drift_shape(env):
     body = env[0].get("/ops/drift", headers=AUTH).json()
-    assert body["window_h"] == 168 and body["min_cities"] == 3
+    assert body["window_h"] == 168 and body["min_cities"] == 4
     assert body["mae_ratio_threshold"] == 1.5 and body["reference_block"] == 0
     assert [c["city"] for c in body["cities"]] == list(CITIES)
     assert set(body["cities"][0]) == {
@@ -446,6 +446,7 @@ def test_retrain_creates_file_then_conflicts(env):
         (settings.ops_dir / "requests" / f"{body['request_id']}.json").read_text()
     )
     assert saved["reason"] == "manual" and saved["status"] == "queued"
+    assert saved["trigger"] == "manual" and saved["drift"] == {}
     again = client.post("/ops/retrain", json={"reason": "again"}, headers=AUTH)
     assert again.status_code == 409 and error_code(again) == "CONFLICT"
 
@@ -480,7 +481,11 @@ def test_alerts_trigger_retrain_once_then_cooldown(env):
     first = client.post("/ops/alerts", json=payload, headers=AUTH).json()
     assert first == {"received": 2, "retrain_requested": True}
     files = list((settings.ops_dir / "requests").glob("*.json"))
-    assert json.loads(files[0].read_text())["reason"] == "drift_alert:PM25DriftHigh"
+    saved = json.loads(files[0].read_text())
+    assert saved["reason"] == "drift_alert:PM25DriftHigh"
+    assert saved["trigger"] == "drift_alert" and saved["drift"] == {
+        "cities_exceeding": 0
+    }
     second = client.post("/ops/alerts", json=payload, headers=AUTH).json()
     assert second["retrain_requested"] is False
 

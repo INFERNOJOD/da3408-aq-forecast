@@ -80,6 +80,9 @@ def create_app(
         settings.reports_dir,
         settings.drift_min_cities,
         settings.drift_mae_ratio,
+        store,
+        client,
+        registry,
     )
     app = FastAPI(title="AQ forecast backend", version="1.0")
     install_handlers(app)
@@ -209,7 +212,9 @@ def create_app(
 
     @app.post("/ops/alerts", dependencies=ops)
     def alerts(body: AlertPayload) -> dict:
-        requested = queue.from_alerts(body.alerts, clock.state()["sim_time"])
+        requested = queue.from_alerts(
+            body.alerts, clock.state()["sim_time"], drift.summary
+        )
         if requested:
             metrics.retrain_requests.labels("drift_alert").inc()
         return {"received": len(body.alerts), "retrain_requested": requested}

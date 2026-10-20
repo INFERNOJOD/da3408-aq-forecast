@@ -78,6 +78,12 @@ class RegistryView:
             None,
         )
 
+    def champion_mae_1h(self) -> float | None:
+        """Return the champion's 1 h MAE on its evaluation window (tag ``mae_1h``)."""
+        version = self.champion_version()
+        match = next((v for v in self.versions() if v["version"] == version), None)
+        return _num(match["tags"].get("mae_1h")) if match else None
+
     def models(self) -> list[dict]:
         """Return the body of GET /pipeline/models."""
         out = []

@@ -1,0 +1,20 @@
+# Alertmanager sends every alert to the backend webhook (POST /ops/alerts).
+# The backend creates a retrain request only for firing alerts with
+# action=retrain and applies its own 30-minute cooldown.
+route:
+  receiver: backend
+  group_by: [alertname]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 30m
+
+receivers:
+  - name: backend
+    webhook_configs:
+      - url: http://backend:8000/ops/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            # Written from OPS_API_KEY in .env; the folder is gitignored.
+            credentials_file: /etc/alertmanager/secrets/ops_api_key

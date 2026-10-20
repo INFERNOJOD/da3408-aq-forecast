@@ -1,0 +1,24 @@
+# Alert rules (docs/LLD.md section 5). Stage 11 adds the drift rules; Stage 14
+# adds the error-rate, target-down and pipeline rules.
+groups:
+  - name: aq-drift
+    rules:
+      # The drift rule itself lives in the backend (aq_drift_detected), so the
+      # backend, the replay script and this alert can never disagree.
+      - alert: PM25DriftHigh
+        expr: aq_drift_detected == 1
+        for: 1m
+        labels:
+          severity: critical
+          action: retrain
+        annotations:
+          summary: "PM2.5 input drift: enough cities are above their PSI threshold"
+      # Warning only. The model's error grows with the PM2.5 level, so this
+      # ratio is not a reliable drift signal on its own (docs/HLD.md).
+      - alert: ForecastErrorHigh
+        expr: aq_rolling_mae_ratio_pooled > 1.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pooled 72 h MAE ratio is {{ $value }}"

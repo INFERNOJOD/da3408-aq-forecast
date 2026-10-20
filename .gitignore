@@ -40,3 +40,8 @@ htmlcov/
 # Pipeline run records (runtime data, read by the backend)
 /reports/runs.jsonl
 /reports/stage_metrics/
+
+# Ops runtime files (retrain requests, run logs, drift trigger, secrets)
+/ops/
+/reports/drift_trigger.json
+/monitoring/secrets/

@@ -1,0 +1,244 @@
+{
+  "rule": "at least 4 voting cities with PSI above their threshold",
+  "min_cities": 4,
+  "thresholds": {
+    "Chennai": 5.2029,
+    "Jaipur": 2.7484,
+    "Lucknow": 2.5068,
+    "Delhi": 2.0307,
+    "Bengaluru": 2.0405,
+    "Hyderabad": 3.5857
+  },
+  "normal_years": [
+    {
+      "year": 2016,
+      "voting_cities": [
+        "Bengaluru",
+        "Chennai",
+        "Delhi",
+        "Hyderabad",
+        "Lucknow"
+      ],
+      "hours_scored": 2185,
+      "drift_hours": 0,
+      "first_drift": null,
+      "episodes": [],
+      "max_cities_exceeding": 2,
+      "hours_with_at_least_k_cities": {
+        "1": 672,
+        "2": 136,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0
+      },
+      "exceed_hours_per_city": {
+        "Bengaluru": 0,
+        "Chennai": 368,
+        "Delhi": 213,
+        "Hyderabad": 127,
+        "Lucknow": 100
+      }
+    },
+    {
+      "year": 2017,
+      "voting_cities": [
+        "Bengaluru",
+        "Chennai",
+        "Delhi",
+        "Hyderabad",
+        "Jaipur",
+        "Lucknow"
+      ],
+      "hours_scored": 2185,
+      "drift_hours": 0,
+      "first_drift": null,
+      "episodes": [],
+      "max_cities_exceeding": 2,
+      "hours_with_at_least_k_cities": {
+        "1": 355,
+        "2": 17,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0
+      },
+      "exceed_hours_per_city": {
+        "Bengaluru": 68,
+        "Chennai": 0,
+        "Delhi": 30,
+        "Hyderabad": 219,
+        "Jaipur": 0,
+        "Lucknow": 55
+      }
+    },
+    {
+      "year": 2018,
+      "voting_cities": [
+        "Bengaluru",
+        "Chennai",
+        "Delhi",
+        "Hyderabad",
+        "Jaipur",
+        "Lucknow"
+      ],
+      "hours_scored": 2185,
+      "drift_hours": 0,
+      "first_drift": null,
+      "episodes": [],
+      "max_cities_exceeding": 3,
+      "hours_with_at_least_k_cities": {
+        "1": 248,
+        "2": 100,
+        "3": 14,
+        "4": 0,
+        "5": 0,
+        "6": 0
+      },
+      "exceed_hours_per_city": {
+        "Bengaluru": 0,
+        "Chennai": 0,
+        "Delhi": 110,
+        "Hyderabad": 0,
+        "Jaipur": 164,
+        "Lucknow": 88
+      }
+    },
+    {
+      "year": 2019,
+      "voting_cities": [
+        "Bengaluru",
+        "Chennai",
+        "Delhi",
+        "Hyderabad",
+        "Jaipur",
+        "Lucknow"
+      ],
+      "hours_scored": 2185,
+      "drift_hours": 0,
+      "first_drift": null,
+      "episodes": [],
+      "max_cities_exceeding": 3,
+      "hours_with_at_least_k_cities": {
+        "1": 731,
+        "2": 209,
+        "3": 44,
+        "4": 0,
+        "5": 0,
+        "6": 0
+      },
+      "exceed_hours_per_city": {
+        "Bengaluru": 387,
+        "Chennai": 0,
+        "Delhi": 137,
+        "Hyderabad": 65,
+        "Jaipur": 222,
+        "Lucknow": 173
+      }
+    }
+  ],
+  "lockdown": {
+    "year": 2020,
+    "voting_cities": [
+      "Bengaluru",
+      "Chennai",
+      "Delhi",
+      "Hyderabad",
+      "Jaipur",
+      "Lucknow"
+    ],
+    "hours_scored": 2185,
+    "drift_hours": 661,
+    "first_drift": "2020-03-31 23:00:00",
+    "episodes": [
+      {
+        "first": "2020-03-31 23:00:00",
+        "last": "2020-04-04 21:00:00",
+        "hours": 95
+      },
+      {
+        "first": "2020-04-06 02:00:00",
+        "last": "2020-04-07 23:00:00",
+        "hours": 46
+      },
+      {
+        "first": "2020-04-09 23:00:00",
+        "last": "2020-04-11 23:00:00",
+        "hours": 49
+      },
+      {
+        "first": "2020-04-13 15:00:00",
+        "last": "2020-04-14 01:00:00",
+        "hours": 11
+      },
+      {
+        "first": "2020-04-24 07:00:00",
+        "last": "2020-05-13 10:00:00",
+        "hours": 460
+      }
+    ],
+    "max_cities_exceeding": 5,
+    "hours_with_at_least_k_cities": {
+      "1": 1890,
+      "2": 1217,
+      "3": 874,
+      "4": 661,
+      "5": 249,
+      "6": 0
+    },
+    "exceed_hours_per_city": {
+      "Bengaluru": 768,
+      "Chennai": 597,
+      "Delhi": 1258,
+      "Hyderabad": 1,
+      "Jaipur": 1028,
+      "Lucknow": 1239
+    }
+  },
+  "acceptance": {
+    "lockdown_triggers": true,
+    "normal_weeks_quiet": true,
+    "false_alarm_hours": 0,
+    "passed": true
+  },
+  "mae_ratio_pooled_72h": {
+    "champion_version": "1",
+    "denominator_mae_1h": 4.4995,
+    "2015": {
+      "median": 3.382,
+      "p95": 8.458,
+      "max": 11.143,
+      "hours_above_1_5": 2254
+    },
+    "2016": {
+      "median": 2.31,
+      "p95": 6.0,
+      "max": 14.682,
+      "hours_above_1_5": 2287
+    },
+    "2017": {
+      "median": 2.529,
+      "p95": 5.379,
+      "max": 6.828,
+      "hours_above_1_5": 1983
+    },
+    "2018": {
+      "median": 2.038,
+      "p95": 3.418,
+      "max": 4.135,
+      "hours_above_1_5": 2092
+    },
+    "2019": {
+      "median": 1.355,
+      "p95": 1.859,
+      "max": 2.165,
+      "hours_above_1_5": 708
+    },
+    "2020": {
+      "median": 0.875,
+      "p95": 1.157,
+      "max": 1.474,
+      "hours_above_1_5": 0
+    }
+  }
+}

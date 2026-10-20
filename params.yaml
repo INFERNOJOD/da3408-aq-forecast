@@ -60,6 +60,14 @@ features:
   baseline_years: [2016, 2019]             # drift baseline = same calendar hours of these years
   drift_window_hours: 168                  # length of a live drift window and of a baseline block
   baseline_min_n: 100                      # each city and block needs at least this many reference values
+  threshold_percentile: 95                 # PSI threshold of a city = this percentile of its normal weeks
+  threshold_blocks: [1, 13]                # blocks scored for the threshold (leave-one-year-out)
+  threshold_min_years: 3                   # a city needs this many reference years to vote
+
+# Drift rule used by the backend and scripts/replay.py (docs/HLD.md, Stage 11).
+drift:
+  min_cities: 4          # drift = at least this many voting cities above their PSI threshold
+  mae_ratio_warn: 1.5    # pooled 72 h MAE ratio above this is a warning only, not a trigger
 
 # Settings for the train stage.
 train:

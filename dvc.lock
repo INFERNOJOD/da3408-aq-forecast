@@ -132,10 +132,14 @@ stages:
       md5: 83309660567efecaba130530efffb09f.dir
       size: 42153
       nfiles: 18
+    - path: src/monitoring/drift.py
+      hash: md5
+      md5: baeee0b32905999617785cb47522723d
+      size: 7356
     - path: src/pipeline/features.py
       hash: md5
-      md5: 5867eb97ba5d9c5cad0202c43a1cb7fc
-      size: 15787
+      md5: b9fd0948be96acb434446e768a2fd00d
+      size: 18702
     params:
       params.yaml:
         cities:
@@ -156,6 +160,11 @@ stages:
           - 2019
           drift_window_hours: 168
           baseline_min_n: 100
+          threshold_percentile: 95
+          threshold_blocks:
+          - 1
+          - 13
+          threshold_min_years: 3
         paths:
           raw_dir: data/raw
           interim_dir: data/interim
@@ -173,19 +182,23 @@ stages:
     outs:
     - path: data/features
       hash: md5
-      md5: 59ba585a5088265f1d7183d13e4c168b.dir
+      md5: 0f77194f816bc2c1e2144fe723e35e99.dir
       size: 17013428
       nfiles: 18
     - path: reports/baseline_stats.json
       hash: md5
       md5: 87e12aa56b05907524fc5868c3ce0fd2
       size: 52194
+    - path: reports/drift_thresholds.json
+      hash: md5
+      md5: a68b8afc8aff50c033800281a3f273ee
+      size: 1175
   train:
     cmd: python -m src.pipeline.train
     deps:
     - path: data/features/train.parquet
       hash: md5
-      md5: 4bd647accf7663a54514d6cdade1cc71.dir
+      md5: c90e20d9bef9292fa437cffb0f23a38d.dir
       size: 15184333
       nfiles: 14
     - path: reports/baseline_stats.json
@@ -252,30 +265,30 @@ stages:
     outs:
     - path: models/candidate
       hash: md5
-      md5: 0c9d76509899820d31b029b1d26dbd7c.dir
-      size: 3045338
+      md5: 3fa70e6271c000df477fc9349ef5dc0a.dir
+      size: 3047198
       nfiles: 12
     - path: reports/train_metrics.json
       hash: md5
-      md5: 08389ebc4ef00a3aa09ca67b38c1a6b9
-      size: 2691
+      md5: 4069f13ca36c54010da96e2837375ee1
+      size: 2690
   evaluate:
     cmd: python -m src.pipeline.evaluate
     deps:
     - path: data/features/train.parquet
       hash: md5
-      md5: 4bd647accf7663a54514d6cdade1cc71.dir
+      md5: c90e20d9bef9292fa437cffb0f23a38d.dir
       size: 15184333
       nfiles: 14
     - path: models/candidate
       hash: md5
-      md5: 0c9d76509899820d31b029b1d26dbd7c.dir
-      size: 3045338
+      md5: 3fa70e6271c000df477fc9349ef5dc0a.dir
+      size: 3047198
       nfiles: 12
     - path: reports/train_metrics.json
       hash: md5
-      md5: 08389ebc4ef00a3aa09ca67b38c1a6b9
-      size: 2691
+      md5: 4069f13ca36c54010da96e2837375ee1
+      size: 2690
     - path: src/common
       hash: md5
       md5: 83309660567efecaba130530efffb09f.dir
@@ -291,8 +304,8 @@ stages:
       size: 6828
     - path: src/pipeline/registry.py
       hash: md5
-      md5: fbb5cb6882d7f21f15842c69407059ae
-      size: 5058
+      md5: dac9c2af0ba3bf8b85f8614aac19ee0b
+      size: 5110
     params:
       params.yaml:
         cutoff: '2020-03-24 23:00:00'
@@ -308,14 +321,14 @@ stages:
     outs:
     - path: reports/eval.json
       hash: md5
-      md5: aed6dedbf63fc3262b419e6959f3aa68
+      md5: 11109dcef9f869e772f107695200b0a6
       size: 1131
   test:
     cmd: python -m src.pipeline.test_gate
     deps:
     - path: reports/eval.json
       hash: md5
-      md5: aed6dedbf63fc3262b419e6959f3aa68
+      md5: 11109dcef9f869e772f107695200b0a6
       size: 1131
     - path: src/common
       hash: md5
@@ -339,28 +352,28 @@ stages:
     outs:
     - path: reports/gate.json
       hash: md5
-      md5: d67d52fd7b9cf303dc542eefbbe9be9e
+      md5: 58df26754177915c9c7094fd5583a6d4
       size: 400
   register:
     cmd: python -m src.pipeline.register
     deps:
     - path: models/candidate
       hash: md5
-      md5: 0c9d76509899820d31b029b1d26dbd7c.dir
-      size: 3045338
+      md5: 3fa70e6271c000df477fc9349ef5dc0a.dir
+      size: 3047198
       nfiles: 12
     - path: reports/eval.json
       hash: md5
-      md5: aed6dedbf63fc3262b419e6959f3aa68
+      md5: 11109dcef9f869e772f107695200b0a6
       size: 1131
     - path: reports/gate.json
       hash: md5
-      md5: d67d52fd7b9cf303dc542eefbbe9be9e
+      md5: 58df26754177915c9c7094fd5583a6d4
       size: 400
     - path: reports/train_metrics.json
       hash: md5
-      md5: 08389ebc4ef00a3aa09ca67b38c1a6b9
-      size: 2691
+      md5: 4069f13ca36c54010da96e2837375ee1
+      size: 2690
     - path: src/common
       hash: md5
       md5: 83309660567efecaba130530efffb09f.dir
@@ -372,8 +385,8 @@ stages:
       size: 4038
     - path: src/pipeline/registry.py
       hash: md5
-      md5: fbb5cb6882d7f21f15842c69407059ae
-      size: 5058
+      md5: dac9c2af0ba3bf8b85f8614aac19ee0b
+      size: 5110
     params:
       params.yaml:
         cutoff: '2020-03-24 23:00:00'
@@ -388,5 +401,5 @@ stages:
     outs:
     - path: reports/register.json
       hash: md5
-      md5: a1c7be7e6f777286e75f95f015d40648
+      md5: 6230296a7987a288f087bacaec9fe5d9
       size: 314

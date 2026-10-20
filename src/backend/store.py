@@ -34,3 +34,17 @@ class ServingStore:
             return None
         wanted = [*FEATURE_COLUMNS, "pm25"]
         return {k: (None if pd.isna(found[k]) else found[k].item()) for k in wanted}
+
+    def window(self, city: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        """All stored columns of ``city`` for every hour from ``start`` to ``end``.
+
+        The result has one row per hour (both ends included); hours that are
+        not stored come back as rows of NaN, so a window always has its full
+        length.
+        """
+        hours = pd.date_range(start, end, freq="h")
+        try:
+            rows = self._frame.loc[city]
+        except KeyError:
+            return pd.DataFrame(index=hours, columns=self._frame.columns)
+        return rows.reindex(hours)

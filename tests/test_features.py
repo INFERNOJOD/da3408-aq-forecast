@@ -265,6 +265,43 @@ def test_baseline_needs_enough_values_in_every_week(spark):
         features.baseline_stats(df, ["Chennai"], REPLAY, [2019, 2019], 4, 24, 10)
 
 
+THRESHOLD_PARAMS = {
+    "drift_window_hours": 24,
+    "psi_bins": 4,
+    "threshold_blocks": [1, 2],
+    "threshold_percentile": 95,
+    "threshold_min_years": 3,
+    "baseline_min_n": 10,
+}
+
+
+def test_drift_thresholds_need_three_years_per_city(spark):
+    rows = []
+    for year in (2017, 2018, 2019):
+        rows += reference_rows("Delhi", year, [10 * year % 7, 50, 100 + year % 3])
+    for year in (2018, 2019):
+        rows += reference_rows("Chennai", year, [10, 50, 100])
+    out = features.drift_thresholds(
+        lag_frame(spark, rows), ["Delhi", "Chennai"], REPLAY, [2016, 2019],
+        THRESHOLD_PARAMS,
+    )  # fmt: skip
+    assert set(out) == {"Delhi"}  # Chennai has two years and does not vote
+    delhi = out["Delhi"]
+    assert delhi["years"] == [2017, 2018, 2019]
+    assert delhi["n_values"] == 3 * 2  # three years x blocks 1 and 2
+    assert delhi["psi_threshold"] >= 0
+
+
+def test_drift_thresholds_are_zero_when_years_are_identical(spark):
+    rows = []
+    for year in (2017, 2018, 2019):
+        rows += reference_rows("Delhi", year, [10, 50, 100])
+    out = features.drift_thresholds(
+        lag_frame(spark, rows), ["Delhi"], REPLAY, [2016, 2019], THRESHOLD_PARAMS
+    )
+    assert out["Delhi"]["psi_threshold"] == pytest.approx(0.0, abs=1e-6)
+
+
 def test_run_features_end_to_end(spark, tmp_path, monkeypatch):
     # Recent hours 0..399 plus 61 hours of 2019 that match the replay window's
     # calendar position (replay starts at hour 300 = 2020-01-13 12:00).
@@ -293,6 +330,9 @@ def test_run_features_end_to_end(spark, tmp_path, monkeypatch):
             "baseline_years": [2019, 2019],
             "drift_window_hours": 24,
             "baseline_min_n": 2,
+            "threshold_percentile": 95,
+            "threshold_blocks": [1, 2],
+            "threshold_min_years": 3,
         },
     }
     monkeypatch.setattr(features, "build_spark", lambda *a, **k: spark)
@@ -309,6 +349,10 @@ def test_run_features_end_to_end(spark, tmp_path, monkeypatch):
     assert doc["feature"] == "pm25_lag_1" and set(doc["cities"]) == set(CITIES)
     assert doc["years"] == [2019, 2019] and doc["week_hours"] == 24
     assert [w["week"] for w in doc["cities"]["Delhi"]["weeks"]] == [0, 1, 2]
+    thr = json.loads((tmp_path / "reports" / "drift_thresholds.json").read_text())
+    # One reference year only, so no city can have a leave-one-year-out threshold.
+    assert thr["percentile"] == 95 and thr["blocks"] == [1, 2]
+    assert thr["cities"] == {}
 
 
 def test_baseline_years_must_end_before_the_replay_year(spark, tmp_path):

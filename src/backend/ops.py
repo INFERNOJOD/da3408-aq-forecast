@@ -59,8 +59,19 @@ class RetrainQueue:
                 continue
         return False
 
-    def create(self, reason: str, cutoff: str) -> dict:
-        """Write a new request. Raises ApiError 409 if one is already active."""
+    def create(
+        self,
+        reason: str,
+        cutoff: str,
+        trigger: str = "manual",
+        drift: dict | None = None,
+    ) -> dict:
+        """Write a new request. Raises ApiError 409 if one is already active.
+
+        ``trigger`` becomes the pipeline's ``PIPELINE_TRIGGER``. ``drift`` holds
+        the drift numbers at the time of an alert; the runner hands them to the
+        train stage, which logs them as ``drift_*`` metrics.
+        """
         with self._lock:
             if self.has_active():
                 raise ApiError(
@@ -73,6 +84,8 @@ class RetrainQueue:
                 "cutoff": cutoff,
                 "created_at": now.isoformat(timespec="seconds"),
                 "status": "queued",
+                "trigger": trigger,
+                "drift": drift or {},
             }
             self.dir.mkdir(parents=True, exist_ok=True)
             path = self.dir / f"{record['request_id']}.json"
@@ -80,7 +93,12 @@ class RetrainQueue:
             log.info("Retrain request %s created (%s)", record["request_id"], reason)
             return record
 
-    def from_alerts(self, alerts: list[dict], cutoff: str) -> bool:
+    def from_alerts(
+        self,
+        alerts: list[dict],
+        cutoff: str,
+        drift: Callable[[], dict] = dict,
+    ) -> bool:
         """Create a request for a firing alert with ``action=retrain``.
 
         Returns False if there is none, or the cooldown or an active request
@@ -98,7 +116,7 @@ class RetrainQueue:
             log.info("Retrain alert ignored: cooldown")
             return False
         try:
-            self.create(f"drift_alert:{wanted}", cutoff)
+            self.create(f"drift_alert:{wanted}", cutoff, "drift_alert", drift())
         except ApiError:
             log.info("Retrain alert ignored: a request is already active")
             return False

@@ -22,7 +22,7 @@ class Settings:
     replay_end: str = "2020-06-30 23:00:00"
     replay_speed_hps: float = 1.0
     retrain_cooldown_min: int = 30
-    drift_min_cities: int = 3
+    drift_min_cities: int = 4
     drift_mae_ratio: float = 1.5
 
     @classmethod
@@ -52,6 +52,10 @@ class Settings:
             replay_end=params["replay"]["end"],
             replay_speed_hps=float(os.environ.get("REPLAY_SPEED_HPS", "1.0")),
             retrain_cooldown_min=int(os.environ.get("RETRAIN_COOLDOWN_MIN", "30")),
-            drift_min_cities=int(os.environ.get("DRIFT_MIN_CITIES", "3")),
-            drift_mae_ratio=float(os.environ.get("DRIFT_MAE_RATIO", "1.5")),
+            drift_min_cities=int(
+                os.environ.get("DRIFT_MIN_CITIES", params["drift"]["min_cities"])
+            ),
+            drift_mae_ratio=float(
+                os.environ.get("DRIFT_MAE_RATIO", params["drift"]["mae_ratio_warn"])
+            ),
         )

@@ -4,6 +4,7 @@ Output (see docs/LLD.md, sections 4, 6 and 7):
   data/features/train.parquet    hours up to the cutoff, features + targets
   data/features/serving.parquet  hours of the live replay, features + actuals
   reports/baseline_stats.json    same-season drift baseline for pm25_lag_1 (PSI bins)
+  reports/drift_thresholds.json  per-city PSI threshold from normal weeks (Stage 11)
 
 Features only run after validate has passed (see require_validation_passed).
 
@@ -22,10 +23,12 @@ Run: ``python -m src.pipeline.features``
 """
 
 import json
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as spark_fn
 
@@ -43,6 +46,7 @@ from src.common.schema import (
 )
 from src.common.spark import build_spark
 from src.common.stage_runner import run_stage
+from src.monitoring.drift import loyo_thresholds
 
 log = get_logger(__name__)
 
@@ -203,6 +207,42 @@ def replay_hours(replay: dict[str, str]) -> int:
     return int((end - start).total_seconds() // 3600) + 1
 
 
+def reference_frame(
+    df: DataFrame,
+    cities: list[str],
+    replay: dict[str, str],
+    years: list[int],
+    week_hours: int,
+) -> DataFrame:
+    """Rows (City, week, x, year): pm25_lag_1 at the replay's calendar hours.
+
+    ``week`` is the block of ``week_hours`` hours the hour falls in, counted from
+    the replay start's month and day in that year. Only ``years`` (both ends
+    included) and non-null values are kept.
+    """
+    start = datetime.fromisoformat(replay["start"])
+    n_hours = replay_hours(replay)
+    anchor = spark_fn.expr(
+        f"make_timestamp(year(Datetime), {start.month}, {start.day}, "
+        f"{start.hour}, {start.minute}, {start.second})"
+    )
+    replay_hour = (
+        (spark_fn.col("Datetime").cast("long") - anchor.cast("long")) / 3600
+    ).cast("int")
+    return (
+        df.filter(
+            spark_fn.col("City").isin(cities)
+            & spark_fn.col("pm25_lag_1").isNotNull()
+            & spark_fn.year("Datetime").between(years[0], years[1])
+        )
+        .withColumn("x", spark_fn.col("pm25_lag_1"))
+        .withColumn("rh", replay_hour)
+        .filter((spark_fn.col("rh") >= 0) & (spark_fn.col("rh") < n_hours))
+        .withColumn("week", (spark_fn.col("rh") / week_hours).cast("int"))
+        .select("City", "week", "x", spark_fn.year("Datetime").alias("year"))
+    )
+
+
 def baseline_stats(
     df: DataFrame,
     cities: list[str],
@@ -225,29 +265,8 @@ def baseline_stats(
     e <= x, so bins are [-inf, e1), [e1, e2), ..., [e_last, +inf). Stage 11 uses
     the same rule on live data.
     """
-    start = datetime.fromisoformat(replay["start"])
-    n_hours = replay_hours(replay)
-    n_weeks = -(-n_hours // week_hours)  # ceiling division
-    anchor = spark_fn.expr(
-        f"make_timestamp(year(Datetime), {start.month}, {start.day}, "
-        f"{start.hour}, {start.minute}, {start.second})"
-    )
-    replay_hour = (
-        (spark_fn.col("Datetime").cast("long") - anchor.cast("long")) / 3600
-    ).cast("int")
-    base = (
-        df.filter(
-            spark_fn.col("City").isin(cities)
-            & spark_fn.col("pm25_lag_1").isNotNull()
-            & spark_fn.year("Datetime").between(years[0], years[1])
-        )
-        .withColumn("x", spark_fn.col("pm25_lag_1"))
-        .withColumn("rh", replay_hour)
-        .filter((spark_fn.col("rh") >= 0) & (spark_fn.col("rh") < n_hours))
-        .withColumn("week", (spark_fn.col("rh") / week_hours).cast("int"))
-        .select("City", "week", "x", spark_fn.year("Datetime").alias("year"))
-        .cache()
-    )
+    n_weeks = -(-replay_hours(replay) // week_hours)  # ceiling division
+    base = reference_frame(df, cities, replay, years, week_hours).cache()
 
     quantiles = ", ".join(str(i / n_bins) for i in range(1, n_bins))
     raw = (
@@ -313,6 +332,48 @@ def baseline_stats(
     return out
 
 
+def drift_thresholds(
+    df: DataFrame,
+    cities: list[str],
+    replay: dict[str, str],
+    years: list[int],
+    fp: dict[str, Any],
+) -> dict[str, Any]:
+    """Per-city PSI thresholds from normal weeks (leave-one-year-out).
+
+    Spark selects the reference values (a few tens of thousands of numbers);
+    the PSI itself is computed in ``src.monitoring.drift``, the same code the
+    backend uses on live data. Blocks ``threshold_blocks`` (default 1 to 13)
+    of every reference year are compared with the same block of the other
+    years, and the threshold is the ``threshold_percentile`` of those values.
+    """
+    week_hours = fp["drift_window_hours"]
+    rows = reference_frame(df, cities, replay, years, week_hours).collect()
+    grouped: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for r in rows:
+        grouped[r["City"]][r["year"]][r["week"]].append(r["x"])
+    values = {
+        city: {
+            year: {week: np.asarray(v) for week, v in by_week.items()}
+            for year, by_week in by_year.items()
+        }
+        for city, by_year in grouped.items()
+    }
+    first, last = fp["threshold_blocks"]
+    found = loyo_thresholds(
+        values,
+        fp["psi_bins"],
+        range(first, last + 1),
+        fp["threshold_percentile"],
+        fp["threshold_min_years"],
+        fp["baseline_min_n"],
+    )
+    for city in cities:
+        if city not in found:
+            log.warning("%s has no PSI threshold and will not vote", city)
+    return found
+
+
 def require_validation_passed(reports_dir: Path) -> None:
     """Stop unless the validate stage ran and passed.
 
@@ -374,6 +435,13 @@ def run_features(params: dict[str, Any]) -> dict[str, int]:
             fp["drift_window_hours"],
             fp["baseline_min_n"],
         )
+        thresholds = drift_thresholds(
+            spark.read.parquet(str(out_dir / "train.parquet")),
+            cities,
+            params["replay"],
+            fp["baseline_years"],
+            fp,
+        )
     finally:
         spark.stop()
 
@@ -393,6 +461,19 @@ def run_features(params: dict[str, Any]) -> dict[str, int]:
     }
     (reports / "baseline_stats.json").write_text(
         json.dumps(doc, indent=2), encoding="utf-8"
+    )
+    first, last = fp["threshold_blocks"]
+    thr_doc = {
+        "feature": "pm25_lag_1",
+        "percentile": fp["threshold_percentile"],
+        "years": fp["baseline_years"],
+        "blocks": [first, last],
+        "rule": "leave-one-year-out: each block of each reference year against "
+        "the same block of the other years",
+        "cities": thresholds,
+    }
+    (reports / "drift_thresholds.json").write_text(
+        json.dumps(thr_doc, indent=2), encoding="utf-8"
     )
     return {"rows_in": rows_in, "rows_out": n_train + n_serving}
 
