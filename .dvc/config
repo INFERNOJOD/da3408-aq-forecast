@@ -1,0 +1,5 @@
+[core]
+    remote = localremote
+    analytics = false
+['remote "localremote"']
+    url = /home/krish-yadav/DA3408/dvc-remote

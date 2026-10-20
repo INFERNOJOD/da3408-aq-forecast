@@ -1,6 +1,7 @@
 # Data (tracked by DVC, never git)
-/data/
-!/data/*.dvc
+/data/raw/
+/data/interim/
+/data/features/
 
 # Secrets
 .env
