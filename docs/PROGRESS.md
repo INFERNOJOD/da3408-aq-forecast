@@ -190,4 +190,94 @@ The reason is the VM. Only about 3.9 GB is free, and the validate stage with a 3
 
 In `docs/HLD.md` the planned batch container limit drops from 3.5g to 2.5g, and the planned total during a retrain from about 6.1 GB to about 4.9 GB. While rechecking that table I found the old 6.1 GB did not match its own parts (serve without frontend and Grafana is 2,368 MB, plus 3,584 MB is about 5.9 GB), so I fixed the arithmetic too. These are still planned figures. I measure real usage in Stage 13.
 
-I do not know yet whether the features stage fits in 2g. If it does not, I will say so here and raise it before changing the limit.
+I did not know whether the features stage would fit in 2g. It does (see Part 4).
+
+---
+
+## Part 4: Stage 6, Spark features
+
+Stage 6 is done and committed as `cea9532`. Nothing is blocked. At the end `ruff check` passed, `pytest` gave 77 passed and 0 failed, and `dvc status` said up to date. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone.
+
+### What I built
+
+`src/pipeline/features.py` turns the hourly city data into one row per selected city and hour, with the model inputs and the two targets. It writes `data/features/train.parquet`, `data/features/serving.parquet` and `reports/baseline_stats.json`. The input and target column names live in one file, `src/common/schema.py`, and a test checks that this list equals the table in `docs/LLD.md`. So the code and the design document cannot drift apart without a test failing.
+
+The stage is a chain of small functions, each taking a Spark DataFrame and returning one. Only `run_features` reads and writes files.
+
+I made four decisions that matter for correctness.
+
+**Lags count hours, not rows.** Several cities have missing hours in the source (Hyderabad has 85 fewer rows than a full hourly series). With row-based lags, "24 rows back" would then mean more than 24 hours. I first build a complete hourly grid per city, with null values for missing hours, and then take lags on that grid. This was the design I wanted from the start, but I only noticed how much it matters when I saw the Hyderabad count.
+
+**Short gaps are forward-filled, only for inputs.** A gap of up to 3 hours is filled with the last seen value. A longer gap stays null. Targets are never filled. A missing target stays missing, and the training stage drops it. I do not want the model to learn from numbers I invented.
+
+**Nothing from the future.** Every feature at hour t uses hour t and earlier. In the training file I also null any target that falls after the cutoff. A row at 23:00 on 24 March has no 24-hour target, because that hour is after the cutoff. Without this, the last day of training would quietly contain a target from the replay period.
+
+**Features only run after validation has passed.** More on this under "What went wrong".
+
+The serving file holds every hour from 2020-01-01 to 2020-06-30 for the 7 cities (4,368 per city). The backend will use it for the replay. It includes the actual values, and the backend reveals them only when its replay clock passes them.
+
+The baseline file describes `pm25_lag_1` per city on the training rows. It stores 10 quantile bins and the share of rows in each. Stage 11 will compare live data against it with PSI.
+
+### How I checked it
+
+Unit tests cover the grid, lags across a gap, the forward-fill limit, targets, rolling windows, calendar features, the cutoff, the serving slice and the baseline. One test changes a later reading and checks that no earlier feature row changes. That is the test I trust most for leaks.
+
+I also did a stronger check outside the test suite. I recomputed every feature column in pandas, with plain `shift` and `rolling`, for Hyderabad (which has gaps) and Kolkata (which starts late). Each city had 4,368 serving rows and 21 columns, and there were 0 mismatches. In the training file no row has a target from after the cutoff.
+
+### What went wrong
+
+**The DAG did not enforce the order.** When I ran `dvc dag`, `validate` and `features` both hung off `ingest` side by side. So a failed validation would not have stopped features from running, which defeats the point of the validate stage and goes against the `ingest -> validate -> features` chain in CLAUDE.md. I fixed it twice over. `features` now depends on `reports/validation.json` in `dvc.yaml`, and the stage itself refuses to run unless that report says "passed". The second part protects a direct `python -m src.pipeline.features` run too. A test covers a missing, failed and unreadable report.
+
+**The time zone caught me again.** My first test helper converted the start time with Python's `timestamp()`, which uses the machine's local time zone (IST). Every hour index came out shifted by six, and 7 tests failed. The stage was right and the test was wrong. I now compute the index inside Spark. Two more failures were plain mistakes in my expectations: I asked for a lag that reached before the start of the series, and for an hour past the end of it.
+
+**PM10 is mostly missing.** In the training rows, `pm10_lag_1` is null 40% of the time. The other co-pollutants are 2-5% null and the PM2.5 lags about 6%. LightGBM handles nulls, but Ridge does not, so the training stage will have to fill them for Ridge. I will handle that in Stage 7. I did not drop PM10, because the LLD fixes the input list.
+
+### Memory at 2g
+
+The whole pipeline (`ingest`, `validate`, `features`) runs on the 2 GB driver. Peak JVM memory was about 2.5 GB for the full run, and about 4.9 GB of the VM's RAM was available afterwards. The 2g limit is not a problem so far.
+
+### How to run
+
+```bash
+source .venv/bin/activate
+ruff check . && pytest -q                 # 77 tests (about 26 s)
+dvc repro                                 # runs only the stages that changed
+dvc dag                                   # ingest -> validate -> features
+python -m src.pipeline.features           # run the stage by itself (about 12 s)
+cat reports/baseline_stats.json | head -20
+```
+
+### Measured numbers
+
+The full table is in `docs/metrics.md`.
+
+| What | Value |
+|------|-------|
+| Training rows | 270,612 |
+| Serving rows | 30,576 |
+| Features stage time (5 runs) | 11.8 to 13.0 s |
+| Whole pipeline from a clean state | ingest 8.8 s + validate 32.9 s + features 13.0 s |
+| Peak Spark memory, driver 2g | about 2.5 GB (JVM, whole run) |
+
+### Things to know
+
+The baseline bins use training rows from 2015 up to the cutoff, so they mix all seasons. The drift check in Stage 11 will therefore see part seasonal change as drift. I described this in `docs/eda.md`, and I still need to decide at Stage 11 whether to keep it.
+
+I changed `docs/LLD.md` for the new files and for the features stage inputs. I also changed the Stage 6 row in `docs/PLAN.md`. It described an older train/holdout split by year, and the build follows the `cutoff` design from `docs/HLD.md`.
+
+### Viva questions for Stage 6
+
+**1. Why build a complete hourly grid before computing lags?**
+Because the source has missing hours, and a row-based lag would then reach back more than the hours I mean. On the grid, "24 rows back" is exactly 24 hours back. Hyderabad has 85 fewer hourly rows than a full series, and other cities have longer gaps at the start.
+
+**2. How do you know the features do not leak the future?**
+Three ways. Every window and lag looks backwards only. A unit test changes a later reading and checks that every earlier feature row stays the same. And I recomputed all feature columns in pandas for two cities and found 0 mismatches. For training I also hide any target that lies after the cutoff.
+
+**3. Why forward-fill only up to 3 hours, and only for inputs?**
+A short gap is probably a sensor hiccup, and carrying the last value is a fair guess for an input. A long gap is real missing data, so I leave it null. I never fill targets, because the model would then learn to predict my own guess. The 3-hour limit is a setting in `params.yaml`.
+
+**4. What stops the pipeline from building features on bad data?**
+The `features` stage depends on `reports/validation.json`, so `dvc repro` runs validate first. The stage also reads that report itself and refuses to run unless the status is "passed". I added this after seeing that the first version of the DAG did not enforce the order.
+
+**5. What is in the drift baseline, and how is it used?**
+For each city it stores the quantile bin edges of `pm25_lag_1` on the training rows and the share of rows in each bin. At Stage 11 I bin the last 168 live hours with the same edges and compare the shares to the baseline with PSI. A PSI above 0.2 means a clear shift. The weakness is that the baseline mixes seasons, so a seasonal change can look like drift.
