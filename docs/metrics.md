@@ -25,3 +25,29 @@ and verifies. The gain is in later stages: Parquet is read column by column,
 so feature building does not need to parse text again.
 
 Where the numbers come from: `reports/runs.jsonl` (one line per stage run).
+
+### Benchmark: Spark vs pandas on the same ingest job
+
+Same job, same 5 files, same column types: read the CSV, write Parquet, read the
+Parquet back, check that its row count equals the CSV line count.
+Script: `scripts/bench_pandas_ingest.py` (pandas 3.0, pyarrow 26, one thread).
+Spark: Stage 4 (`local[4]`, 3 GB driver). Both timed over the whole job, 3 runs each.
+
+| | Spark (Stage 4) | pandas |
+|---|---|---|
+| Time per run | 8.0, 8.4, 8.2 s | 3.9, 3.7, 3.4 s |
+| Throughput | about 420,000 rows/s | about 940,000 rows/s |
+| Peak memory | about 1.2 GB (sampled JVM size) | about 1.0 GB (max RSS) |
+| Parquet size | 65 MB | 64 MB |
+
+Result: **pandas is about 2x faster on this data.** This is expected.
+The raw data is only 283 MB and fits easily in memory. Spark pays fixed costs:
+about 1.2 s to start the JVM (the Spark time above includes it) and extra work to
+plan and schedule each of the 5 jobs. Both give the same row counts and almost the
+same file size.
+
+Why we still use Spark: it is the engine the course requires, and it does not hold
+the whole table in memory, so the same code keeps working if the data grows beyond
+RAM. We have not tested larger data, so that point is a design reason, not a
+measured result. The two memory numbers are measured differently, so compare them
+only roughly.
