@@ -312,7 +312,7 @@ The model is one MLflow pyfunc, `AQForecaster` in `src/pipeline/aq_model.py`, th
 
 **What the MLflow run holds beyond autolog.** I do not use autolog at all. The run has these.
 
-- Tags: the full git commit hash, `git_dirty` (true if tracked files had uncommitted changes, so a hash is only a precise record when it is false), the DVC hash of the raw data, a hash of the feature values, the cutoff, what triggered the run, and the pipeline run id.
+- Tags: the full git commit hash, `git_dirty` (true if code or settings differed from the commit, so a hash is only a precise record when it is false; `dvc.lock` and `reports/` are ignored, because the pipeline rewrites them), the DVC hash of the raw data, a hash of the feature values, the cutoff, what triggered the run, and the pipeline run id.
 - 88 metrics: MAE and RMSE for all four models, each horizon and each city, the comparison with the best baseline, error on high-pollution hours, fit times, and drift scores when a drift trigger file exists.
 - Artifacts: `per_city_mae.csv`, `feature_importance.png`, `residuals.png`, the drift baseline, the resolved settings, and the exact package versions.
 - The model, linked to the run, with a signature that matches the LLD columns.
@@ -343,6 +343,8 @@ At 1 h LightGBM beats the best baseline by 7%. At 24 h it is 2.2% worse than Rid
 **LightGBM was not repeatable.** The same stage gave 14.20 and then 14.13 at 24 h, with no change in code or data. I tested it: three identical fits differed by up to 5 µg/m³ on a single prediction. With `deterministic` and `force_row_wise` they are identical, and two forced reruns of the stage match. This is now the default in `build_lightgbm`, with a test. Without it, the guideline that every experiment is reproducible would not have held.
 
 **My data fingerprint was not stable.** I first hashed the Parquet files of the features. After rerunning the stage on identical data, the hash was different. Spark puts a random id in every part-file name, and I removed the names from the hash. Then I compared the folder written by the pipeline with a fresh run and the hash still differed. Only 63 of 3.2 million bytes were different, in the file footer, and pandas confirmed that all values were equal. So the byte-level hash cannot work. The version tag now hashes the values themselves, sorted by city and time. The pipeline output and two fresh runs give the same hash, and a test covers file layout, row order and a changed value. This is the sort of thing that would have gone unnoticed, because a tag that is always different looks like a tag that works.
+
+**The dirty flag was wrong in a full pipeline run.** A full `dvc repro` rewrites `dvc.lock` and `reports/validation.json` before the train stage starts, so my first version of `git_dirty` said "true" even though no code had changed. It now ignores those two paths. A test checks that a changed setting still counts.
 
 **`mlflow run` failed twice** because `python` was not on PATH when the virtualenv was not activated. It works after `source .venv/bin/activate`. I left the two failed runs out of the final experiment.
 

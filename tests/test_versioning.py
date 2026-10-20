@@ -93,3 +93,26 @@ def test_git_outside_a_repo_gives_unknown(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
     assert versioning.git_commit() == "unknown"
+
+
+def test_git_dirty_ignores_pipeline_outputs(tmp_path, monkeypatch):
+    def git(*args):
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+
+    git("init", "-q")
+    (tmp_path / "reports").mkdir()
+    for name in ("dvc.lock", "reports/validation.json", "params.yaml"):
+        (tmp_path / name).write_text("one")
+    git("add", ".")
+    git("commit", "-q", "-m", "first")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "dvc.lock").write_text("changed by dvc")
+    (tmp_path / "reports" / "validation.json").write_text("changed by a stage")
+    assert versioning.git_dirty() is False  # only pipeline outputs changed
+    (tmp_path / "params.yaml").write_text("changed by me")
+    assert versioning.git_dirty() is True  # a setting changed

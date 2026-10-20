@@ -34,13 +34,20 @@ def git_commit() -> str:
     return _git("rev-parse", "HEAD") or "unknown"
 
 
+# Tracked files that the pipeline itself rewrites. They change while a pipeline
+# runs, so they say nothing about whether the code or settings match the commit.
+PIPELINE_OUTPUTS = ("dvc.lock", "reports")
+
+
 def git_dirty() -> bool:
-    """Return True if tracked files have uncommitted changes.
+    """Return True if code or settings differ from the current commit.
 
     The commit hash only describes the code exactly when this is False.
-    Untracked files are ignored: generated data and caches are untracked.
+    Untracked files are ignored (generated data and caches are untracked), and so
+    are the tracked outputs the pipeline rewrites: dvc.lock and reports/.
     """
-    status = _git("status", "--porcelain", "--untracked-files=no")
+    excludes = [f":(exclude){path}" for path in PIPELINE_OUTPUTS]
+    status = _git("status", "--porcelain", "--untracked-files=no", "--", ".", *excludes)
     return bool(status)
 
 
