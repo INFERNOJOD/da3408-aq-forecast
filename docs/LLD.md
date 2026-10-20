@@ -234,7 +234,7 @@ Alert rules (`monitoring/alerts.yml`):
 
 | Stage | Command | deps | outs / metrics |
 |-------|---------|------|----------------|
-| ingest | `python -m src.pipeline.ingest` | `data/raw`, `src/pipeline/ingest.py` | `data/interim/` |
+| ingest | `python -m src.pipeline.ingest` | `data/raw`, `src/pipeline/ingest.py`, `src/common`, params `paths, spark, ingest` | `data/interim/` (one Parquet folder per table) |
 | validate | `python -m src.pipeline.validate` | `data/interim/` | `reports/validation.json` (metric) |
 | features | `python -m src.pipeline.features` | `data/interim/`, params `cities, cutoff, features` | `data/features/` |
 | train | `python -m src.pipeline.train` | `data/features/train.parquet`, params `train, cutoff` | `models/candidate/`, `reports/train_metrics.json` |

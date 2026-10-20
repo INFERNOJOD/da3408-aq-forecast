@@ -1,0 +1,43 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python -m src.pipeline.ingest
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 7921cce1dbe07b5b8c33ffd85e4a34b4.dir
+      size: 296546643
+      nfiles: 5
+    - path: src/common
+      hash: md5
+      md5: dc46e679c19aecae78805c2a80a47ed3.dir
+      size: 27499
+      nfiles: 12
+    - path: src/pipeline/ingest.py
+      hash: md5
+      md5: 2e69e97eb2a9f6ab92df687207d2329a
+      size: 5128
+    params:
+      params.yaml:
+        ingest:
+          tables:
+          - city_day
+          - city_hour
+          - station_day
+          - station_hour
+          - stations
+        paths:
+          raw_dir: data/raw
+          interim_dir: data/interim
+          features_dir: data/features
+          reports_dir: reports
+        spark:
+          driver_memory: 3g
+          shuffle_partitions: 8
+          cores: 4
+    outs:
+    - path: data/interim
+      hash: md5
+      md5: a2da63ab4b54b049590b598d6f081de6.dir
+      size: 67319003
+      nfiles: 36

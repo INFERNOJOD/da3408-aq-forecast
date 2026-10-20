@@ -1,0 +1,14 @@
+# Pipeline DAG. Stages are added one by one as they are built.
+stages:
+  ingest:
+    cmd: python -m src.pipeline.ingest
+    deps:
+      - data/raw
+      - src/pipeline/ingest.py
+      - src/common
+    params:
+      - paths
+      - spark
+      - ingest
+    outs:
+      - data/interim
