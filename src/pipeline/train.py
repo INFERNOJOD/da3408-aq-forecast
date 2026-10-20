@@ -22,6 +22,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+import joblib
 import mlflow
 import mlflow.pyfunc
 import numpy as np
@@ -68,7 +69,8 @@ def fit_horizon(
 ) -> dict[str, Any]:
     """Fit Ridge and LightGBM for one horizon and score all four models.
 
-    Returns the fitted LightGBM, all metrics, per-city errors and the data
+    Returns both fitted models, the one chosen to be served (the better of Ridge
+    and LightGBM by MAE), all metrics, per-city errors and the data
     needed for the plots.
     """
     tp = params["train"]
@@ -109,6 +111,7 @@ def fit_horizon(
         actual, preds["lightgbm"], tp["high_pm25_threshold"]
     )
     best_name, best_mae = modeling.best_baseline(metrics)
+    chosen = modeling.choose_model(metrics)
     effective_n = float(weights.sum() ** 2 / np.sum(weights**2))
     log.info(
         "Horizon %d h: train %d rows (effective %.0f), eval %d rows, MAE %s",
@@ -121,6 +124,9 @@ def fit_horizon(
     return {
         "horizon": horizon,
         "lgbm": lgbm,
+        "ridge": ridge,
+        "chosen": chosen,
+        "chosen_mae": metrics[chosen]["mae"],
         "n_train": len(train),
         "n_eval": len(evaluation),
         "effective_n": effective_n,
@@ -128,6 +134,7 @@ def fit_horizon(
         "high_value": high,
         "best_baseline": {"name": best_name, "mae": best_mae},
         "ratio_to_best_baseline": metrics["lightgbm"]["mae"] / best_mae,
+        "chosen_ratio_to_best_baseline": metrics[chosen]["mae"] / best_mae,
         "per_city": modeling.per_city_table(evaluation, horizon, preds),
         "importance": pd.Series(
             lgbm.feature_importances_, index=FEATURE_COLUMNS, dtype=float
@@ -145,6 +152,7 @@ def summarize(results: dict[int, dict[str, Any]]) -> dict[str, Any]:
         m: float(np.mean([results[h]["metrics"][m]["mae"] for h in results]))
         for m in models
     }
+    mean_mae["chosen"] = float(np.mean([results[h]["chosen_mae"] for h in results]))
     return {
         "mean_mae": mean_mae,
         "ratio_to_best_baseline": {
@@ -196,16 +204,25 @@ def model_signature() -> ModelSignature:
 def write_model_files(
     results: dict[int, dict[str, Any]], n_cities: int, folder: Path
 ) -> dict[str, str]:
-    """Save both boosters and meta.json into ``folder``; return the artifact map."""
+    """Save the chosen model of each horizon and meta.json into ``folder``.
+
+    A LightGBM booster goes to ``h<N>.txt`` and a Ridge pipeline to
+    ``h<N>.joblib``. Returns the artifact map.
+    """
     artifacts = {}
     for horizon, res in results.items():
-        path = folder / f"h{horizon}.txt"
-        res["lgbm"].booster_.save_model(str(path))
+        if res["chosen"] == "ridge":
+            path = folder / f"h{horizon}.joblib"
+            joblib.dump(res["ridge"], path)
+        else:
+            path = folder / f"h{horizon}.txt"
+            res["lgbm"].booster_.save_model(str(path))
         artifacts[f"h{horizon}"] = str(path)
     meta = {
         "feature_columns": FEATURE_COLUMNS,
         "n_cities": n_cities,
         "horizons": sorted(results),
+        "kinds": {str(h): res["chosen"] for h, res in results.items()},
     }
     (folder / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     artifacts["meta"] = str(folder / "meta.json")
@@ -215,7 +232,8 @@ def write_model_files(
 def pip_requirements() -> list[str]:
     """Exact package versions the served model needs (same as this environment)."""
     return [
-        f"{name}=={version(name)}" for name in ("mlflow", "lightgbm", "pandas", "numpy")
+        f"{name}=={version(name)}"
+        for name in ("mlflow", "lightgbm", "scikit-learn", "joblib", "pandas", "numpy")
     ]
 
 
@@ -255,6 +273,7 @@ def log_run(
             }
         )
         mlflow.log_params(flatten("train", tp, {}))
+        mlflow.set_tags({f"chosen_{h}h": r["chosen"] for h, r in results.items()})
         mlflow.log_params(
             {
                 "cutoff": params["cutoff"],
@@ -279,6 +298,10 @@ def log_run(
                 "ratio_to_best_baseline"
             ]
             metrics[f"best_baseline_mae_{h}h"] = res["best_baseline"]["mae"]
+            metrics[f"chosen_mae_{h}h"] = res["chosen_mae"]
+            metrics[f"ratio_chosen_to_best_baseline_{h}h"] = res[
+                "chosen_ratio_to_best_baseline"
+            ]
             if res["high_value"]:
                 metrics[f"lightgbm_mae_{h}h_high_pm25"] = res["high_value"]["mae"]
                 metrics[f"n_high_pm25_{h}h"] = res["high_value"]["n"]
@@ -381,6 +404,11 @@ def run_train(params: dict[str, Any]) -> dict[str, int]:
                 "n_eval": r["n_eval"],
                 "metrics": r["metrics"],
                 "best_baseline": r["best_baseline"],
+                "chosen": {
+                    "model": r["chosen"],
+                    "mae": r["chosen_mae"],
+                    "ratio_to_best_baseline": r["chosen_ratio_to_best_baseline"],
+                },
                 "high_value": r["high_value"],
             }
             for h, r in results.items()

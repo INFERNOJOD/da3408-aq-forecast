@@ -40,3 +40,16 @@ def test_pinned_env_matches_the_lock_file():
     for dep in env["dependencies"]:
         name, version = dep.split("==")
         assert f'name = "{name}"\nversion = "{version}"' in lock, dep
+
+
+def test_dvc_dag_has_the_seven_stages_in_order():
+    stages = yaml.safe_load((ROOT / "dvc.yaml").read_text())["stages"]
+    assert list(stages) == [
+        "ingest",
+        "validate",
+        "features",
+        "train",
+        "evaluate",
+        "test",
+        "register",
+    ]

@@ -149,3 +149,12 @@ def test_lightgbm_training_is_repeatable():
         model.fit(modeling.lgbm_frame(train, 7), train["y_24h"], sample_weight=weights)
         preds.append(model.predict(modeling.lgbm_frame(train, 7)))
     assert np.array_equal(preds[0], preds[1]) and np.array_equal(preds[1], preds[2])
+
+
+def test_choose_model_picks_lower_mae_and_ties_go_to_lightgbm():
+    def metrics(ridge, lgbm):
+        return {"ridge": {"mae": ridge}, "lightgbm": {"mae": lgbm}}
+
+    assert modeling.choose_model(metrics(4.0, 5.0)) == "ridge"
+    assert modeling.choose_model(metrics(5.0, 4.0)) == "lightgbm"
+    assert modeling.choose_model(metrics(4.0, 4.0)) == "lightgbm"

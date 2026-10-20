@@ -160,3 +160,13 @@ def best_baseline(metrics: dict[str, dict[str, float]]) -> tuple[str, float]:
     """Name and MAE of the best of persistence, seasonal_naive and ridge."""
     name = min(BASELINES, key=lambda m: metrics[m]["mae"])
     return name, metrics[name]["mae"]
+
+
+def choose_model(metrics: dict[str, dict[str, float]]) -> str:
+    """Pick the model served for a horizon: Ridge or LightGBM, lower MAE wins.
+
+    The rule-based baselines are never served, they are only the yardstick. A tie
+    goes to LightGBM, the main model.
+    """
+    ridge, lgbm = metrics["ridge"]["mae"], metrics["lightgbm"]["mae"]
+    return "ridge" if ridge < lgbm else "lightgbm"

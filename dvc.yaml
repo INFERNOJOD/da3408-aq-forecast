@@ -69,3 +69,53 @@ stages:
       - models/candidate
       - reports/train_metrics.json:
           cache: false
+
+  evaluate:
+    cmd: python -m src.pipeline.evaluate
+    deps:
+      - models/candidate
+      - data/features/train.parquet
+      - reports/train_metrics.json
+      - src/pipeline/evaluate.py
+      - src/pipeline/registry.py
+      - src/pipeline/modeling.py
+      - src/common
+    params:
+      - paths
+      - cutoff
+      - eval_window_days
+      - promotion.model_name
+    metrics:
+      - reports/eval.json:
+          cache: false
+
+  test:
+    cmd: python -m src.pipeline.test_gate
+    deps:
+      - reports/eval.json
+      - src/pipeline/test_gate.py
+      - src/common
+    params:
+      - paths
+      - promotion.max_ratio_to_baseline
+    metrics:
+      - reports/gate.json:
+          cache: false
+
+  register:
+    cmd: python -m src.pipeline.register
+    deps:
+      - reports/gate.json
+      - reports/eval.json
+      - reports/train_metrics.json
+      - models/candidate
+      - src/pipeline/register.py
+      - src/pipeline/registry.py
+      - src/common
+    params:
+      - paths
+      - cutoff
+      - promotion.model_name
+    metrics:
+      - reports/register.json:
+          cache: false

@@ -25,3 +25,7 @@ class PipelineStageError(AQError):
         super().__init__(f"[{stage}] {message}")
         self.stage = stage
         self.message = message
+
+
+class RegistryError(AQError):
+    """A model registry request cannot be done (unknown version, no champion...)."""

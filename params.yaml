@@ -79,3 +79,8 @@ train:
     subsample_freq: 1
     colsample_bytree: 0.8
     n_jobs: 4
+
+# Settings for the test and register stages (the promotion rule, docs/HLD.md).
+promotion:
+  model_name: aq-pm25          # name in the MLflow model registry
+  max_ratio_to_baseline: 1.02  # served MAE may be at most this x the best baseline

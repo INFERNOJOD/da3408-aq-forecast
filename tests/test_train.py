@@ -1,71 +1,13 @@
 import json
 
 import mlflow
-import numpy as np
-import pandas as pd
 import pytest
 from src.common.errors import DataValidationError
-from src.common.schema import FEATURE_COLUMNS, FEATURES, HORIZONS
-from src.pipeline import train
+from src.common.schema import FEATURE_COLUMNS, FEATURES
+from src.pipeline import modeling, train
 
+from tests.conftest import CITIES
 from tests.test_modeling import CUTOFF, make_frame
-
-CITIES = ["Delhi", "Chennai"]
-
-
-def synthetic_features(tmp_path):
-    """Write a train.parquet like the features stage (targets cut at the cutoff)."""
-    frames = []
-    for code, city in enumerate(CITIES):
-        df = make_frame(24 * 40, city=city, seed=code)
-        df["city_code"] = code
-        frames.append(df)
-    df = pd.concat(frames, ignore_index=True)
-    cutoff = pd.Timestamp(CUTOFF)
-    for horizon, name in HORIZONS.items():
-        late = df["Datetime"] + pd.Timedelta(hours=horizon) > cutoff
-        df.loc[late, name] = np.nan
-    path = tmp_path / "features" / "train.parquet"
-    path.parent.mkdir()
-    df.to_parquet(path, index=False)
-    return path
-
-
-@pytest.fixture
-def params(tmp_path):
-    synthetic_features(tmp_path)
-    reports = tmp_path / "reports"
-    reports.mkdir()
-    (tmp_path / "raw.dvc").write_text("outs:\n- md5: deadbeef.dir\n  path: raw\n")
-    (reports / "baseline_stats.json").write_text('{"feature": "pm25_lag_1"}')
-    return {
-        "paths": {
-            "features_dir": str(tmp_path / "features"),
-            "reports_dir": str(reports),
-            "models_dir": str(tmp_path / "models"),
-            "raw_dvc": str(tmp_path / "raw.dvc"),
-        },
-        "cities": CITIES,
-        "cutoff": CUTOFF,
-        "eval_window_days": 3,
-        "train": {
-            "experiment": "aq-test",
-            "half_life_days": 30,
-            "seed": 1,
-            "high_pm25_threshold": 60,
-            "ridge": {"alpha": 1.0},
-            "lightgbm": {"n_estimators": 25, "learning_rate": 0.1, "n_jobs": 2},
-        },
-    }
-
-
-@pytest.fixture
-def tracking(tmp_path, monkeypatch):
-    uri = f"sqlite:///{tmp_path / 'mlflow.db'}"
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
-    monkeypatch.delenv("PIPELINE_TRIGGER", raising=False)
-    monkeypatch.chdir(tmp_path)  # MLflow writes artifacts under ./mlruns
-    return uri
 
 
 def test_model_signature_matches_the_lld_columns():
@@ -101,6 +43,10 @@ def test_fit_horizon_scores_all_four_models(params, tmp_path):
     res = train.fit_horizon(df, 1, params)
     assert set(res["metrics"]) == {"persistence", "seasonal_naive", "ridge", "lightgbm"}
     assert {m["n"] for m in res["metrics"].values()} == {res["n_eval"]}  # same rows
+    assert res["chosen"] in ("ridge", "lightgbm")  # never a rule-based baseline
+    assert res["chosen_mae"] == min(
+        res["metrics"]["ridge"]["mae"], res["metrics"]["lightgbm"]["mae"]
+    )
     assert res["ratio_to_best_baseline"] == pytest.approx(
         res["metrics"]["lightgbm"]["mae"] / res["best_baseline"]["mae"]
     )
@@ -137,6 +83,8 @@ def test_run_train_logs_beyond_autolog_and_saves_a_servable_model(
                 assert f"{model}_mae_{h}h_{city}" in metrics  # per city and horizon
     for h in (1, 24):
         assert f"ratio_lightgbm_to_best_baseline_{h}h" in metrics
+        assert f"chosen_mae_{h}h" in metrics
+        assert f"ratio_chosen_to_best_baseline_{h}h" in metrics
     assert "lightgbm_mean_mae" in metrics and metrics["drift_psi_max"] == 0.5
     assert run.data.params["train.lightgbm.n_estimators"] == "25"
     assert run.data.params["cutoff"] == CUTOFF
@@ -171,3 +119,19 @@ def test_run_train_is_repeatable_for_a_new_cutoff(params, tracking, tmp_path):
     assert (
         tmp_path / "models" / "candidate" / "MLmodel"
     ).exists()  # replaced, not stacked
+
+
+def test_write_model_files_stores_each_horizon_as_its_chosen_kind(tmp_path):
+    df = make_frame(300)
+    ridge = modeling.build_ridge(1.0).fit(df[FEATURE_COLUMNS].fillna(0), df["pm25"])
+    lgbm = modeling.build_lightgbm({"n_estimators": 5, "n_jobs": 1}, seed=1)
+    lgbm.fit(modeling.lgbm_frame(df, 7), df["pm25"])
+    results = {
+        1: {"chosen": "ridge", "ridge": ridge, "lgbm": lgbm},
+        24: {"chosen": "lightgbm", "ridge": ridge, "lgbm": lgbm},
+    }
+    artifacts = train.write_model_files(results, 7, tmp_path)
+    assert artifacts["h1"].endswith("h1.joblib")
+    assert artifacts["h24"].endswith("h24.txt")
+    meta = json.loads((tmp_path / "meta.json").read_text())
+    assert meta["kinds"] == {"1": "ridge", "24": "lightgbm"}
