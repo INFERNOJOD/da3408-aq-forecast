@@ -286,7 +286,7 @@ For each city it stores the quantile bin edges of `pm25_lag_1` on the training r
 
 ## Part 5: your two decisions, and Stage 7 (train)
 
-I applied both decisions and built Stage 7. At the end `ruff check` passed and `pytest` gave 114 passed and 0 failed. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone. Results are in `docs/metrics.md`. This part also lists three open decisions for you; they are at the end of "Open decisions".
+I applied both decisions and built Stage 7. The code is in commits `b0dbca6`, `410a0cc` and `865e661`, and the final run is tagged with the last one. At the end `ruff check` passed and `pytest` gave 117 passed and 0 failed. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone. Results are in `docs/metrics.md`. This part also lists three open decisions for you; they are at the end of "Open decisions".
 
 ### Your two decisions
 
@@ -364,7 +364,7 @@ I changed one thing without asking you: LightGBM now uses the median (L1) loss, 
 
 ```bash
 source .venv/bin/activate
-ruff check . && pytest -q                          # 114 tests (about 35 s)
+ruff check . && pytest -q                          # 117 tests (about 35 s)
 dvc repro                                          # whole pipeline; only changed stages run
 python -m src.pipeline.train                       # the train stage alone (about 25 s)
 mlflow run . -e main --env-manager local           # the same through MLproject
@@ -383,7 +383,7 @@ The full tables are in `docs/metrics.md`.
 | LightGBM fit per horizon | about 11 s |
 | Saved model | 3.0 MB |
 | Metrics per MLflow run | 88 |
-| Tests | 114 passed |
+| Tests | 117 passed |
 
 ### Viva questions for Stage 7
 
