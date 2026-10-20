@@ -240,3 +240,27 @@ Two reasons I can name: a week of PM2.5 values is strongly correlated hour to ho
 are too fine for it, and the network of stations changed between years (Bengaluru went from 2 to
 8 stations in 2018). So a fixed PSI threshold of 0.2 does not work for a one-week window. This is
 the main open point for Stage 11.
+
+### Stage 7 update: 90-day half-life
+
+The sections above describe the first run, with a 30-day half-life. I then changed the
+half-life to 90 days (everything else unchanged, deterministic training). Same evaluation
+window and rows: 497 at 1 h and 336 at 24 h. Mean absolute error in µg/m³:
+
+| Model | 1 h, 30 days | 1 h, 90 days | 24 h, 30 days | 24 h, 90 days |
+|-------|-----:|-----:|-----:|-----:|
+| Persistence | 5.13 | 5.13 | 14.70 | 14.70 |
+| Seasonal naive | 15.49 | 15.49 | 14.70 | 14.70 |
+| Ridge | 5.31 | 5.03 | 13.83 | 14.25 |
+| LightGBM | 4.76 | 4.50 | 14.13 | 13.54 |
+| LightGBM / best baseline | 0.927 | 0.894 | 1.022 | 0.950 |
+
+LightGBM is now the best model at both horizons. Its mean over the two horizons is 9.02, against
+9.64 for Ridge and 9.92 for persistence, and both ratios are under the limit of 1.02. The
+effective number of training rows (see above) rises from 14,542 to 43,518.
+
+Per city, LightGBM against the best baseline on the same rows: better in 5 of 7 cities at 1 h
+(worse in Kolkata and Lucknow) and in 4 of 7 at 24 h (worse in Chennai, Kolkata and Lucknow).
+These are the same cities as before, with 71 and 48 rows per city. Error on hours with PM2.5 at
+or above 121: 14.7 on 13 hours at 1 h and 61.2 on 10 hours at 24 h. The training stage takes
+23.4 s.

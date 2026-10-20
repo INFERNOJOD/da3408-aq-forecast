@@ -234,7 +234,7 @@ stages:
           raw_dvc: data/raw.dvc
         train:
           experiment: aq-pm25
-          half_life_days: 30
+          half_life_days: 90
           seed: 42
           high_pm25_threshold: 121
           ridge:
@@ -252,10 +252,10 @@ stages:
     outs:
     - path: models/candidate
       hash: md5
-      md5: 9b2d1285e4a8d6842b69ea0b7292e2ae.dir
-      size: 3051753
+      md5: ba215b2f976c43106ce05b5ddfc613ce.dir
+      size: 3044365
       nfiles: 12
     - path: reports/train_metrics.json
       hash: md5
-      md5: 55d71879c8ceea1b726983b4863affa6
-      size: 2377
+      md5: 9375c4c1c5ee5f5d7453df5bfbba41c6
+      size: 2371

@@ -110,11 +110,16 @@ Prometheus text format (see §5).
 
 ### GET `/ops/drift`
 ```json
-{"sim_time": "2020-04-01T09:00:00", "window_h": 168, "psi_threshold": 0.2, "mae_ratio_threshold": 1.5,
- "cities": [{"city": "Delhi", "psi": 0.41, "mae_ratio_1h": 1.8, "drifted": true}, "..."],
- "any_drift": true}
+{"sim_time": "2020-04-08T09:00:00", "window_h": 168, "reference_block": 1,
+ "min_cities": 3, "mae_ratio_threshold": 1.5,
+ "cities": [{"city": "Delhi", "psi": 4.1, "psi_threshold": 1.9, "exceeds": true, "votes": true, "mae_ratio_1h": 1.8},
+            {"city": "Kolkata", "psi": 5.2, "psi_threshold": null, "exceeds": false, "votes": false, "mae_ratio_1h": 1.4}, "..."],
+ "cities_exceeding": 4, "mae_ratio_pooled": 1.7,
+ "psi_condition": true, "mae_condition": true, "any_drift": true}
 ```
-`psi` and `mae_ratio_1h` are `null` until 24 replayed hours exist for that city. `psi` compares the last 168 replayed hours with the same-season reference block `h // 168` in `reports/baseline_stats.json`, where `h` is the replay hour of the window's last hour.
+`any_drift` is `psi_condition` and `mae_condition`. `psi_condition` is true when at least `min_cities` cities have `exceeds` true. `mae_condition` is true when `mae_ratio_pooled` is above `mae_ratio_threshold`. A city with `psi_threshold` null (fewer than three reference years, so no threshold could be computed) does not vote.
+
+`psi` compares the last 168 replayed hours with the same-season reference block `reference_block` = `h // 168` in `reports/baseline_stats.json`, where `h` is the replay hour of the window's last hour. `exceeds` is `psi > psi_threshold`, with the per-city threshold from `reports/drift_thresholds.json`. `mae_ratio_1h` is the city's 1 h MAE over the last 72 replayed hours divided by the model's 1 h MAE on its evaluation window. `mae_ratio_pooled` is the same ratio over all cities together. `psi` and `exceeds` are `null` until 168 replayed hours exist. The MAE ratios are `null` until 24 replayed hours exist.
 
 ### GET `/ops/replay`  ·  POST `/ops/replay`
 Request (POST):
@@ -193,7 +198,11 @@ The model is one MLflow pyfunc (`src/pipeline/aq_model.py`) that holds both hori
 | backend | `aq_http_request_duration_seconds` | histogram | `method, path` |
 | backend | `aq_forecast_pm25` | gauge | `city, horizon_h` |
 | backend | `aq_drift_psi` | gauge | `city` |
+| backend | `aq_drift_threshold` | gauge | `city` |
+| backend | `aq_drift_cities_exceeding` | gauge | — |
 | backend | `aq_rolling_mae_ratio` | gauge | `city` |
+| backend | `aq_rolling_mae_ratio_pooled` | gauge | — |
+| backend | `aq_drift_detected` | gauge (1 = the `any_drift` rule above is true) | — |
 | backend | `aq_model_version` | gauge (value = version) | — |
 | backend | `aq_replay_sim_time_seconds` | gauge (epoch) | — |
 | backend | `aq_retrain_requests_total` | counter | `reason` |
@@ -214,8 +223,8 @@ Alert rules (`monitoring/alerts.yml`):
 
 | Alert | Expression (summary) | for | labels |
 |-------|----------------------|-----|--------|
-| `PM25DriftHigh` | `max(aq_drift_psi) > 0.2` | 1m | `action=retrain` |
-| `ForecastErrorHigh` | `max(aq_rolling_mae_ratio) > 1.5` | 1m | `action=retrain` |
+| `PM25DriftHigh` | `aq_drift_detected == 1` | 1m | `action=retrain` |
+| `ForecastErrorHigh` | `aq_rolling_mae_ratio_pooled > 1.5` | 5m | none (warning only; a retrain needs drift as well) |
 | `BackendErrorRateHigh` | 5xx share of `aq_http_requests_total` > 5% over 5m | 2m | — |
 | `TargetDown` | `up == 0` | 1m | — |
 | `PipelineStageFailed` | `aq_stage_status == 0` | 0m | — |
@@ -228,6 +237,7 @@ Alert rules (`monitoring/alerts.yml`):
 | `data/features/train.parquet` | features | train, evaluate | Spark Parquet folder. One row per city and hour with `Datetime <= cutoff`: `City`, `Datetime`, the stored feature columns (section 4 without `horizon_h`), `pm25` (observed value at the hour) and targets `y_1h`, `y_24h`. A target is null if its hour is missing or falls after the cutoff, so training never sees the future. Hours missing in the source are present as rows with null values. |
 | `data/features/serving.parquet` | features | backend (ro) | Same columns as `train.parquet`, for every hour 2020-01-01 00:00 .. 2020-06-30 23:00 and the 7 cities (4,368 rows per city). Features are causal (past only). `pm25`, `y_1h` and `y_24h` are the actuals the backend reveals when its replay clock passes them. `y_24h` is null for the last 23 hours because the data ends on 2020-07-01 00:00. |
 | `reports/baseline_stats.json` | features | train (logged as `drift_baseline.json`), backend | Same-season PSI reference for `pm25_lag_1`. Top level: `feature`, `reference`, `years` (default `[2016, 2019]`), `replay_start`, `replay_hours`, `week_hours` (168), `n_bins`, `bin_rule`, `week_rule`, `cities`. Each city has `years` (years that had data) and `weeks`: a list of `{week, n, edges, proportions}`, one block per 168 replay hours (14 blocks for the default replay). The reference values of block `k` are `pm25_lag_1` at the same calendar hours of the earlier years (aligned on the replay start's month and day). Bin index of a value is the number of edges `e` with `e <= value`. A live window whose last hour is replay hour `h` uses block `h // 168`. |
+| `reports/drift_thresholds.json` | features (to be built in Stage 11) | backend | Per-city PSI threshold: `percentile` (95), `years`, and per city `psi_threshold` and `n_values`. The threshold is the 95th percentile of the city's PSI in normal weeks: every block 1 to 13 of every reference year compared with the same block of the other years (leave-one-year-out). A city with fewer than 3 reference years (Kolkata) has no entry and does not vote. |
 | `reports/validation.json` | validate | console, docs | `{status, n_checks, n_passed, n_warnings, n_failed, checks[], stats}`; each check is `{table, check, status: pass/warn/fail, detail, value}` |
 | `reports/eda/*.csv` | `python -m src.pipeline.eda` (manual, not a DVC stage) | `scripts/plot_eda.py`, docs | Small aggregates for `docs/eda.md` |
 | `reports/runs.jsonl` | every stage (via `stage_runner`) | backend `/pipeline/*` | One JSON line per stage execution: `{run_id, trigger, stage, status, started_at, duration_s, rows_in, rows_out, rows_per_sec, error, git_commit, cutoff}` |
@@ -259,5 +269,7 @@ Alert rules (`monitoring/alerts.yml`):
 | `MLFLOW_TRACKING_URI` | backend, pipeline, model server | `http://mlflow:5000` |
 | `REPLAY_SPEED_HPS` | backend | `1.0` |
 | `RETRAIN_COOLDOWN_MIN` | backend | `30` |
+| `DRIFT_MIN_CITIES` | backend | `3` |
+| `DRIFT_MAE_RATIO` | backend | `1.5` |
 | `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key` |
 | `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` |

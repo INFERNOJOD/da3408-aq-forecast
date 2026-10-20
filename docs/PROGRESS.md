@@ -401,3 +401,69 @@ Ridge is a pipeline with a median imputer that also adds a flag column for every
 
 **5. What does your MLflow run record that autolog would not?**
 Autolog records parameters and a generic metric set. I log the git commit and a dirty flag, the DVC data version, a hash of the feature values, errors for every model, horizon and city, the ratio to the best baseline, error on high-pollution hours, the drift baseline used for monitoring, feature importance and residual plots, the exact package versions, and drift scores when a drift alert caused the retrain.
+
+---
+
+## Part 6: your three decisions
+
+I applied all three, with one result you should know about (decision 3). Everything is committed. At the end `ruff check` passed, `pytest` gave 117 passed and 0 failed, and `dvc status` said up to date. I did not start Stage 8.
+
+### 1. Drift: the decision rule
+
+The design now follows my proposal, and it is in `docs/HLD.md`, the endpoint and metrics in `docs/LLD.md`, and the alert rules.
+
+Drift is declared when both of these are true in the same 168-hour window:
+
+- at least 3 cities have a PSI above their own threshold, and
+- the pooled rolling 72 h MAE ratio is above 1.5.
+
+The threshold of a city is the 95th percentile of its PSI in normal weeks. I get those by comparing each week (blocks 1 to 13) of each reference year with the same block of the other years. Kolkata has only two reference years, so it has no threshold and does not vote. That leaves 6 cities to vote.
+
+The backend evaluates the rule and exports a single gauge, `aq_drift_detected`. The Prometheus alert `PM25DriftHigh` that starts a retrain is just `aq_drift_detected == 1`, so the rule lives in one place. I changed `ForecastErrorHigh` to a warning with no retrain, because a retrain now needs drift as well. The values 3 and 1.5 are settings, `DRIFT_MIN_CITIES` and `DRIFT_MAE_RATIO`. The LLD has the new `/ops/drift` response, three new metrics, and the new file `reports/drift_thresholds.json`.
+
+**Not built yet:** the threshold file and the rule itself. They belong to Stage 11. The requirement you set is written into `docs/PLAN.md` as the acceptance test: the lockdown replay triggers it at least once, and normal weeks of earlier years do not. I will test both at Stage 11 by replaying the same weeks of 2016-2019 (counting false alarms) and then the lockdown.
+
+I should be honest that this is not guaranteed to work. The weak spot I can already see is Hyderabad, where lockdown weeks do not stand out from normal weeks. With 6 voters and a limit of 3, the other cities may be enough, but I have not checked. If the rule cannot meet both conditions with these settings, I will report that and propose a change. I will not loosen the settings quietly until the demo fires.
+
+### 2. Half-life changed to 90 days
+
+I changed `train.half_life_days` to 90 and reran the pipeline on a clean tree. The effective number of training rows went from 14,542 to 43,518, and the results improved.
+
+| Model | 1 h | 24 h |
+|-------|----:|-----:|
+| Persistence | 5.13 | 14.70 |
+| Seasonal naive | 15.49 | 14.70 |
+| Ridge | 5.03 | 14.25 |
+| LightGBM | 4.50 | 13.54 |
+
+LightGBM is the best model at both horizons now. It is 11% below the best baseline at 1 h and 5% below at 24 h. The evaluation window is still small (497 and 336 rows), so I read small gaps with care. It is still weaker than a baseline in Kolkata and Lucknow at both horizons, and in Chennai at 24 h. `docs/metrics.md` has the comparison with the 30-day run.
+
+### 3. Promotion: best model per horizon
+
+I recorded the rule in the HLD: for each horizon I register the better of Ridge and LightGBM by MAE, that model must be within 1.02 times the best baseline, and the limit is not relaxed. A new candidate is promoted only if its mean MAE over both horizons beats the champion's on the same window.
+
+**What changed with decision 2:** your reasoning was that Ridge is best at 24 h (13.83 against 14.70 for persistence). That was true for the 30-day run. With 90 days, LightGBM is best at 24 h (13.54), and its ratio to the best baseline is 0.950. So with the current settings, LightGBM is registered at both horizons and the 1.02 rule is passed with room to spare. The rule is still useful, because a retrain on lockdown data may change which model wins.
+
+**A gap I found:** `src/pipeline/aq_model.py` can only hold LightGBM models. If Ridge wins a horizon, the package has to hold the sklearn pipeline too. I did not build this, because you asked me to stop after these changes. I wrote it into the HLD and the plan for Stage 8.
+
+**An assumption to confirm:** I read "best model" as the better of Ridge and LightGBM. I did not count persistence or seasonal naive as candidates, because a rule-based model has nothing to train or register. They are the yardstick for the 1.02 rule. Tell me if you meant something else.
+
+### The L1 loss
+
+The HLD already says it, and I checked it again. LightGBM uses the median (L1) loss, because models are compared by MAE. I first used the squared loss. On a 28-day test window L1 was better or equal in all 8 comparisons, by about 0.7 µg/m³ at 24 h. It takes about 11 s per horizon instead of 3 s.
+
+### Other changes
+
+The older parts of this file describe the 30-day run and the first drift threshold. I left them as a record of what I did at the time. Part 5's open decisions 1 to 3 are now closed by this part.
+
+### Next: Stage 8
+
+Stage 8 builds the `evaluate`, `test` and `register` stages, the registry with the `champion` and `previous` aliases, the promotion rule, and `scripts/rollback.py`. It completes the 7-stage DVC chain. I will start with these points, and I would like your answer on the first.
+
+1. Confirm that "best model per horizon" means the better of Ridge and LightGBM.
+2. Make the package able to hold a Ridge pipeline for a horizon (needed if Ridge ever wins). I would store it with `skops` or `joblib` as a model artifact and load it in `load_context`.
+3. Build `evaluate`: score the candidate and the current champion on the same window, and write `reports/eval.json`.
+4. Build `test` and `register` with the rule above, and rollback by moving the `champion` alias.
+5. Run it on the first model, where there is no champion yet, and on a second run to show that a candidate that is not better is rejected and logged.
+
+Waiting for your go-ahead.
