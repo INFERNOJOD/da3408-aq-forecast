@@ -1,0 +1,35 @@
+# Git pre-commit hook. Install once with: uv run pre-commit install
+# All hooks are local and use the project's own venv (uv.lock), so the hook
+# needs no download and checks with the same ruff and pytest versions as
+# scripts/ci.sh. The DVC checks are only in scripts/ci.sh: code is often
+# committed before the pipeline is rerun, and that must not be blocked.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --frozen ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: ruff format --check
+        entry: uv run --frozen ruff format --check --force-exclude
+        language: system
+        types_or: [python, pyi]
+
+      # The whole suite (about 1 min). Only when code or a config the tests
+      # read is staged, so a docs-only commit stays fast.
+      - id: pytest
+        name: pytest
+        entry: uv run --frozen pytest -q -p no:cacheprovider
+        language: system
+        pass_filenames: false
+        files: '^(src|tests|scripts|docker|monitoring|\.streamlit)/|\.(py|ya?ml|toml)$'
+
+      # .gitignore already keeps these out, but "git add -f" would not.
+      - id: no-data-or-secrets
+        name: no data, models, certificates or .env in git
+        entry: data, certificates, mlflow.db and .env belong in DVC or stay local
+        language: fail
+        files: '^(data/(raw|interim|features)/|models/candidate/|certs/|mlflow\.db$|\.env$)'
