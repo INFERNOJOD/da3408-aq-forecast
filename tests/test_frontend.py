@@ -300,3 +300,14 @@ def test_main_starts_exporter_before_streamlit(monkeypatch):
         calls[1][2].endswith("src/frontend/app.py")
         and calls[1][3] == "--server.port=8501"
     )
+
+
+def test_streamlit_config_hides_developer_toolbar():
+    import tomllib
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    config = tomllib.loads((root / ".streamlit/config.toml").read_text())
+    assert config["client"]["toolbarMode"] == "minimal"
+    dockerfile = (root / "docker/frontend/Dockerfile").read_text()
+    assert "COPY .streamlit/config.toml .streamlit/config.toml" in dockerfile

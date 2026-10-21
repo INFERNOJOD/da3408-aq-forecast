@@ -1,0 +1,8 @@
+# Streamlit reads this from the working directory (the repo root locally,
+# /app in the container).
+
+[client]
+# "minimal" hides the Deploy button, the rerun/clear-cache items and the
+# top-right menu, which has nothing left in it. "viewer" would still show
+# the menu (settings, print). Users of this app only need the pages.
+toolbarMode = "minimal"

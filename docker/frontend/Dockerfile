@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 COPY src/__init__.py src/__init__.py
 COPY src/common/__init__.py src/common/errors.py src/common/logging_setup.py src/common/
 COPY src/frontend src/frontend
+# Hides Streamlit's developer toolbar and menu from users.
+COPY .streamlit/config.toml .streamlit/config.toml
 
 USER app
 ENV PYTHONPATH=/app BACKEND_URL=http://backend:8000 UI_METRICS_PORT=8502
