@@ -7,7 +7,8 @@ flowchart LR
     user([Non-technical user / operator])
 
     subgraph serve["Compose profile: serve"]
-        fe["Frontend<br/>Streamlit :8501<br/>Forecast page + Pipeline console"]
+        px["TLS proxy<br/>Caddy :443 (HTTPS)<br/>:80 and :8501 redirect"]
+        fe["Frontend<br/>Streamlit :8501 (internal)<br/>Forecast page + Pipeline console"]
         be["Backend<br/>FastAPI :8000 (HTTPS)<br/>forecast, replay, drift, ops"]
         ms["Model server<br/>mlflow models serve :5001<br/>aq-pm25@champion"]
         mlf["MLflow tracking + registry :5000<br/>SQLite + local artifacts"]
@@ -28,8 +29,9 @@ flowchart LR
     git[("Git repo<br/>code, dvc.lock, params")]
     hub[("Docker Hub<br/>images only")]
 
-    user -->|browser| fe
-    fe -->|REST, BACKEND_URL env var| be
+    user -->|browser, HTTPS| px
+    px --> fe
+    fe -->|REST over HTTPS, BACKEND_URL env var| be
     be -->|REST /invocations| ms
     be -->|registry aliases, run info| mlf
     ms -->|loads model on alias change| mlf
@@ -43,12 +45,14 @@ flowchart LR
     runner -->|commit dvc.lock + params| git
     prom -->|scrape /metrics 15s| fe & be & ms & pgw & ne
     prom -->|alerts| am
-    am -->|webhook /ops/alerts| be
+    am -->|webhook /ops/alerts, HTTPS| be
     graf -->|queries| prom
     pipe -. images .-> hub
 ```
 
 ## The blocks
+
+**TLS proxy (Caddy).** Browsers reach the system only through this small proxy. It holds the certificate, ends TLS on port 443 and passes requests and Streamlit's websocket to the frontend. Plain `http://` on port 80, and the old address on port 8501, get a redirect to `https://` instead of a broken page. I added it because Streamlit's own TLS option cannot answer plain HTTP on the same port, so a user who typed the old address would see an empty error page.
 
 **Frontend (Streamlit).** It has two pages. The Forecast page is for ordinary users: a city dropdown, the 1h and 24h PM2.5 forecast, an AQI colour card and health advice. The Pipeline console is for the operator: DAG status, run history with failures and error messages, throughput, drift, model versions and the ops buttons. I kept the frontend ignorant of everything except `BACKEND_URL`. That way I can replace it or move it without touching the rest.
 

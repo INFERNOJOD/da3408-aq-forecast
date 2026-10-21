@@ -4,7 +4,8 @@ This document is the interface contract. Code must match it exactly; any endpoin
 
 ## 1. Conventions
 
-- Backend base URL: `https://<host>:8000` (`BACKEND_URL` in the frontend). JSON only, UTF-8.
+- Backend base URL: `https://<host>:8000` (`BACKEND_URL` in the frontend). JSON only, UTF-8. The certificate is signed by the project's own CA (`certs/ca.crt`, made by `scripts/make_certs.sh`); clients check it against that file.
+- Users open the frontend at `https://<host>/` (the TLS proxy, host port 443). `http://<host>/` and `http://<host>:8501/` answer `301` with a redirect to the same path on `https://<host>/`.
 - Times are ISO 8601 without a timezone, in IST, as in the source data (e.g. `2020-03-25T14:00:00`).
 - `sim_time` is the replay clock's current hour. Forecasts are issued "as of" `sim_time`.
 - `city` must be one of: `Delhi, Chennai, Lucknow, Hyderabad, Bengaluru, Jaipur, Kolkata` (case-sensitive).
@@ -304,7 +305,7 @@ Alert rules (`monitoring/alerts.yml`):
 | Variable | Used by | Default |
 |----------|---------|---------|
 | `BACKEND_URL` | frontend | `https://backend:8000` |
-| `BACKEND_CA_FILE` | frontend | unset (system CAs); path to the CA file once the backend uses a self-signed certificate |
+| `BACKEND_CA_FILE` | frontend | unset (system CAs). Compose sets `/certs/ca.crt`, the CA that signed the backend's certificate. |
 | `UI_METRICS_PORT` | frontend | `8502` |
 | `MLFLOW_URL`, `GRAFANA_URL`, `PROMETHEUS_URL` | frontend (console links only) | `http://localhost:5000`, `:3000`, `:9090` |
 | `OPS_API_KEY` | backend, alertmanager | — (required, in `.env`). The frontend does not read it: the operator types the key into the console, which sends it only to `/ops/*`. |
@@ -323,14 +324,15 @@ Alert rules (`monitoring/alerts.yml`):
 | `SMOKE_TIMEOUT_S` | ops runner | `180` (the watcher polls every 30 s and a start can take up to 90 s) |
 | `RUN_TIMEOUT_S` | ops runner | `3600` |
 | `RUNNER_MIN_FREE_MB` | ops runner | `2500` (the batch does not start with less memory available) |
-| `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key`. If either file is missing the backend serves plain HTTP and logs a warning (Stage 15 creates the certificate). |
+| `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/server.crt`, `/certs/server.key`. If either file is missing the backend serves plain HTTP and logs a warning. |
+| `CERT_DIR` | `scripts/make_certs.sh` | `certs` (gitignored). The script takes extra host names or IPs as arguments and adds them to the certificate. |
 | `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` in the pipeline container; `http://localhost:19091` for the ops runner and `scripts.push_stage_metrics` on the host |
 | `PUSHGATEWAY_HOST_PORT` | compose | `19091` |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | — (required, in `.env`) |
 
 ## 9. Frontend pages
 
-The Streamlit frontend (`:8501`) has two pages, each with its own URL path.
+The Streamlit frontend (`https://<host>/` through the TLS proxy; Streamlit itself listens on `:8501` inside the compose network only) has two pages, each with its own URL path.
 
 | Path | Page | Who it is for |
 |------|------|---------------|

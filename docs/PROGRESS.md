@@ -1017,3 +1017,107 @@ Scrapes are every 15 s (the machine limit). A faster refresh redraws the same da
 
 **6. Why does only one alert retrain?**
 A model-server outage or a 5xx burst is not a data problem. Retraining would not fix it and would cost 2.5 GB of RAM while the service is already in trouble.
+
+## Part 15: Stage 15, security
+
+### What I built
+
+| File | What it does |
+|------|--------------|
+| `scripts/make_certs.sh` | Makes a small local CA and one server certificate signed by it, in `certs/` (gitignored, keys `600`). Valid for `localhost`, `127.0.0.1`, `backend`, `frontend` and any extra names or IPs given as arguments. I ran it with the VM's address, `192.168.64.7`. |
+| `docker/tls_proxy/Caddyfile` | Caddy in front of Streamlit. HTTPS on host port 443 with my certificate; host ports 80 and 8501 answer with a `301` to `https://`. |
+| `docker-compose.yml` | New `tls-proxy` service (64m, runs as my user). The frontend no longer publishes 8501. The backend gets the certificate and serves HTTPS; its health check uses `https` and `--cacert`. The frontend gets `BACKEND_URL=https://backend:8000` and `BACKEND_CA_FILE`. Prometheus and Alertmanager get `ca.crt`. Alertmanager reads the API key from `.env`. |
+| `monitoring/prometheus.yml`, `monitoring/alertmanager.yml` | The backend job and the webhook use `https` and check the certificate against `ca.crt`. |
+| `src/backend/main.py` | Default certificate paths are now `/certs/server.*`. The HTTPS-or-HTTP logic was already there from Stage 10. |
+| `src/frontend/client.py` | A failed certificate check is logged with a hint about `BACKEND_CA_FILE`. The user still sees the same plain "the backend does not answer" message. |
+| `tests/test_security.py` | 11 tests: the script's certificate verifies against its CA and has the right names; keys are owner-only; `certs/` and `.env` are gitignored; the frontend client works over real TLS with the CA and fails with the plain message without it; the backend picks HTTPS when the files exist; compose, Prometheus and Alertmanager use HTTPS; every container is non-root; secrets only come from `.env`. |
+
+Two parts were already in place before this stage: the API key check uses `hmac.compare_digest` (constant time, Stage 10), and the 401-without-key test (`test_ops_requires_key`, 30 cases: no header, wrong key, no `Bearer`, `Basic` and an empty key, on all six ops calls). All my images already ran as user `app`.
+
+**Why a CA and not one self-signed certificate.** Both are self-made. With a CA, the frontend, Prometheus, Alertmanager and the health check all verify the backend's certificate properly, and nothing in the project turns verification off. It also means a browser needs to import one file, `certs/ca.crt`, to stop warning.
+
+**Why Caddy and not Streamlit's own TLS.** Streamlit has `server.sslCertFile`, and I looked at it first. The problem is that it cannot answer plain HTTP on the same port. Everyone, me included, has been opening `http://localhost:8501`, and with Streamlit's TLS on that address gives an empty error page. That is exactly the confusing error the user should not see. Caddy redirects it to `https://localhost`. The cost is one more container, 12.6 MiB.
+
+**Secrets.** Before this stage, the ops key lived in `.env` and in a second file, `monitoring/secrets/ops_api_key`, because Alertmanager cannot read environment variables in its config. Now the Alertmanager entrypoint writes the key from `.env` to `/tmp/ops_api_key` inside the container (mode `600`, user `nobody`) and starts Alertmanager. I checked that the old file held the same key and deleted it, so `.env` is the only copy.
+
+**Non-root.** My five images use `USER app`. The Prometheus, Alertmanager, Pushgateway and node-exporter images run as `nobody`, Grafana as `472` (checked with `docker image inspect`). The Caddy image runs as root, so compose runs it as my user, and Caddy listens on 8443 and 8080 inside the container; Docker maps 443 and 80 to them.
+
+### What went wrong
+
+**Pages through the proxy took 42 ms.** Streamlit's own health endpoint answered in 0.3 ms inside its container, but 42 ms through Caddy. The first request on a new connection was fast and every later one was slow, which pointed at reused connections between Caddy and Streamlit: a Nagle and delayed-ACK stall. I turned off keep-alive from Caddy to Streamlit. A new connection on the Docker network costs well under a millisecond, and the p50 dropped to 1.0 ms. The websocket, which carries the actual page updates, is one long connection and is not affected.
+
+**The proxy looked close to its memory limit.** Under the slow config it showed 49 MiB of 64m, and I raised the limit to 96m. After the keep-alive fix it used 12.6 MiB, so I put it back to 64m. The 49 MiB was probably the pile of held connections.
+
+**A test of mine was too broad.** The "secrets come only from `.env`" test flagged `TLS_KEY_FILE` because the name contains `KEY`. That is a path, not a secret. The test now looks only at names ending in `API_KEY` or `PASSWORD`.
+
+### What I ran and measured
+
+On the live stack:
+
+```
+$ curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost:8501/
+301 https://localhost/
+$ curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost/forecast
+301 https://localhost/forecast
+$ curl -s --cacert certs/ca.crt https://localhost/_stcore/health
+ok
+$ curl -s https://localhost/            # no CA, as a browser sees it first
+exit 60 (certificate not trusted)
+$ curl -s --cacert certs/ca.crt https://localhost:8000/health
+{"status":"ok","model_server":"up","model_version":"4",...}
+$ curl ... https://localhost:8000/ops/drift                          -> 401
+$ curl ... -H "Authorization: Bearer nope" .../ops/drift             -> 401
+$ curl ... -H "Authorization: Bearer $OPS_API_KEY" .../ops/drift     -> 200
+$ curl http://localhost:8000/health     # plain HTTP to the HTTPS port
+exit 52 (empty reply)
+```
+
+- `openssl s_client` to the backend: TLS 1.3, `TLS_AES_256_GCM_SHA384`, verify return code 0.
+- The Streamlit websocket upgrades through the proxy (`101`). From inside the frontend container, `BackendClient` read `https://backend:8000` and `/certs/ca.crt` and got the city list.
+- Prometheus: all 9 targets `up`, the backend scraped as `https://backend:8000/metrics`.
+- Alertmanager: I posted a test alert (`TLSWebhookTest`, no `action` label). The backend logged it and answered `POST /ops/alerts` with 200 over HTTPS. No retrain request was created, as designed.
+- The VM address works too: `https://192.168.64.7/` returned 200 with the CA.
+- Cold start (`down`, then `up -d`): the page answered over HTTPS after 25 s, 9 of 9 targets up, 0 restarts.
+- Latency and memory are in `docs/metrics.md`. Over an open connection the forecast takes the same 8.7 ms as over plain HTTP. Tests: 334 passed (11 new), ruff clean.
+
+I did not get a browser screenshot of the page over HTTPS. The VM has Firefox but not `certutil`, so I could not make a headless profile that trusts the CA. The websocket upgrade and the frontend container's call to the backend cover the same path.
+
+### How to run it
+
+```
+scripts/make_certs.sh 192.168.64.7          # once; add the VM's IP or name so other devices can use it
+docker compose --profile serve up -d
+# open https://localhost  (http://localhost and http://localhost:8501 redirect there)
+```
+
+**The browser warning.** On the first visit the browser says the connection is not private, because it does not know my CA. For a demo, "Advanced" then "Proceed to localhost" (Chrome) or "Accept the risk and continue" (Firefox) works and is remembered. To remove the warning for good, import `certs/ca.crt` once as a trusted authority: in Chrome, Settings > Privacy and security > Security > Manage certificates > Authorities > Import; in Firefox, Settings > Privacy & Security > Certificates > View Certificates > Authorities > Import, and tick "trust this CA to identify websites". The user manual (Stage 18) will show this with screenshots.
+
+If you regenerate the certificates, restart the stack so every service loads the new files.
+
+### Limits you should know about
+
+- The browser warning stays until `ca.crt` is imported. A certificate every browser trusts needs a public domain and an outside CA, which the no-cloud rule rules out.
+- Inside the compose network, the model server, MLflow and the exporters still speak plain HTTP. That traffic stays on this machine and carries no secret. The ops key travels only to the backend, and that hop is encrypted.
+- The console's links to MLflow, Grafana and Prometheus are still `http://localhost:...`. Those tools are for me as the operator, and Grafana is read-only for anonymous users.
+- Port 8000 (the backend) is published for API clients and answers only HTTPS. A browser pointed at `http://localhost:8000` gets an empty reply. Non-technical users never go there; they use the frontend.
+- The certificates last 825 days, the longest browsers accept. `scripts/make_certs.sh` makes new ones.
+
+### Viva questions I prepared
+
+**1. What does TLS protect here, exactly?**
+The traffic between the browser and the system, and between the frontend and the backend. The second one matters because the console sends the ops key on that hop. Without TLS, anyone on the network could read the key.
+
+**2. A self-signed certificate is "not secure", the browser says so. Why use it?**
+The browser says it does not know who signed it, not that the encryption is weak. The encryption is TLS 1.3 either way. The services know my CA and check it, so for them the identity check is real. For the browser, importing `ca.crt` once gives the same.
+
+**3. Why compare the key in constant time?**
+A normal `==` stops at the first wrong character, so a wrong guess that starts right takes a little longer. Over many tries that timing could leak the key. `hmac.compare_digest` takes the same time either way.
+
+**4. Why a proxy instead of TLS in Streamlit?**
+Streamlit cannot redirect plain HTTP. With its TLS on, the old address shows an empty error page. Caddy gives a redirect, so a user who types `localhost:8501` still lands on the forecast.
+
+**5. Why must containers not run as root?**
+If someone breaks into a service, they get that user's rights. Root inside a container is much closer to root on the host, especially with mounted folders. As a normal user, files they write on my mounts belong to me, and system paths are off limits.
+
+**6. Where are the secrets, and how do you know none are in git?**
+Only in `.env`, which is gitignored together with `certs/`. A test checks both with `git check-ignore`, and another checks that every key and password in compose is a `${...}` from `.env`.

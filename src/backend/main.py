@@ -1,8 +1,8 @@
 """Start the backend: ``python -m src.backend.main``.
 
 If the certificate and key files exist (``TLS_CERT_FILE``, ``TLS_KEY_FILE``) the
-server uses HTTPS; Stage 15 creates them. Without them it falls back to HTTP and
-says so in the log.
+server uses HTTPS; ``scripts/make_certs.sh`` creates them. Without them it falls
+back to HTTP and says so in the log, so local runs and tests need no certificate.
 """
 
 import os
@@ -23,8 +23,8 @@ def main() -> None:
     configure_logging()
     load_env()
     app = create_app(Settings.from_env())
-    cert = Path(os.environ.get("TLS_CERT_FILE", "/certs/backend.crt"))
-    key = Path(os.environ.get("TLS_KEY_FILE", "/certs/backend.key"))
+    cert = Path(os.environ.get("TLS_CERT_FILE", "/certs/server.crt"))
+    key = Path(os.environ.get("TLS_KEY_FILE", "/certs/server.key"))
     tls = {}
     if cert.exists() and key.exists():
         tls = {"ssl_certfile": str(cert), "ssl_keyfile": str(key)}

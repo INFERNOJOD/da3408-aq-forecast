@@ -45,3 +45,6 @@ htmlcov/
 /ops/
 /reports/drift_trigger.json
 /monitoring/secrets/
+
+# TLS certificates and keys (scripts/make_certs.sh)
+/certs/

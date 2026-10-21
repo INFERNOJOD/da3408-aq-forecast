@@ -77,7 +77,16 @@ class BackendClient:
                 )
         except requests.RequestException as exc:
             metrics.backend_errors.labels(label).inc()
-            log.warning("Backend unreachable on %s: %s", label, exc)
+            if isinstance(exc, requests.exceptions.SSLError):
+                # The user sees the same plain message; the log says what to fix.
+                log.error(
+                    "TLS check of the backend failed on %s (is BACKEND_CA_FILE "
+                    "the CA from scripts/make_certs.sh?): %s",
+                    label,
+                    exc,
+                )
+            else:
+                log.warning("Backend unreachable on %s: %s", label, exc)
             raise BackendError("UNREACHABLE", "The backend does not answer.") from exc
         try:
             data = resp.json()

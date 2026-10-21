@@ -1,0 +1,26 @@
+# TLS proxy in front of the Streamlit frontend (Stage 15).
+# Users open https://localhost. Plain http (port 80, and the old 8501 address)
+# gets a redirect to https instead of a broken page. The certificate comes from
+# scripts/make_certs.sh; Caddy's own automatic certificates are switched off.
+# Inside the container it listens on high ports, so it can run as non-root.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+https://:8443 {
+	tls /certs/server.crt /certs/server.key
+	# Reused upstream connections waited ~40 ms per request (a Nagle and
+	# delayed-ACK stall with Tornado); a fresh connection on the Docker
+	# network costs well under 1 ms. The websocket is unaffected.
+	reverse_proxy frontend:8501 {
+		transport http {
+			keepalive off
+		}
+	}
+}
+
+http://:8080 {
+	redir https://{host}{uri} permanent
+}

@@ -15,7 +15,10 @@ alerting:
 
 scrape_configs:
   # My own services.
-  - job_name: backend
+  - job_name: backend                   # HTTPS since Stage 15, checked against my CA
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/ca.crt
     static_configs:
       - targets: ["backend:8000"]
   - job_name: model-server              # the metrics proxy in front of mlflow models serve

@@ -11,10 +11,12 @@ route:
 receivers:
   - name: backend
     webhook_configs:
-      - url: http://backend:8000/ops/alerts
+      - url: https://backend:8000/ops/alerts
         send_resolved: true
         http_config:
+          tls_config:
+            ca_file: /etc/alertmanager/ca.crt
           authorization:
             type: Bearer
-            # Written from OPS_API_KEY in .env; the folder is gitignored.
-            credentials_file: /etc/alertmanager/secrets/ops_api_key
+            # Written from OPS_API_KEY in .env at start (see docker-compose.yml).
+            credentials_file: /tmp/ops_api_key

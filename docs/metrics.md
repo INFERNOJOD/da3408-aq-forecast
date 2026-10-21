@@ -543,3 +543,27 @@ pushgateway 22 MiB, model-server 570 MiB, alertmanager 20 MiB, node-exporter 14 
 Cold start with the Stage 14 compose file (`down`, then `up -d`): all health checks passing and
 all 9 Prometheus targets `up` after 35 s, 0 restarts. The Pushgateway's 7 stage records were
 still there after the restart (persistence file in its volume).
+
+## Stage 15: security (TLS)
+
+Measured on the live compose stack on 2026-10-21, with a Python `requests` loop on the host,
+one request at a time, 100 requests each, checking certificates against `certs/ca.crt`.
+
+| Request | p50 | p95 |
+|---------|-----|-----|
+| `GET https://localhost:8000/forecast?city=Delhi`, connection reused | 8.7 ms | 14.7 ms |
+| same, new TLS connection every time | 10.3 ms | 14.2 ms |
+| `GET https://localhost:8000/health`, connection reused | 2.3 ms | 2.9 ms |
+| same, new TLS connection every time | 4.0 ms | 4.5 ms |
+| `GET https://localhost/_stcore/health` (through the Caddy proxy), first config | 42.4 ms | 46.8 ms |
+| same, after turning off upstream keep-alive | 1.0 ms | 1.3 ms |
+
+The forecast p50 is the same 8.7 ms as over plain HTTP in Stage 10, so TLS costs nothing I can
+see once a connection is open. A new handshake adds about 1.5-2 ms. The 42 ms through the proxy
+was a stall on reused connections between Caddy and Streamlit (Streamlit itself answered in
+0.3 ms); see PROGRESS Part 15.
+
+TLS 1.3 (`TLS_AES_256_GCM_SHA384`) on the backend, checked with `openssl s_client`.
+Memory: tls-proxy 12.6 MiB (limit 64m). A cold start (`down`, then `up -d`) had the page answering
+over HTTPS after 25 s, all 9 Prometheus targets `up` (backend scraped over HTTPS), 0 restarts.
+Tests: 334 passed (11 new in `tests/test_security.py`), ruff clean.
