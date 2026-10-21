@@ -317,3 +317,15 @@ Alert rules (`monitoring/alerts.yml`):
 | `RUNNER_MIN_FREE_MB` | ops runner | `2500` (the batch does not start with less memory available) |
 | `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key`. If either file is missing the backend serves plain HTTP and logs a warning (Stage 15 creates the certificate). |
 | `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` |
+
+## 9. Frontend pages
+
+The Streamlit frontend (`:8501`) has two pages, each with its own URL path.
+
+| Path | Page | Who it is for |
+|------|------|---------------|
+| `/forecast` | Forecast | everyone |
+| `/console` | Pipeline console | the operator (ops buttons need the API key) |
+| `/` | redirects to `/forecast` | |
+
+Streamlit always serves its default page at `/` and ignores that page's `url_path`. My first version made Forecast the default, so `/forecast` showed "Page not found". The default page is now a hidden redirect, and the sidebar links to the two real pages.

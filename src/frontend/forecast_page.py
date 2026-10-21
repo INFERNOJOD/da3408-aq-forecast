@@ -10,6 +10,10 @@ DOWN_MESSAGE = (
     "Sorry, the forecast service is not reachable right now. "
     "Nothing is wrong with your device. Please try again in a few minutes."
 )
+DEMO_NOTE = (
+    "This is a demo. It replays real measurements from March to June 2020 as if "
+    "they were happening now, so the dates you see are from 2020."
+)
 MODEL_DOWN_MESSAGE = (
     "The forecast model is taking a break, so there is no forecast at the moment. "
     "Please try again in a few minutes."
@@ -33,6 +37,7 @@ def render_forecast(client: BackendClient) -> None:
     metrics.page_views.labels("forecast").inc()
     st.title("Air quality forecast")
     st.write("Pick your city to see how much fine dust (PM2.5) to expect.")
+    st.info(DEMO_NOTE, icon="ℹ️")
     try:
         cities = _static(client, "/cities")["cities"]
     except BackendError:

@@ -9,6 +9,15 @@
 x-host-user: &host-user
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"   # so files written to mounts stay yours
 
+# Start order: mlflow -> model-server -> backend -> frontend, each waiting for
+# the one before to pass its health check (plain depends_on only waits for the
+# container to start). During start_period the check runs every 5 s, so a
+# healthy service is noticed quickly; after that every 30 s.
+x-fast-start: &fast-start
+  interval: 30s
+  timeout: 5s
+  start_interval: 5s
+
 
 services:
   frontend:
@@ -22,7 +31,12 @@ services:
       MLFLOW_URL: http://localhost:${MLFLOW_HOST_PORT:-5000}
       GRAFANA_URL: http://localhost:${GRAFANA_HOST_PORT:-13000}
       PROMETHEUS_URL: http://localhost:${PROMETHEUS_HOST_PORT:-19090}
-    depends_on: [backend]
+    healthcheck:
+      <<: *fast-start
+      test: ["CMD", "curl", "-fs", "http://localhost:8501/_stcore/health"]
+      start_period: 30s
+    depends_on:
+      backend: {condition: service_healthy}
     restart: unless-stopped
 
   backend:
@@ -43,7 +57,13 @@ services:
       - ./data/features:/app/data/features:ro
       - ./reports:/app/reports:ro
       - ./ops:/app/ops
-    depends_on: [model-server, mlflow]
+    healthcheck:
+      <<: *fast-start
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      start_period: 60s
+    depends_on:
+      mlflow: {condition: service_healthy}
+      model-server: {condition: service_healthy}
     restart: unless-stopped
 
   model-server:
@@ -57,7 +77,12 @@ services:
       POLL_SECONDS: "30"
     volumes:
       - ${HOST_PROJECT}/mlruns:${HOST_PROJECT}/mlruns:ro
-    depends_on: [mlflow]
+    healthcheck:
+      <<: *fast-start
+      test: ["CMD", "curl", "-fs", "http://localhost:5001/ping"]
+      start_period: 180s                # loads the champion model after MLflow answers
+    depends_on:
+      mlflow: {condition: service_healthy}
     restart: unless-stopped
 
   mlflow:
@@ -70,10 +95,9 @@ services:
       --default-artifact-root ${HOST_PROJECT}/mlruns
       --allowed-hosts mlflow:5000,mlflow,localhost:${MLFLOW_HOST_PORT:-5000},localhost
     healthcheck:                        # the image's own check is for port 5001
+      <<: *fast-start
       test: ["CMD", "curl", "-fs", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 60s
+      start_period: 180s                # a cold start took over a minute
     mem_limit: 768m                     # 512m and 1g were killed with 4 workers and the job runner
     ports: ["${MLFLOW_HOST_PORT:-5000}:5000"]
     environment:

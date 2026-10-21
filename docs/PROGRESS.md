@@ -931,3 +931,15 @@ The plan counted the limits, not use. At idle nothing is computing. Under a repl
 
 **4. How do you know the containers are really talking to each other?**
 The forecast comes from the model server (version 4 in the answer), the version metadata from the registry through MLflow, and the frontend client reached the backend by its compose name.
+
+## Part 13: UI paths, the demo note, and a start order that needs no restarts
+
+**"Page not found" on `/forecast`.** Streamlit always serves the default page at `/` and ignores its `url_path`. I had made Forecast the default, so `/forecast` did not exist. The fix in `src/frontend/app.py`: the default page is now a hidden redirect to Forecast, the navigation is hidden, and the sidebar links to the two real pages, `/forecast` and `/console`. The paths are written down in `docs/LLD.md`, section 9. A new test, `test_app_serves_forecast_and_console_paths`, loads the real `app.py` with `AppTest`, checks that the registered paths are exactly `""`, `forecast` and `console`, and opens each one. I could not open the page in a browser on this VM (no working headless browser), so the popup itself is checked only through Streamlit's page resolution, not by eye.
+
+**Demo note.** The forecast page now says, under the intro: "This is a demo. It replays real measurements from March to June 2020 as if they were happening now, so the dates you see are from 2020." The replay window in `params.yaml` is 2020-03-25 to 2020-06-30. A test checks the note is there.
+
+**Start order.** Plain `depends_on` only waits for a container to start, which is why the backend and model server gave up in Part 12. Now each service waits for the one before it to be healthy: mlflow → model-server → backend → frontend (`condition: service_healthy`). MLflow, the model server, the backend and the frontend have health checks in compose. During the start period the check runs every 5 s (`start_interval`), so compose notices a healthy service quickly instead of waiting a full 30 s interval. A full `down` and `up -d` brought all 9 containers up and healthy in about 36 s with 0 restarts, and a forecast worked at once (numbers in `docs/metrics.md`).
+
+**Screenshots.** The two files in `docs/screenshots/` are early placeholders. They are not committed; you will retake them when the UI is final.
+
+Tests: 313 passed, ruff clean.

@@ -220,6 +220,32 @@ def test_forecast_page_shows_cards_for_chosen_city():
     assert not at.exception
 
 
+def test_forecast_page_says_it_is_a_2020_demo():
+    at = run_forecast(FakeBackend())
+    assert "March to June 2020" in at.info[0].value
+
+
+def test_app_serves_forecast_and_console_paths(monkeypatch):
+    # The default page lives at "/" and ignores url_path, so it must not be
+    # Forecast itself: "/" redirects, "/forecast" and "/console" are real pages.
+    monkeypatch.setenv("BACKEND_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("UI_METRICS_PORT", "0")
+    at = AppTest.from_file("../src/frontend/app.py").run()
+    assert not at.exception
+    assert at.title[0].value == "Air quality forecast"  # "/" landed on Forecast
+    # AppTest.switch_page() only knows file pages, so open the paths by hash.
+    paths = {i["url_pathname"]: h for h, i in at._registered_pages.items()}
+    assert set(paths) == {"", "forecast", "console"}
+    for path, title in [
+        ("forecast", "Air quality forecast"),
+        ("console", "Pipeline console"),
+    ]:
+        at._page_hash = paths[path]
+        at.run()
+        assert not at.exception
+        assert at.title[0].value == title
+
+
 def test_forecast_page_friendly_message_when_backend_down():
     at = run_forecast(FakeBackend(down=True))
     assert not at.exception

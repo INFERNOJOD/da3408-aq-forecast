@@ -505,3 +505,12 @@ A second sample about an hour later, with the stack idle, was lower: about 0.83 
 just after a forecast request.
 
 Image sizes: aq-frontend 825 MB, aq-backend 1.33 GB, aq-model-server 1.33 GB, aq-pipeline 2.57 GB.
+
+### Cold start with health-gated `depends_on` (Stage 13 fix)
+
+`docker compose --profile serve down`, then `up -d`, timed with `date`. Compose now starts
+mlflow, then model-server, then backend, then frontend, each only after the one before passes its
+health check. `up -d` returned after 17 s with mlflow, model-server and backend `healthy`; the
+frontend was `healthy` 19 s later (about 36 s in total). All 9 containers had 0 restarts and
+`/forecast?city=Delhi` answered straight away, with no manual restart. MLflow came up much faster
+than the minute I saw in Part 12. I measured one cold start, so I would not quote 17 s as typical.

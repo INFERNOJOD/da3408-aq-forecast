@@ -25,10 +25,24 @@ def get_client() -> BackendClient:
 
 
 client = get_client()
-pages = [
-    st.Page(lambda: render_forecast(client), title="Forecast", url_path="forecast",
-            default=True),
-    st.Page(lambda: render_console(client), title="Pipeline console",
-            url_path="console"),
-]  # fmt: skip
-st.navigation(pages).run()
+
+# Streamlit always serves the default page at "/" and ignores its url_path,
+# so "/forecast" did not exist and showed "Page not found". The default page is
+# now a hidden redirect, and both real pages have their own paths:
+# /forecast and /console (docs/LLD.md, "Frontend pages").
+forecast = st.Page(
+    lambda: render_forecast(client), title="Forecast", url_path="forecast", icon="🌫️"
+)
+console = st.Page(
+    lambda: render_console(client),
+    title="Pipeline console",
+    url_path="console",
+    icon="⚙️",
+)
+home = st.Page(lambda: st.switch_page(forecast), title="Home", default=True)
+
+page = st.navigation([home, forecast, console], position="hidden")
+with st.sidebar:
+    st.page_link(forecast)
+    st.page_link(console)
+page.run()
