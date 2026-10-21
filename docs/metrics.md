@@ -600,3 +600,26 @@ The largest single process in the run peaked at 1.0 GB resident (`/usr/bin/time 
 largest descendant, not the sum). The check-only
 run (`scripts/ci.sh`, no `--repro`) takes about 1 min, almost all of it pytest. The pre-commit
 hook takes about the same when a Python or config file is staged, and under 1 s otherwise.
+
+## Stage 17: acceptance checks
+
+Measured on 2026-10-21 on the live compose stack (serve profile, champion v4), with a Python
+`requests` loop on the host, one request at a time, certificates checked against `certs/ca.crt`.
+
+| Request | n | p50 | p95 | p99 | max |
+|---------|--:|----:|----:|----:|----:|
+| `GET https://localhost:8000/forecast?city=<7 cities in turn>`, connection reused | 300 | 9.5 ms | 13.5 ms | 20.5 ms | 380 ms |
+| same, new TLS connection each time | 300 | 11.7 ms | 16.2 ms | 18.9 ms | 840 ms |
+
+All 600 calls returned 200. The acceptance limit is p95 < 300 ms. The single slow call in each
+run is not traced; the backend's 30 s registry cache refresh is my unverified guess.
+
+| Check | Value |
+|-------|-------|
+| `scripts/ci.sh` (check only) | 48 s in total; pytest 341 passed, 0 failed, 44.6 s |
+| `python -m scripts.replay` | 2.4 s; 2016-2019: 0 drift hours; 2020: 661 of 2,185 h, 5 episodes |
+| `POST /ops/rollback` | 45 to 73 ms per call |
+| Rollback to forecast on the new version | 5 s and 35 s (the watcher polls every 30 s and needs about 4 s to load a model) |
+| `POST /ops/rollback` with the MLflow container stopped | error after 5.0 s (before the fix in test_report D-2, it hung for minutes) |
+| `GET /forecast` with the MLflow container stopped | 200 after 4.5 s |
+| Reproduction of v4 from its run ID (Stage 16 rebuild) | same data hash, same feature hash, mean MAE 6.467113514419853 in both, LightGBM files identical (SHA-256) |

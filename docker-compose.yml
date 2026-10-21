@@ -75,6 +75,10 @@ services:
       OPS_API_KEY: ${OPS_API_KEY:?set OPS_API_KEY in .env}
       MODEL_SERVER_URL: http://model-server:5001
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      # MLflow's client retries for minutes by default; a rollback the caller had
+      # given up on was then applied about 4 minutes later (Stage 17 drill).
+      MLFLOW_HTTP_REQUEST_MAX_RETRIES: "2"
+      MLFLOW_HTTP_REQUEST_TIMEOUT: "10"
       OPS_DIR: /app/ops
       REPLAY_SPEED_HPS: ${REPLAY_SPEED_HPS:-1.0}
       RETRAIN_COOLDOWN_MIN: ${RETRAIN_COOLDOWN_MIN:-30}
@@ -133,9 +137,12 @@ services:
     environment:
       MLFLOW_DISABLE_AGENT_HINT: "1"
       MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"   # background job runner used the memory
+    # The whole project folder, not only mlflow.db: SQLite writes a journal file
+    # next to the database, and a single-file mount leaves the parent folder
+    # owned by root inside the container, so every registry write failed with
+    # "attempt to write a readonly database" (found by the Stage 17 rollback drill).
     volumes:
-      - ${HOST_PROJECT}/mlflow.db:${HOST_PROJECT}/mlflow.db
-      - ${HOST_PROJECT}/mlruns:${HOST_PROJECT}/mlruns
+      - ${HOST_PROJECT}:${HOST_PROJECT}
     restart: unless-stopped
 
   prometheus:

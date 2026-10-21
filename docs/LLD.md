@@ -311,6 +311,7 @@ Alert rules (`monitoring/alerts.yml`):
 | `OPS_API_KEY` | backend, alertmanager | — (required, in `.env`). The frontend does not read it: the operator types the key into the console, which sends it only to `/ops/*`. |
 | `MODEL_SERVER_URL` | backend | `http://model-server:5001` |
 | `MLFLOW_TRACKING_URI` | backend, pipeline, model server | `http://mlflow:5000` |
+| `MLFLOW_HTTP_REQUEST_MAX_RETRIES`, `MLFLOW_HTTP_REQUEST_TIMEOUT` | backend | `2`, `10` (s). MLflow's own defaults retry for minutes, so a registry call the caller had given up on could still be applied much later. |
 | `MODEL_NAME`, `POLL_SECONDS` | model server | `aq-pm25`, `30` |
 | `MODEL_PORT`, `METRICS_PORT` | model server | `5001`, `8001` |
 | `REPLAY_SPEED_HPS` | backend | `1.0` |

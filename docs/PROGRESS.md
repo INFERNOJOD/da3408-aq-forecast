@@ -1275,3 +1275,62 @@ exits with code 3 instead.
 
 Testing docs: a test plan with numbered cases and acceptance criteria, and a test report with
 passed/failed counts from `reports/ci/junit.xml`. Waiting for your go-ahead.
+
+## Part 17: Stage 17, testing docs, user manual, README and the final audit
+
+### What I wrote
+
+| File | What it is |
+|------|------------|
+| `docs/test_plan.md` | Scope, the three test levels (unit, integration, end to end) plus static checks, the test machine and versions, how to run, 7 acceptance criteria with a measurable pass rule each, and 65 numbered cases: TC-01 to TC-48 cover every pytest function, E2E-01 to E2E-17 the drills done on the real stack |
+| `docs/test_report.md` | 341 run, 341 passed, 0 failed (from `reports/ci/stage17/junit.xml`), per file; each E2E check with its evidence; each acceptance criterion with numbers; the two defects this run found |
+| `docs/user_manual.md` | For a non-technical user: starting the app, the certificate warning, the forecast page, the colours and advice, the error messages, the console and its buttons. 13 marked screenshot placeholders with file names |
+| `README.md` | What it is, a short architecture diagram, the one-command start, measured numbers, how to reproduce a model from its run ID, and what broke |
+| `docs/rubric_checklist.md` | Every rubric and guideline line mapped to a file, command, test or screenshot; missing and weak items at the top |
+
+`docs/metrics.md` has a new Stage 17 section and `docs/LLD.md` lists the two new backend environment variables.
+
+### What I ran again today
+
+- `scripts/ci.sh`: ruff and format pass, 341 tests pass in 44.6 s, `dvc status` and `dvc status -c` clean.
+- `python -m scripts.replay`: 0 drift hours in 2016-2019, 661 in 2020, exit 0.
+- 600 forecast calls over HTTPS: p95 13.5 ms (reused connection) and 16.2 ms (new connection), all 200.
+- Reproducibility: champion v4's run tags lead to a rebuild (the Stage 16 CI run) with the same data and feature hashes, the same MAE and byte-identical LightGBM files.
+- Rollback drill through `POST /ops/rollback` on the live stack, then undo. The registry is back to champion 4, previous 1.
+
+### What went wrong
+
+**Rollback through the app had never worked.** My first `POST /ops/rollback` hung. MLflow logged `attempt to write a readonly database`. Compose mounted `mlflow.db` as a single file, so Docker made the parent folder inside the container `root:root`, and SQLite cannot write its journal there. Reads work, which is why nothing earlier showed it. As far as I can tell every earlier registry write came from a host process. The fix mounts the project folder into the `mlflow` container. The cost: that container can now read the whole project, `.env` included, like the pipeline container already could.
+
+**A rollback I had given up on was applied 4 minutes later.** I killed the hung `curl`, but the backend went on retrying with MLflow's default back-off (several minutes). Once the mount was fixed, that call went through at 07:46:35 and moved the champion from 4 to 1 in the middle of my clean drill. That confused me for a few minutes, because "rollback to 4" then answered 200 when 4 should already have been the champion. The backend log showed a "Champion 4 -> 1" I had not sent. The backend now sets `MLFLOW_HTTP_REQUEST_MAX_RETRIES=2` and `MLFLOW_HTTP_REQUEST_TIMEOUT=10`. With MLflow stopped, a rollback fails after 5 s and nothing changes later. I only recreated the `mlflow` and `backend` containers. The rest of the stack kept running.
+
+**My architecture diagram was wrong about the runner.** It said the runner starts the batch container. The code runs `dvc repro` on the host, and the pipeline container has never run a full pipeline. I corrected `docs/architecture.md` and say so in the checklist.
+
+**I ran the replay without `--with-mae` first.** That rewrote `reports/drift_replay.json` without its MAE section. The drift numbers were identical, so I restored the committed file.
+
+### Still open (top of `docs/rubric_checklist.md`)
+
+1. Docker Hub: the multi-arch push needs your login and QEMU (sudo).
+2. Screenshots: the 13 placeholders in the user manual, Grafana, a fired alert.
+3. A browser and narrow-window check of both pages.
+
+### How to take the screenshots
+
+The serve stack is running. Open `https://localhost` on your desktop browser (accept the warning or import `certs/ca.crt`). Each placeholder in `docs/user_manual.md` says what to show and the file name to save it as, in `docs/screenshots/`. For the drift and alert shots, start the replay from the console at 5 simulated hours per second; drift appears after about 2.5 minutes, and the alert fires in Prometheus (`http://localhost:19090/alerts`) a minute later. The ops runner is not running, so no retrain will start. Afterwards press Reset replay. For a clean state, also delete the new request file the alert creates in `ops/requests/` (keep `rt-20261020-172013.json`, the Stage 11 record) and `ops/episode.json`.
+
+### Viva questions I prepared
+
+**1. What is the difference between your unit, integration and end-to-end tests?**
+Unit tests use fakes and small inputs and need nothing running. Integration tests use the real library on a small scale: a real Spark session, a real MLflow store in a temp file, a real TLS server, the real Streamlit pages. End-to-end checks use the real data and the running stack, and most of them I ran as recorded drills.
+
+**2. How do you know rollback works?**
+I moved the champion from 4 to 1 through the same endpoint the console uses, saw forecasts answer with version 1 five seconds later, then undid it and saw version 4 come back. Doing that drill is how I found that the compose set-up could not write the registry at all.
+
+**3. Your test passed in pytest. Why did it fail on the stack?**
+The pytest tests use a temporary SQLite file that the test process owns. The bug was in how Docker mounted the file into the MLflow container, which no unit test can see. That is why the plan has end-to-end checks, and why I ran them again instead of copying old results.
+
+**4. How do you prove a result is reproducible?**
+Start from the run ID. Its tags give the commit, the cutoff and the data version. A rebuild with that code, data and cutoff gave the same data hash, the same MAE to every printed digit, and model files identical byte for byte. That only works because I made LightGBM deterministic in Stage 7.
+
+**5. 341 tests pass. What do they not cover?**
+A real browser, a real phone, concurrent load, a real failed smoke check, and the batch container. The report says this in its last section.

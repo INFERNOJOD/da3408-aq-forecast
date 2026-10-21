@@ -37,7 +37,7 @@ flowchart LR
     ms -->|loads model on alias change| mlf
     be -->|reads| feat
     be -->|writes retrain request| runner
-    runner -->|docker compose --profile batch run| pipe
+    runner -->|dvc repro on the host| pipe
     pipe --> raw
     pipe --> feat
     pipe -->|params, metrics, artifacts, models| mlf
@@ -64,7 +64,7 @@ flowchart LR
 
 **Pipeline (batch).** This is the 7-stage DVC DAG. Spark handles ingest, validate and features. LightGBM, Ridge and the naive baselines handle train, followed by the evaluation gate and registration. DVC gives me the CI DAG and the data versioning, and Spark is the engine the course requires for data engineering. `scripts/ci.sh` is the CI run on top of it: lint, tests, `dvc repro`, `dvc push`, and a check that the pipeline and the DVC remote match git.
 
-**Ops runner (host).** It watches `ops/requests/` for retrain requests. When one arrives it checks that enough memory is free, moves the cutoff to the request's simulated time, runs the batch pipeline, smoke-tests the new champion and rolls back if that fails. The plan is to pause the frontend and Grafana during the batch once the compose stack exists (Stage 13), so batch and the full serve stack never run together on 8 GB. The runner does not commit `dvc.lock`; the MLflow run records the commit, the cutoff and the pipeline run id instead. I run it on the host because starting containers from inside a container needs the Docker socket, and I don't want to hand that to any container.
+**Ops runner (host).** It watches `ops/requests/` for retrain requests. When one arrives it checks that enough memory is free, moves the cutoff to the request's simulated time, runs `dvc repro` on the host, smoke-tests the new champion and rolls back if that fails. (The diagram used to say it starts the batch container. It never did; I corrected this in Stage 17. The batch container can run the same command by hand, `docker compose --profile batch run --rm pipeline dvc repro`, but I have not run a full pipeline in it.) The plan is to pause the frontend and Grafana during the batch once the compose stack exists (Stage 13), so batch and the full serve stack never run together on 8 GB. The runner does not commit `dvc.lock`; the MLflow run records the commit, the cutoff and the pipeline run id instead. I run it on the host because starting containers from inside a container needs the Docker socket, and I don't want to hand that to any container.
 
 **Prometheus, Pushgateway and node-exporter.** Prometheus scrapes every component every 15 seconds: the frontend, backend and model server, the MLflow server, the Pushgateway, node-exporter, and Prometheus, Alertmanager and Grafana themselves. The pipeline pushes its stage metrics to the Pushgateway, because batch jobs are too short-lived to be scraped. The Pushgateway runs in both compose profiles and saves its values to a file, so numbers pushed during a batch are still there when the serve stack comes back. node-exporter reports host RAM and CPU.
 
