@@ -1,9 +1,9 @@
 {
-  "run_id": "498b149f78e2418695c3bf7e01b91615",
-  "model_uri": "models:/m-9980eba880fa44369092957587a8217c",
+  "run_id": "c9933e83138f4e0484af3ba4febb3f99",
+  "model_uri": "models:/m-471737ace81844838b727f130e2ef50b",
   "experiment": "aq-pm25",
-  "git_commit": "b2eff79051146d487e9792578fc4617b0bb09cf0",
-  "git_dirty": true,
+  "git_commit": "92537ef13b9aba5afa004718ac41580782ea6ca5",
+  "git_dirty": false,
   "dvc_data_md5": "7921cce1dbe07b5b8c33ffd85e4a34b4.dir",
   "features_md5": "2afa18138f64bab9472d0fa2c773f62d",
   "cutoff": "2020-04-02 19:00:00",

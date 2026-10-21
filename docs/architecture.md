@@ -62,7 +62,7 @@ flowchart LR
 
 **MLflow tracking and registry.** It stores runs (parameters, metrics, artifacts, git commit, data hash) and model versions with the aliases `champion` and `previous`. Tracking, promotion and rollback all go through this one registry.
 
-**Pipeline (batch).** This is the 7-stage DVC DAG. Spark handles ingest, validate and features. LightGBM, Ridge and the naive baselines handle train, followed by the evaluation gate and registration. DVC gives me the CI DAG and the data versioning, and Spark is the engine the course requires for data engineering.
+**Pipeline (batch).** This is the 7-stage DVC DAG. Spark handles ingest, validate and features. LightGBM, Ridge and the naive baselines handle train, followed by the evaluation gate and registration. DVC gives me the CI DAG and the data versioning, and Spark is the engine the course requires for data engineering. `scripts/ci.sh` is the CI run on top of it: lint, tests, `dvc repro`, `dvc push`, and a check that the pipeline and the DVC remote match git.
 
 **Ops runner (host).** It watches `ops/requests/` for retrain requests. When one arrives it checks that enough memory is free, moves the cutoff to the request's simulated time, runs the batch pipeline, smoke-tests the new champion and rolls back if that fails. The plan is to pause the frontend and Grafana during the batch once the compose stack exists (Stage 13), so batch and the full serve stack never run together on 8 GB. The runner does not commit `dvc.lock`; the MLflow run records the commit, the cutoff and the pipeline run id instead. I run it on the host because starting containers from inside a container needs the Docker socket, and I don't want to hand that to any container.
 

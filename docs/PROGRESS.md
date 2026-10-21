@@ -1121,3 +1121,157 @@ If someone breaks into a service, they get that user's rights. Root inside a con
 
 **6. Where are the secrets, and how do you know none are in git?**
 Only in `.env`, which is gitignored together with `certs/`. A test checks both with `git check-ignore`, and another checks that every key and password in compose is a `${...}` from `.env`.
+
+## Part 16: hiding Streamlit's developer controls, and Stage 16 (CI)
+
+### First, a small UI fix (commit `4d39d3a`)
+
+The page showed Streamlit's "Deploy" button and the three-dot menu in the top right. A
+non-technical user has no use for either, and "Deploy" invites a click that leads nowhere useful.
+I added `.streamlit/config.toml` with `client.toolbarMode = "minimal"` and copy it into the
+frontend image.
+
+I picked `minimal` over `viewer`. `viewer` removes the developer items (rerun, clear cache,
+Deploy) but keeps the menu itself with settings and print. `minimal` shows only options set
+through `st.set_page_config`, and my app sets none, so the menu disappears too. Inside the
+rebuilt container, `config.get_option("client.toolbarMode")` returns `minimal`, and a test
+checks both the config file and the `COPY` line in the Dockerfile.
+
+### What I built
+
+| File | What it does |
+|------|--------------|
+| `scripts/ci.sh` | The CI run. Steps: `ruff check`, `ruff format --check`, `pytest` (writes `reports/ci/junit.xml`), then `dvc status` (does `dvc.lock` match the code, params and data?) and `dvc status -c` (is every output in `dvc.lock` in the local DVC remote?). With `--repro` it runs `dvc repro` and `dvc push` before the two DVC checks. Prints a PASS/FAIL table with times and saves everything to `reports/ci/last_run.log`. |
+| `.pre-commit-config.yaml` | The git hook: ruff check, ruff format, the whole pytest suite, and a guard that fails if data, the candidate model, `certs/`, `mlflow.db` or `.env` is staged. |
+| `tests/test_ci.py` | 6 tests: the script parses, `--help` and bad options, `--repro` refused when a (fake) `docker` reports running containers, the order of the steps, and the hook config, including which paths the guard catches. |
+
+A few choices to explain:
+
+- **No cloud CI.** The project forbids cloud platforms, so GitHub Actions is out. The script
+  is the CI, and I run it before each stage commit. The hook is the part that runs on every
+  commit by itself.
+- **The hooks are `repo: local` and run through `uv run --frozen`.** pre-commit normally
+  downloads each hook's own copy of ruff from GitHub. A local hook uses the ruff and pytest
+  versions pinned in `uv.lock`, so the hook and `ci.sh` cannot disagree, and it needs no
+  network.
+- **pytest is in the pre-commit hook, not pre-push.** The repository has no git remote, so a
+  pre-push hook would never run. The full suite takes about a minute. To keep commits of docs
+  alone fast, the hook runs pytest only when code or a config file the tests read is staged.
+- **The DVC checks are not in the hook.** I often commit code first and rerun the pipeline
+  after (Stage 8 has a "code" commit and a "results" commit). A hook that demands an
+  up-to-date `dvc.lock` would block that. `ci.sh` checks it before a stage is closed.
+- **`--repro` trains only if lint and tests passed.** Broken code should not produce a model.
+  It also refuses to start while the serve stack is up, because Spark and the serve containers
+  together do not fit in 8 GB.
+- **The DVC run is marked.** `ci.sh` sets `PIPELINE_TRIGGER=ci` and `PIPELINE_RUN_ID=ci-<time>`,
+  so the console's run table and the MLflow run show where the run came from.
+
+### What went wrong
+
+**The pipeline was out of date and I had not noticed.** The first check-only run failed on
+`dvc status`: every stage was stale because `src/common/stage_runner.py` changed in Stage 14 (an
+optional argument for re-pushing old stage records). Every stage lists `src/common` as a
+dependency, so DVC is right to flag it, even though the change does not affect any output. This
+is the kind of problem CI is for. `--repro` reran the whole pipeline.
+
+**The DVC remote held only the raw data.** `dvc status -c` listed 50 files from `data/interim`,
+`data/features` and `models/candidate` that were only in the local cache. In this state, an old
+commit could not be rebuilt with `dvc pull` without Spark running again. `--repro` now ends with
+`dvc push`, and the remote is in sync.
+
+**`dvc status` exits 0 even when stages are stale.** My first draft used its exit code, so it
+would have passed. The script now reads the message and passes only on "Data and pipelines are
+up to date" or "are in sync".
+
+**Commit demo.** I staged a file with an unused import and no docstring. The hook stopped the
+commit with ruff's D100 and F401 errors, and `git log` was unchanged. The guard also failed
+`pre-commit run no-data-or-secrets --files certs/ca.crt .env data/raw.dvc` on the first two
+files and let `data/raw.dvc` through.
+
+### What I ran and measured
+
+Check-only run at `92537ef`, serve stack up: ruff and format pass, 341 tests pass, `dvc-status`
+FAIL, `dvc-remote` FAIL, exit 1, as expected.
+
+`scripts/ci.sh --repro` with the stack up: refused, exit 3. After
+`docker compose --profile serve stop`:
+
+```
+== summary (commit 92537ef)
+ruff           PASS     0s
+ruff-format    PASS     0s
+pytest         PASS    55s
+dvc-repro      PASS    97s
+dvc-push       PASS     0s
+dvc-status     PASS     1s
+dvc-remote     PASS     0s
+CI PASSED
+```
+
+All 7 stages ran. The new candidate scored a mean MAE of 6.467, the same as champion v4 on the
+same window, because the data and cutoff did not change. The gate rejects ties, so v4 stays
+champion and `reports/register.json` now records a rejected candidate. That is the gate doing
+its job, not a failure. JUnit: 341 tests, 0 failures, 0 errors, 0 skipped. Stage times and
+memory are in `docs/metrics.md`. I then started the serve stack again: all containers healthy,
+`/health` reports model version 4, and the page answers over HTTPS.
+
+### How to run it
+
+```
+uv run pre-commit install                       # once per clone; then every commit is checked
+scripts/ci.sh                                   # lint, tests, DVC checks (about 1 min)
+
+docker compose --profile serve stop             # full run: free the memory first
+scripts/ci.sh --repro                           # + dvc repro and dvc push (about 2.5 min)
+docker compose --profile serve up -d
+```
+
+The result is in `reports/ci/last_run.log` and `reports/ci/junit.xml`; Stage 17's test report
+reads the XML.
+
+### Limits you should know about
+
+- **CI runs only when I run it.** No server watches the repository. The hook runs on every
+  commit, but `git commit --no-verify` skips it, and a new clone needs `pre-commit install`.
+- **`dvc.lock` changes on every Spark rerun, even when the data does not.** Spark names its
+  Parquet part files with a random ID, so the directory hash changes, and the candidate model
+  carries its new MLflow run ID. That is why 50 files were pushed. The MLflow data version tag is a hash of the feature values (Stage 7), so it stays the
+  same across reruns.
+- **A change to `src/common` reruns everything,** including the two-minute Spark stages, even
+  when the change cannot affect any output (here, a helper used only by
+  `scripts/push_stage_metrics.py`). Narrower dependencies would avoid it, but I
+  kept one entry per folder so that a new shared helper can never be missed.
+- **`reports/ci/` holds only the last run.** Earlier runs are in git history if they were
+  committed.
+
+### Viva questions I prepared
+
+**1. Where is your CI? I don't see GitHub Actions.**
+The rules forbid cloud platforms. `scripts/ci.sh` does what a hosted CI job would do (lint,
+tests, rebuild the pipeline, check that code, data and models agree), and the pre-commit hook
+runs the fast part on every commit. The output is saved as a log and as JUnit XML.
+
+**2. What does `dvc status -c` prove?**
+That every file `dvc.lock` names is in the DVC remote. Git holds the hashes and the remote holds
+the files. Together they mean I can check out any commit and get back its exact data and model
+with `dvc pull`.
+
+**3. Your CI retrained the model. Did it change what is served?**
+No. The candidate tied with v4 (6.467 MAE on the same window), and the gate only promotes a
+candidate that is strictly better. The served model is still v4. A CI run can only change the
+served model through the same gate as a drift retrain.
+
+**4. Why is the full pytest suite in a pre-commit hook? Isn't a minute too slow?**
+With no git remote, pre-push never fires, so the hook is the only automatic gate. It skips
+pytest when only docs are staged, and the one-minute wait is on commits that change code,
+where a broken test is worth catching.
+
+**5. Why does `--repro` refuse to run with the stack up?**
+Spark needs a 2 GB driver, and the serve stack uses most of the rest of the 8 GB. Running both
+risks the kernel killing a container mid-request. The script checks with `docker compose ps` and
+exits with code 3 instead.
+
+### Next: Stage 17
+
+Testing docs: a test plan with numbered cases and acceptance criteria, and a test report with
+passed/failed counts from `reports/ci/junit.xml`. Waiting for your go-ahead.

@@ -567,3 +567,36 @@ TLS 1.3 (`TLS_AES_256_GCM_SHA384`) on the backend, checked with `openssl s_clien
 Memory: tls-proxy 12.6 MiB (limit 64m). A cold start (`down`, then `up -d`) had the page answering
 over HTTPS after 25 s, all 9 Prometheus targets `up` (backend scraped over HTTPS), 0 restarts.
 Tests: 334 passed (11 new in `tests/test_security.py`), ruff clean.
+
+## Stage 16: CI
+
+Measured on 2026-10-21 at commit `92537ef`, serve stack stopped, with `scripts/ci.sh --repro`
+(log in `reports/ci/last_run.log`). Every stage ran because `src/common` had changed since the
+last `dvc repro`.
+
+| Step | Time | Result |
+|------|------|--------|
+| ruff check + ruff format --check | under 1 s | pass |
+| pytest (341 tests, JUnit XML) | 55 s | 341 passed, 0 failed |
+| dvc repro (all 7 stages) | 97 s | candidate rejected: tie with champion v4 |
+| dvc push | under 1 s | 50 files to the local remote |
+| dvc status, dvc status -c | 1 s | up to date, in sync |
+| whole run | 2 min 33 s | pass |
+
+Stage times inside that `dvc repro` (from `reports/runs.jsonl`, trigger `ci`):
+
+| Stage | Time | Rows/sec |
+|-------|------|----------|
+| ingest | 10.4 s | 331,188 |
+| validate | 37.0 s | 92,787 |
+| features | 15.1 s | 20,017 |
+| train | 27.1 s | 18,782 |
+| evaluate | 0.6 s | 1,414 |
+| test | 0.0 s | - |
+| register | 0.3 s | - |
+
+These match the Stage 7 full-pipeline run (ingest 10 s, validate 35 s, features 14 s, train 26 s).
+The largest single process in the run peaked at 1.0 GB resident (`/usr/bin/time -v` reports the
+largest descendant, not the sum). The check-only
+run (`scripts/ci.sh`, no `--repro`) takes about 1 min, almost all of it pytest. The pre-commit
+hook takes about the same when a Python or config file is staged, and under 1 s otherwise.
