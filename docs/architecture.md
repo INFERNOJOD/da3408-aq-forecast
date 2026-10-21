@@ -62,7 +62,7 @@ flowchart LR
 
 **Ops runner (host).** It watches `ops/requests/` for retrain requests. When one arrives it checks that enough memory is free, moves the cutoff to the request's simulated time, runs the batch pipeline, smoke-tests the new champion and rolls back if that fails. The plan is to pause the frontend and Grafana during the batch once the compose stack exists (Stage 13), so batch and the full serve stack never run together on 8 GB. The runner does not commit `dvc.lock`; the MLflow run records the commit, the cutoff and the pipeline run id instead. I run it on the host because starting containers from inside a container needs the Docker socket, and I don't want to hand that to any container.
 
-**Prometheus, Pushgateway and node-exporter.** Prometheus scrapes every component every 15 seconds. The pipeline pushes its stage metrics to the Pushgateway, because batch jobs are too short-lived to be scraped. node-exporter reports host RAM and CPU. Together they cover monitoring of all components.
+**Prometheus, Pushgateway and node-exporter.** Prometheus scrapes every component every 15 seconds: the frontend, backend and model server, the MLflow server, the Pushgateway, node-exporter, and Prometheus, Alertmanager and Grafana themselves. The pipeline pushes its stage metrics to the Pushgateway, because batch jobs are too short-lived to be scraped. The Pushgateway runs in both compose profiles and saves its values to a file, so numbers pushed during a batch are still there when the serve stack comes back. node-exporter reports host RAM and CPU.
 
 **Alertmanager.** It routes drift and error alerts to the backend webhook. The backend logs them, and drift alerts create a retrain request. This closes the loop from monitoring to alert to retraining.
 

@@ -1,5 +1,5 @@
-# Alert rules (docs/LLD.md section 5). Stage 11 adds the drift rules; Stage 14
-# adds the error-rate, target-down and pipeline rules.
+# Alert rules (docs/LLD.md section 5). Alertmanager sends all of them to the
+# backend webhook; only alerts labelled action=retrain can start a retrain.
 groups:
   - name: aq-drift
     rules:
@@ -22,3 +22,41 @@ groups:
           severity: warning
         annotations:
           summary: "Pooled 72 h MAE ratio is {{ $value }}"
+
+  - name: aq-service
+    rules:
+      # Share of backend answers that are 5xx. Bad input gives 4xx by design,
+      # so only server errors count. The "or vector(0)" keeps the rule defined
+      # when there were no 5xx at all.
+      - alert: BackendErrorRateHigh
+        expr: |
+          (sum(rate(aq_http_requests_total{status=~"5.."}[5m])) or vector(0))
+            / sum(rate(aq_http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of backend requests fail with 5xx"
+      - alert: ModelServerErrors
+        expr: increase(aq_model_server_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The backend could not get a forecast from the model server"
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} ({{ $labels.instance }}) is not answering scrapes"
+
+  - name: aq-pipeline
+    rules:
+      - alert: PipelineStageFailed
+        expr: aq_stage_status == 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pipeline stage {{ $labels.stage }} failed in its last run"

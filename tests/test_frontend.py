@@ -283,3 +283,20 @@ def test_console_with_key_shows_drift_and_posts_retrain():
 
 def test_modules_import():
     assert forecast_page.DOWN_MESSAGE and console_page.LINKS
+
+
+def test_main_starts_exporter_before_streamlit(monkeypatch):
+    from src.frontend import main as entry
+
+    calls = []
+    monkeypatch.setattr(entry.metrics, "start_exporter", lambda: calls.append("exp"))
+    monkeypatch.setattr(entry.stcli, "main", lambda: calls.append(list(entry.sys.argv)))
+    monkeypatch.setattr(entry.sys, "argv", ["main.py", "--server.port=8501"])
+    with pytest.raises(SystemExit):
+        entry.main()
+    assert calls[0] == "exp"
+    assert calls[1][:2] == ["streamlit", "run"]
+    assert (
+        calls[1][2].endswith("src/frontend/app.py")
+        and calls[1][3] == "--server.port=8501"
+    )

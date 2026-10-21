@@ -78,6 +78,8 @@ The backend evaluates the rule and exports one gauge, `aq_drift_detected`. The P
 
 **Memory.** Every container gets a compose `mem_limit`. Batch and the full serve stack never run together, and core serving and monitoring stay up. Before a batch the runner checks that at least 2,500 MB are available and refuses the request otherwise. Pausing the frontend and Grafana during a batch needs the compose stack, so it comes with Stage 13.
 
+**Monitoring.** Prometheus scrapes every component every 15 s and keeps 2 days. The Pushgateway is in both compose profiles and writes its values to a file, because the batch must not run next to the full serve stack: if it only existed in the serve profile, a batch would push to nothing. For the same reason `scripts/push_stage_metrics.py` can re-send the last measured stage records. Grafana is provisioned from JSON, so the dashboards are in git and come back after a rebuild. MLflow needed a small extra image (`docker/mlflow/Dockerfile`, the model-server image plus `prometheus-flask-exporter`) because `mlflow server --expose-prometheus` depends on that package. I did not add cAdvisor for per-container memory: it costs memory on an 8 GB machine, and the process RSS of my own services plus node-exporter's host memory answer the question I have (is anything growing?). The gap is that the `mlflow models serve` worker inside the model-server container and the MLflow server have no RSS series of their own; they show up only in host memory. Alert rules: drift (the only one that can start a retrain), forecast error (warning), backend 5xx rate above 5%, model-server errors, any target down, and a failed pipeline stage.
+
 **Security.** The `/ops/*` endpoints need a bearer API key, compared in constant time. The backend serves HTTPS with a self-signed certificate. Secrets live only in `.env`, containers run as non-root, and no container gets the Docker socket. Ops actions change production state, so they need authentication, and TLS encrypts the traffic.
 
 **Reproducibility.** Every MLflow run is tagged with `git_commit`, `dvc_data_md5` and `cutoff`. Every forecast response returns `model_version`, `mlflow_run_id` and `git_commit`. Any prediction can be traced back to its exact code, data and run.
@@ -105,7 +107,7 @@ These are planned memory limits. I will measure real usage in Stage 13 and recor
 
 | Profile | Services | mem_limit (planned) |
 |---------|----------|---------------------|
-| serve | frontend 384m, backend 512m, model-server 768m, mlflow 512m, prometheus 384m, pushgateway 64m, alertmanager 64m, grafana 256m, node-exporter 64m | ≈ 3.0 GB |
+| serve | frontend 384m, backend 512m, model-server 768m, mlflow 768m (raised in Stage 13), prometheus 384m, pushgateway 64m, alertmanager 64m, grafana 256m, node-exporter 64m | ≈ 3.0 GB |
 | batch | pipeline 2.5g (Spark driver 2g) | 2.5 GB |
 | during retrain | batch + serve without frontend and grafana | ≈ 4.9 GB |
 

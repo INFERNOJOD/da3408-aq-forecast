@@ -53,11 +53,15 @@ def rows_per_second(rows: int | None, duration_s: float) -> float | None:
     return round(rows / duration_s, 1)
 
 
-def push_metrics(record: dict[str, Any], url: str) -> bool:
+def push_metrics(
+    record: dict[str, Any], url: str, success_time: float | None = None
+) -> bool:
     """Push one stage record to the Pushgateway. Returns True on success.
 
-    A monitoring outage must never fail the pipeline, so errors are logged
-    and swallowed.
+    ``success_time`` is the Unix time stored as the last success; it defaults
+    to now, and ``scripts/push_stage_metrics.py`` passes the stage's own end
+    time when it re-pushes an old record. A monitoring outage must never fail
+    the pipeline, so errors are logged and swallowed.
     """
     registry = CollectorRegistry()
     stage = record["stage"]
@@ -86,7 +90,7 @@ def push_metrics(record: dict[str, Any], url: str) -> bool:
             "aq_pipeline_last_success_timestamp",
             "Unix time of last successful stage",
             registry=registry,
-        ).set(time.time())
+        ).set(time.time() if success_time is None else success_time)
     try:
         pushadd_to_gateway(
             url,

@@ -3,7 +3,13 @@
 Each app gets its own registry, so tests can create several apps in one process.
 """
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+from prometheus_client import (
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    ProcessCollector,
+)
 
 LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
@@ -15,6 +21,9 @@ class Metrics:
         """Create every metric listed for the backend in the LLD."""
         self.registry = CollectorRegistry()
         r = self.registry
+        # Memory and CPU of this process (process_resident_memory_bytes, ...).
+        # The default registry has them; a private registry needs them added.
+        ProcessCollector(registry=r)
         self.requests = Counter(
             "aq_http_requests_total",
             "HTTP requests.",

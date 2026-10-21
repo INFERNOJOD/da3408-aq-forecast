@@ -514,3 +514,32 @@ health check. `up -d` returned after 17 s with mlflow, model-server and backend 
 frontend was `healthy` 19 s later (about 36 s in total). All 9 containers had 0 restarts and
 `/forecast?city=Delhi` answered straight away, with no manual restart. MLflow came up much faster
 than the minute I saw in Part 12. I measured one cold start, so I would not quote 17 s as typical.
+
+## Stage 14: monitoring
+
+All 9 serve containers plus their monitoring were measured on the live compose stack on
+2026-10-21. Prometheus has 9 scrape targets (backend, model-server, frontend, mlflow, pushgateway,
+node, prometheus, alertmanager, grafana), all `up`, every 15 s.
+
+**Alert timings, measured end to end** (local time, IST):
+
+| What I did | Alert | Pending | Firing in Prometheus | Reached the backend webhook |
+|------------|-------|---------|----------------------|-----------------------------|
+| Replay started 10:16:43 at 5 simulated h/s | `PM25DriftHigh` | 10:19:18 | 10:20:18 (`for: 1m`) | 10:20:28, one retrain request created |
+| Model server stopped 10:20:50, 1 forecast/s | `ModelServerErrors` | 10:21:03 | 10:22:03 | 10:22:13 |
+| same | `TargetDown` (model-server) | 10:21:03 | 10:22:03 | 10:22:13 |
+| same | `BackendErrorRateHigh` (29% 5xx) | 10:21:18 | 10:23:18 (`for: 2m`) | 10:23:28 |
+
+The drift alert came 2 min 35 s into the replay, at simulated time about 2020-05-09. From
+"drift true" to the retrain request took 70 s: the 1 min `for`, then Alertmanager's 10 s
+`group_wait`. Only the drift alert has `action=retrain`, so the three service alerts were logged
+and created no request.
+
+**Memory with monitoring on** (`docker stats`, just after the model server restarted):
+frontend 58 MiB, backend 173 MiB, grafana 103 MiB, prometheus 46 MiB, mlflow 347 MiB,
+pushgateway 22 MiB, model-server 570 MiB, alertmanager 20 MiB, node-exporter 14 MiB; about
+1.35 GiB in total. Grafana stays well below its 256m limit with both dashboards open.
+
+Cold start with the Stage 14 compose file (`down`, then `up -d`): all health checks passing and
+all 9 Prometheus targets `up` after 35 s, 0 restarts. The Pushgateway's 7 stage records were
+still there after the restart (persistence file in its volume).

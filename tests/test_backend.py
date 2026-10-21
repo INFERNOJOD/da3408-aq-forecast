@@ -516,6 +516,7 @@ def test_metrics_endpoint_lists_lld_metrics(env):
         "aq_http_requests_total", "aq_http_request_duration_seconds",
         "aq_forecast_pm25", "aq_drift_detected", "aq_drift_cities_exceeding",
         "aq_model_version 3.0", "aq_replay_sim_time_seconds",
+        "process_resident_memory_bytes",
     ]:  # fmt: skip
         assert name in text
     assert 'path="/cities"' in text and 'status="200"' in text

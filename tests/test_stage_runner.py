@@ -64,3 +64,21 @@ def test_run_id_env(monkeypatch):
     assert stage_runner.new_run_id() == "abc"
     monkeypatch.delenv("PIPELINE_RUN_ID")
     assert len(stage_runner.new_run_id()) == 15
+
+
+def test_push_metrics_uses_given_success_time(monkeypatch):
+    pushed = {}
+
+    def fake_push(url, job, registry, grouping_key, timeout):
+        pushed.update(url=url, job=job, key=grouping_key)
+        pushed["samples"] = {
+            s.name: s.value for m in registry.collect() for s in m.samples
+        }
+
+    monkeypatch.setattr(stage_runner, "pushadd_to_gateway", fake_push)
+    rec = {"stage": "ingest", "run_id": "r", "status": "success",
+           "duration_s": 2.0, "rows_per_sec": 5.0}  # fmt: skip
+    assert stage_runner.push_metrics(rec, "http://pg:9091", success_time=123.0)
+    assert pushed["job"] == "aq_pipeline" and pushed["key"] == {"instance": "ingest"}
+    assert pushed["samples"]["aq_pipeline_last_success_timestamp"] == 123.0
+    assert pushed["samples"]["aq_stage_status"] == 1

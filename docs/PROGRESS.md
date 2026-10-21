@@ -943,3 +943,77 @@ The forecast comes from the model server (version 4 in the answer), the version 
 **Screenshots.** The two files in `docs/screenshots/` are early placeholders. They are not committed; you will retake them when the UI is final.
 
 Tests: 313 passed, ruff clean.
+
+## Part 14: Stage 14, Prometheus and Grafana
+
+### What I built
+
+| File | What it does |
+|------|--------------|
+| `monitoring/prometheus.yml` | 9 scrape jobs every 15 s: backend, model-server (`:8001`), frontend (`:8502`), mlflow, pushgateway (`honor_labels`), node-exporter, and Prometheus, Alertmanager and Grafana themselves. |
+| `monitoring/alerts.yml` | 6 rules: `PM25DriftHigh` (the only one with `action=retrain`), `ForecastErrorHigh` (warning), `BackendErrorRateHigh` (5xx share above 5% for 2 min), `ModelServerErrors`, `TargetDown`, `PipelineStageFailed`. |
+| `monitoring/alerts_test.yml` | promtool unit tests for four of the rules, on made-up series. |
+| `monitoring/grafana/provisioning/` | The Prometheus data source and the dashboard folder, read by Grafana at start. |
+| `monitoring/grafana/dashboards/aq_service.json` | Home dashboard: model versions, drift, replay clock, firing alerts, targets up; backend rate, latency and error rate; forecasts; model-server rate and latency; PSI per city with its threshold; MAE ratios; frontend views and call latency; memory and CPU. |
+| `monitoring/grafana/dashboards/aq_pipeline.json` | Stage duration, rows per second and status from the Pushgateway, last success, last push, retrain requests, MLflow request rate and latency. |
+| `docker/mlflow/Dockerfile` | The model-server image plus `prometheus-flask-exporter`, so `mlflow server --expose-prometheus` works. |
+| `src/frontend/main.py` | Starts the frontend exporter, then Streamlit. |
+| `scripts/push_stage_metrics.py` | Re-pushes the last stage records to the Pushgateway. |
+
+Compose changes: Prometheus keeps its data in a named volume (2-day retention, so it survives a restart). The Pushgateway is in both profiles, saves to a file and has host port 19091 for the ops runner. Grafana gets the provisioning folders, an admin password from `.env` (`GRAFANA_ADMIN_PASSWORD`, which I generated) and read-only anonymous access, so the console's Grafana link opens without a login. The backend now also exports its own process memory and CPU.
+
+Both dashboards refresh every 15 s, the same as the scrape interval. Faster would only redraw the same points.
+
+### What went wrong
+
+**The frontend showed as down.** The exporter was started inside `app.py`, and Streamlit runs that script only when someone opens a page. Right after a start, nobody had, so Prometheus got "connection refused" and `TargetDown` fired for the frontend (it did, at 10:13, and resolved when I fixed it). The fix is `src/frontend/main.py`: it starts the exporter in the same process and then hands over to Streamlit. The image now runs `python -m src.frontend.main`.
+
+**MLflow had no metrics.** `--expose-prometheus` needs `prometheus-flask-exporter`, which the model-server image does not have. I added a one-line image on top of it instead of rebuilding the model-server image, because the full pip install on this VM takes many minutes. Its metrics are named `mlflow_http_request_*`, not `flask_http_request_*` as I first wrote in the dashboard, so the first MLflow panel was empty until I checked the real names.
+
+**No pipeline numbers.** The batch has not run since the Pushgateway was wired, so the pipeline dashboard was empty. I did not run Spark next to the serve stack. Instead `scripts/push_stage_metrics.py` re-sent the records of the last real runs (`reports/stage_metrics/*.json`, runs `20261020-161323` and `20261020-172022`), with each stage's own end time as the last-success time. Nothing is recomputed. The next real batch pushes over them.
+
+### What I ran and measured
+
+- `promtool check config` and `check rules`: valid, 6 rules. `promtool test rules monitoring/alerts_test.yml`: SUCCESS.
+- All 9 targets `up`. Every panel of both dashboards returns data through Grafana's own query API.
+- **Drift, end to end.** I started the replay at 5 simulated hours per second. `PM25DriftHigh` went pending at 10:19:18, fired at 10:20:18 and reached the backend at 10:20:28, which created exactly one retrain request (cutoff 2020-05-10 14:00, 5 cities above threshold). The ops runner was not running, so no batch started.
+- **Service alerts.** I stopped the model server and sent one forecast request per second for 4 minutes. `ModelServerErrors` and `TargetDown` fired after 1 minute, `BackendErrorRateHigh` (29% 5xx) after 2. All three reached the backend webhook and, as designed, created no retrain request.
+- A final `down` and `up -d` with the Stage 14 compose file: all services healthy and all 9 targets up after 35 s, 0 restarts, and the 7 stage records were still in Prometheus, so the Pushgateway file survived.
+- Timings and memory are in `docs/metrics.md`. Tests: 323 passed (10 new), ruff clean.
+
+After the tests I restarted the model server, reset the replay and put `ops/` back as it was (I removed the test retrain request and the episode file it opened), so the next real replay starts clean.
+
+### Limits you should know about
+
+- No per-container memory. I chose not to run cAdvisor on 8 GB. Process RSS covers the backend, the frontend and the model-server proxy; the `mlflow models serve` worker and the MLflow server are only in host memory.
+- `PipelineStageFailed` and `ForecastErrorHigh` are tested with promtool, not live: I would have had to fake a failed stage in the real Pushgateway, or wait for the MAE ratio to cross 1.5, which it never does on this replay (Part 10).
+- Alertmanager has one receiver, the backend. Nobody is emailed or paged. The backend log and the console are where an alert is seen.
+- Screenshots of the dashboards and of a fired alert still need a browser on your desktop: Grafana at http://localhost:13000, alerts at http://localhost:19090/alerts.
+
+### How to run it
+
+```
+docker compose --profile serve up -d          # Prometheus :19090, Grafana :13000, Alertmanager :19093
+PYTHONPATH=. .venv/bin/python -m scripts.push_stage_metrics   # optional: re-send last stage numbers
+docker run --rm --entrypoint promtool -v $PWD/monitoring:/m:ro prom/prometheus:v3.5.0 test rules /m/alerts_test.yml
+```
+
+### Viva questions I prepared
+
+**1. Why a Pushgateway for the pipeline and not a scrape?**
+A stage lives for seconds to minutes. Prometheus might not scrape it once before it exits. The stage pushes its final numbers and the Pushgateway holds them until Prometheus collects them.
+
+**2. Why is the Pushgateway in both profiles?**
+The batch must not run next to the full serve stack. If the Pushgateway were only in `serve`, the batch would push to nothing. It is 22 MiB, and its file means the numbers survive until Prometheus is back.
+
+**3. Why is the drift rule in the backend and not in PromQL?**
+It needs per-city thresholds, a vote over 6 cities and an exclusion for Kolkata. In PromQL that would be a copy of the Python rule that could disagree with it. The backend exports one gauge and the alert only watches that.
+
+**4. How do you know the alerts work, not just that the config is valid?**
+promtool unit tests check the expressions on known input, and I fired four alerts on the live stack and saw them reach the backend, with timings.
+
+**5. Why 15 s refresh?**
+Scrapes are every 15 s (the machine limit). A faster refresh redraws the same data. 15 s is near real time for air quality, which changes by the hour.
+
+**6. Why does only one alert retrain?**
+A model-server outage or a 5xx burst is not a data problem. Retraining would not fix it and would cost 2.5 GB of RAM while the service is already in trouble.

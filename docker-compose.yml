@@ -88,9 +88,11 @@ services:
   mlflow:
     <<: *host-user
     profiles: [serve]
-    image: aq-model-server              # same image: it already has MLflow installed
+    build: {context: ., dockerfile: docker/mlflow/Dockerfile}
+    image: aq-mlflow                    # the model-server image + the Prometheus exporter
     command: >
       mlflow server --host 0.0.0.0 --port 5000 --workers 1
+      --expose-prometheus /tmp/mlflow-metrics
       --backend-store-uri sqlite:///${HOST_PROJECT}/mlflow.db
       --default-artifact-root ${HOST_PROJECT}/mlruns
       --allowed-hosts mlflow:5000,mlflow,localhost:${MLFLOW_HOST_PORT:-5000},localhost
@@ -114,11 +116,13 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=2d
+      - --web.enable-lifecycle          # lets me reload rules with a POST
     mem_limit: 384m
     ports: ["${PROMETHEUS_HOST_PORT:-19090}:9090"]
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus     # keeps the 2 days of history across restarts
     restart: unless-stopped
 
   alertmanager:
@@ -131,10 +135,19 @@ services:
       - ./monitoring/secrets:/etc/alertmanager/secrets:ro
     restart: unless-stopped
 
+  # In both profiles: the batch pushes stage metrics here, and the values are
+  # saved to a file so Prometheus can still scrape them once serve is back up.
+  # The host port is for the ops runner, which runs `dvc repro` on the host.
   pushgateway:
-    profiles: [serve]
+    profiles: [serve, batch]
     image: prom/pushgateway:v1.11.1
+    command:
+      - --persistence.file=/data/pushgateway.db
+      - --persistence.interval=1m
     mem_limit: 64m
+    ports: ["${PUSHGATEWAY_HOST_PORT:-19091}:9091"]
+    volumes:
+      - pushgateway-data:/data
     restart: unless-stopped
 
   node-exporter:
@@ -148,6 +161,17 @@ services:
     image: grafana/grafana:12.0.0
     mem_limit: 256m
     ports: ["${GRAFANA_HOST_PORT:-13000}:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"   # read-only view, so the console link opens directly
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/aq_service.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
     restart: unless-stopped
 
   pipeline:
@@ -164,3 +188,8 @@ services:
       HOME: /tmp
     volumes:
       - ${HOST_PROJECT}:${HOST_PROJECT}
+    depends_on: [pushgateway]
+
+volumes:
+  prometheus-data:
+  pushgateway-data:

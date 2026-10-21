@@ -1,0 +1,9 @@
+# Load every dashboard JSON in /var/lib/grafana/dashboards into the "AQ" folder.
+apiVersion: 1
+providers:
+  - name: aq
+    folder: AQ
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

@@ -237,7 +237,14 @@ The watcher (`supervisor.py`) reads the `champion` alias every `POLL_SECONDS` (3
 | pipeline | `aq_stage_rows_per_second` | gauge | `stage` |
 | pipeline | `aq_stage_status` | gauge (1 = success, 0 = failed) | `stage` |
 | pipeline | `aq_pipeline_last_success_timestamp` | gauge | — |
+| MLflow server (`:5000/metrics`) | `mlflow_http_request_total`, `mlflow_http_request_duration_seconds` | counter, histogram | `method, status` |
+| backend, model server, frontend | `process_resident_memory_bytes`, `process_cpu_seconds_total` | gauge, counter | — |
 | host | node-exporter defaults | — | — |
+| Prometheus, Alertmanager, Grafana, Pushgateway | their own built-in metrics | — | — |
+
+Prometheus scrapes every target above every 15 s (`monitoring/prometheus.yml`), the Pushgateway with `honor_labels: true` so the pushed `job="aq_pipeline"` and `stage` labels stay. The frontend exporter is started by `src/frontend/main.py` before Streamlit, so it answers from boot and not only after the first page visit. `python -m scripts.push_stage_metrics [--url URL]` re-pushes the latest record of every stage from `reports/stage_metrics/*.json`, with the stage's own end time as `aq_pipeline_last_success_timestamp`, for a batch that ran while the Pushgateway was down.
+
+Grafana (`monitoring/grafana/`) is provisioned from files: the Prometheus data source (uid `prometheus`) and two dashboards in the folder "AQ", both refreshing every 15 s. `aq-service` (the home dashboard) has the overview (model versions, drift, replay clock, firing alerts, targets up), backend request rate, latency p50/p95/p99 and error rate, forecasts and model-server rate and latency, PSI per city against its threshold, the MAE ratios, frontend views and call latency, and memory and CPU. `aq-pipeline` has stage duration, rows per second and status, the last success and last push, retrain requests, and MLflow request rate and latency. Anonymous users get the Viewer role; the admin password is `GRAFANA_ADMIN_PASSWORD`.
 
 Alert rules (`monitoring/alerts.yml`):
 
@@ -246,6 +253,7 @@ Alert rules (`monitoring/alerts.yml`):
 | `PM25DriftHigh` | `aq_drift_detected == 1` | 1m | `action=retrain`, `severity=critical` |
 | `ForecastErrorHigh` | `aq_rolling_mae_ratio_pooled > 1.5` | 5m | `severity=warning` (no retrain) |
 | `BackendErrorRateHigh` | 5xx share of `aq_http_requests_total` > 5% over 5m | 2m | — |
+| `ModelServerErrors` | `increase(aq_model_server_errors_total[5m]) > 0` | 1m | `severity=warning` |
 | `TargetDown` | `up == 0` | 1m | — |
 | `PipelineStageFailed` | `aq_stage_status == 0` | 0m | — |
 
@@ -316,7 +324,9 @@ Alert rules (`monitoring/alerts.yml`):
 | `RUN_TIMEOUT_S` | ops runner | `3600` |
 | `RUNNER_MIN_FREE_MB` | ops runner | `2500` (the batch does not start with less memory available) |
 | `TLS_CERT_FILE`, `TLS_KEY_FILE` | backend | `/certs/backend.crt`, `/certs/backend.key`. If either file is missing the backend serves plain HTTP and logs a warning (Stage 15 creates the certificate). |
-| `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` |
+| `PUSHGATEWAY_URL` | pipeline | `http://pushgateway:9091` in the pipeline container; `http://localhost:19091` for the ops runner and `scripts.push_stage_metrics` on the host |
+| `PUSHGATEWAY_HOST_PORT` | compose | `19091` |
+| `GRAFANA_ADMIN_PASSWORD` | grafana | — (required, in `.env`) |
 
 ## 9. Frontend pages
 

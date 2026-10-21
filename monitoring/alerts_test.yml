@@ -1,0 +1,50 @@
+# promtool unit tests for monitoring/alerts.yml. Run:
+#   docker run --rm --entrypoint promtool -v $PWD/monitoring:/m:ro \
+#     prom/prometheus:v3.5.0 test rules /m/alerts_test.yml
+rule_files:
+  - alerts.yml
+evaluation_interval: 15s
+tests:
+  - interval: 15s
+    input_series:
+      - series: aq_drift_detected{job="backend"}
+        values: "0 0 1x8"
+      - series: aq_stage_status{job="aq_pipeline",stage="validate"}
+        values: "1 0"
+      - series: aq_stage_status{job="aq_pipeline",stage="ingest"}
+        values: "1 1"
+      - series: up{job="frontend",instance="frontend:8502"}
+        values: "1 0x8"
+      # 2 of 10 requests per step are 5xx: 20% > 5%.
+      - series: aq_http_requests_total{status="200"}
+        values: "0+8x20"
+      - series: aq_http_requests_total{status="503"}
+        values: "0+2x20"
+    alert_rule_test:
+      - eval_time: 30s                  # drift just turned on: still pending
+        alertname: PM25DriftHigh
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: PM25DriftHigh
+        exp_alerts:
+          - exp_labels: {job: backend, severity: critical, action: retrain}
+            exp_annotations:
+              summary: "PM2.5 input drift: enough cities are above their PSI threshold"
+      - eval_time: 15s
+        alertname: PipelineStageFailed
+        exp_alerts:
+          - exp_labels: {job: aq_pipeline, stage: validate, severity: critical}
+            exp_annotations:
+              summary: "Pipeline stage validate failed in its last run"
+      - eval_time: 90s
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels: {job: frontend, instance: "frontend:8502", severity: critical}
+            exp_annotations:
+              summary: "frontend (frontend:8502) is not answering scrapes"
+      - eval_time: 4m
+        alertname: BackendErrorRateHigh
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "20% of backend requests fail with 5xx"

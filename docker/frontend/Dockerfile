@@ -23,6 +23,7 @@ EXPOSE 8501 8502
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD curl -fs http://localhost:8501/_stcore/health || exit 1
 
-CMD ["streamlit", "run", "src/frontend/app.py", "--server.port=8501", \
+# main.py starts the metrics exporter before Streamlit (see its docstring).
+CMD ["python", "-m", "src.frontend.main", "--server.port=8501", \
      "--server.address=0.0.0.0", "--server.headless=true", \
      "--browser.gatherUsageStats=false"]
