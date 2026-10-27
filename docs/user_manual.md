@@ -30,9 +30,12 @@ After that, starting the app is one command:
 
 ```
 docker compose --profile serve up -d
+uv run --frozen python -m src.ops.runner
 ```
 
-Wait about half a minute, then open **https://localhost**. To stop it again:
+The first starts the app. The second starts the **ops runner**, the helper that trains new models. Leave it running in its own terminal window. Without it, the app still works and still notices drift, but it never trains a new model: the retrain requests just wait in a queue. When you start the runner later, it works through the queued requests.
+
+Wait about half a minute, then open **https://localhost**. To stop everything, press Ctrl+C in the runner's window and run:
 
 ```
 docker compose --profile serve down
