@@ -13,7 +13,7 @@ import streamlit as st
 
 from src.frontend import metrics
 from src.frontend.client import BackendClient, BackendError
-from src.frontend.helpers import count_runs, dag_dot, nice_time
+from src.frontend.helpers import count_runs, dag_dot, nice_time, short_time
 
 LINKS = {
     "MLflow": ("MLFLOW_URL", "http://localhost:5000"),
@@ -50,10 +50,9 @@ def _status_section(client: BackendClient) -> None:
     cols[0].metric("Backend", health["status"])
     cols[1].metric("Model server", health["model_server"])
     cols[2].metric("Champion version", health.get("model_version") or "none")
-    cols[3].metric("Replay time", nice_time(health["sim_time"]))
-    st.caption(
-        "Replay is running." if health["replay_running"] else "Replay is stopped."
-    )
+    cols[3].metric("Replay time", short_time(health["sim_time"]))
+    state = "running" if health["replay_running"] else "stopped"
+    st.caption(f"Replay is {state} at {nice_time(health['sim_time'])}.")
 
 
 def _pipeline_section(client: BackendClient) -> None:
@@ -71,7 +70,18 @@ def _pipeline_section(client: BackendClient) -> None:
     if runs:
         ok, failed = count_runs(runs["runs"])
         st.markdown(f"**Runs:** {ok} successful, {failed} failed (last 20)")
+        if failed:
+            # Errors first, in their own short table, so they are not lost in
+            # the wide run table.
+            st.markdown("**Failed runs**")
+            frame = pd.DataFrame([r for r in runs["runs"] if r["status"] == "failed"])
+            st.dataframe(
+                frame[["run_id", "started_at", "failed_stage", "error"]],
+                hide_index=True,
+                width="stretch",
+            )
         if runs["runs"]:
+            st.markdown("**All runs**")
             frame = pd.DataFrame(runs["runs"])
             st.dataframe(frame, hide_index=True, width="stretch")
     models = _public(client, "/pipeline/models")

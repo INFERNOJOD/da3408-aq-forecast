@@ -31,6 +31,18 @@ def nice_time(iso: str | None) -> str:
         return "unknown"
 
 
+def short_time(iso: str | None) -> str:
+    """Return ``25 Mar, 14:00``, short enough for a status box, or ``unknown``.
+
+    The full ``nice_time`` value was cut off to "25 Mar 2…" in the console's
+    four status boxes at the default page width (final audit).
+    """
+    try:
+        return datetime.fromisoformat(iso).strftime("%d %b, %H:%M")
+    except (TypeError, ValueError):
+        return "unknown"
+
+
 def horizon_label(hours: int) -> str:
     """Return the plain-language name of a forecast horizon."""
     return "In 1 hour" if hours == 1 else f"In {hours} hours"

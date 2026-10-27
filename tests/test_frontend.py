@@ -11,6 +11,7 @@ from src.frontend.helpers import (
     dag_dot,
     horizon_label,
     nice_time,
+    short_time,
     text_color,
 )
 from streamlit.testing.v1 import AppTest
@@ -118,6 +119,8 @@ def test_text_color_picks_readable_ink():
 def test_nice_time_and_horizon_label():
     assert nice_time("2020-03-25T14:00:00") == "25 Mar 2020, 14:00"
     assert nice_time(None) == "unknown" and nice_time("junk") == "unknown"
+    assert short_time("2020-03-25T14:00:00") == "25 Mar, 14:00"
+    assert short_time(None) == "unknown"
     assert horizon_label(1) == "In 1 hour" and horizon_label(24) == "In 24 hours"
 
 
@@ -173,7 +176,11 @@ class FakeBackend:
                 {"name": "ingest", "deps": [], "status": "success", "duration_s": 1.0,
                  "rows_out": 10, "rows_per_sec": 10}]}  # fmt: skip
         if path == "/pipeline/runs":
-            return {"runs": [{"run_id": "r1", "status": "failed", "error": "boom"}]}
+            return {"runs": [
+                {"run_id": "r2", "status": "success", "started_at": "t2",
+                 "failed_stage": None, "error": None},
+                {"run_id": "r1", "status": "failed", "started_at": "t1",
+                 "failed_stage": "validate", "error": "boom"}]}  # fmt: skip
         if path == "/pipeline/models":
             return {"models": [{"version": "4", "aliases": ["champion"]}]}
         if path == "/ops/drift":
@@ -267,6 +274,20 @@ def test_console_hides_ops_until_key_and_rejects_wrong_key():
     at.text_input[0].set_value("bad").run()
     assert any("API key is wrong" in e.value for e in at.error)
     assert not at.button
+
+
+def test_console_lists_failed_runs_with_their_error_and_a_short_replay_time():
+    at = AppTest.from_function(console_app, args=(FakeBackend(),)).run()
+    assert not at.exception
+    assert any("1 successful, 1 failed" in m.value for m in at.markdown)
+    tables = [t.value for t in at.dataframe]
+    failed = next(t for t in tables if list(t.columns)[-1] == "error")
+    assert failed["error"].tolist() == ["boom"]
+    assert failed["failed_stage"].tolist() == ["validate"]
+    assert any(
+        m.label == "Replay time" and m.value == "01 Apr, 00:00" for m in at.metric
+    )
+    assert any("01 Apr 2020, 00:00" in c.value for c in at.caption)
 
 
 def test_console_with_key_shows_drift_and_posts_retrain():
