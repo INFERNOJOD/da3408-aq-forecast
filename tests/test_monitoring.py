@@ -95,3 +95,11 @@ def test_compose_limits_memory_and_retention():
     deps = compose["services"]["backend"]["depends_on"]
     assert deps["mlflow"]["condition"] == "service_healthy"
     assert "healthcheck" in compose["services"]["mlflow"]
+
+
+def test_pushgateway_persists_into_a_folder_it_can_write():
+    # The image runs as nobody and only /pushgateway belongs to that user; a
+    # volume on any other path is root-owned and the file is never written.
+    push = load(ROOT / "docker-compose.yml")["services"]["pushgateway"]
+    assert "--persistence.file=/pushgateway/pushgateway.db" in push["command"]
+    assert "pushgateway-data:/pushgateway" in push["volumes"]

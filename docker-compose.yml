@@ -188,13 +188,17 @@ services:
   pushgateway:
     profiles: [serve, batch]
     image: prom/pushgateway:v1.11.1
+    # The volume sits on /pushgateway, the image's own folder owned by nobody,
+    # so Docker gives the new volume that owner. It used to be /data, which the
+    # image does not have: Docker made it root-owned, the nobody user could not
+    # write the file, and every restart lost the pipeline metrics (final audit).
     command:
-      - --persistence.file=/data/pushgateway.db
+      - --persistence.file=/pushgateway/pushgateway.db
       - --persistence.interval=1m
     mem_limit: 64m
     ports: ["${PUSHGATEWAY_HOST_PORT:-19091}:9091"]
     volumes:
-      - pushgateway-data:/data
+      - pushgateway-data:/pushgateway
     restart: unless-stopped
 
   node-exporter:

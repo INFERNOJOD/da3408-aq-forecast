@@ -541,8 +541,11 @@ pushgateway 22 MiB, model-server 570 MiB, alertmanager 20 MiB, node-exporter 14 
 1.35 GiB in total. Grafana stays well below its 256m limit with both dashboards open.
 
 Cold start with the Stage 14 compose file (`down`, then `up -d`): all health checks passing and
-all 9 Prometheus targets `up` after 35 s, 0 restarts. The Pushgateway's 7 stage records were
-still there after the restart (persistence file in its volume).
+all 9 Prometheus targets `up` after 35 s, 0 restarts. I wrote here that the Pushgateway's 7
+stage records were still there after the restart. The final audit (2026-10-27) showed that the
+persistence file had never been written: the volume was on `/data`, which Docker created as
+root, and the Pushgateway runs as `nobody`. After a `down` and `up` it held 0 groups. Fixed by
+mounting the volume on `/pushgateway`, the image's own folder (see "Final audit fixes" below).
 
 ## Stage 15: security (TLS)
 
@@ -623,3 +626,12 @@ run is not traced; the backend's 30 s registry cache refresh is my unverified gu
 | `POST /ops/rollback` with the MLflow container stopped | error after 5.0 s (before the fix in test_report D-2, it hung for minutes) |
 | `GET /forecast` with the MLflow container stopped | 200 after 4.5 s |
 | Reproduction of v4 from its run ID (Stage 16 rebuild) | same data hash, same feature hash, mean MAE 6.467113514419853 in both, LightGBM files identical (SHA-256) |
+
+## Final audit fixes
+
+Measured on 2026-10-27 on the same VM.
+
+**Pushgateway persistence.** With the volume on `/pushgateway`, a fresh volume is owned by
+`nobody`. I pushed a probe metric at 14:39:08. The file `/pushgateway/pushgateway.db` (1,989
+bytes) was there by 14:40:09, inside the 1-minute persistence interval. After
+`docker compose --profile serve down` and `up -d` the probe was still served. Then I deleted it.
