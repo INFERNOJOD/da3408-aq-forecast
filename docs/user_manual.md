@@ -26,7 +26,7 @@ You need a computer with Docker installed and a copy of the project folder. You 
 1. In the project folder, copy `.env.example` to `.env` and fill in the values. The most important one is `OPS_API_KEY`, the operator password. Make it long and random, and keep it to yourself.
 2. Make the certificates for the secure connection: `scripts/make_certs.sh`
 
-After that, starting the app is one command:
+After that, starting the app takes two commands:
 
 ```
 docker compose --profile serve up -d
