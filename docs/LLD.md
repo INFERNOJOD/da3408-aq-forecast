@@ -95,7 +95,7 @@ The DVC DAG with the status of each stage in the most recent run.
    "error": "PM2.5 > 1000 in 12 rows", "git_commit": "abc1234", "mlflow_run_id": null, "promoted": false}
 ]}
 ```
-`trigger` ∈ `manual | drift_alert | initial`. `started_at` is wall-clock time (not simulated). A run is all lines of `runs.jsonl` with the same `run_id`. Its `status` is `failed` if any stage failed and `success` otherwise (DVC skips unchanged stages, so a run does not always contain all seven, and the file cannot say that a run is still going). `promoted` and `mlflow_run_id` come from `reports/register.json`, so they are filled only for the newest run and only if it ran the `register` stage; otherwise they are `null`.
+`trigger` ∈ `manual | drift_alert | ci | initial`: `manual` is the default (a `POST /ops/retrain` request or a stage run by hand), `drift_alert` a retrain started by the drift alert, `ci` a run of `scripts/ci.sh --repro`, and `initial` the first run made by `scripts/bootstrap.sh`. `started_at` is wall-clock time (not simulated). A run is all lines of `runs.jsonl` with the same `run_id`. Its `status` is `failed` if any stage failed and `success` otherwise (DVC skips unchanged stages, so a run does not always contain all seven, and the file cannot say that a run is still going). `promoted` and `mlflow_run_id` come from `reports/register.json`, so they are filled only for the newest run and only if it ran the `register` stage; otherwise they are `null`.
 
 ### GET `/pipeline/models`
 Registry versions of `aq-pm25`, newest first.
