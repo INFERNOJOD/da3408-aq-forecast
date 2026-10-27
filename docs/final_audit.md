@@ -4,7 +4,33 @@ I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROG
 
 PASS means the evidence is there and works. WEAK means it exists but has a gap a grader could point at. FAIL means it is missing or broken.
 
-## What's left
+## Status of the fixes (paused 2026-10-27, resume 2026-11-03)
+
+I started fixing section (a) on 2026-10-27 and paused part-way. The rubric table in section 1 is still the audit as of `1cdba84`. I have not marked anything again, because the re-audit comes after the last fix. Last check of the committed tree (`3400783` plus the test-plan rows): `scripts/ci.sh` passed, 350 tests run, 0 failed, ruff clean, `dvc status` and `dvc status -c` clean.
+
+| (a) item | Status | Commit(s) / where |
+|---|---|---|
+| 1. Pushgateway persistence | **Fix done; dashboard refill not started.** Volume moved to `/pushgateway`. Proved: a probe metric survived a full `down`/`up`. The dashboard still has to be refilled by a real pipeline run (item 10). | `cc0822a` |
+| 2. Fresh clone / `scripts/bootstrap.sh` | **In progress, not committed.** Script written. `.env.example` no longer has the container URLs, which broke host tools. README and user-manual run steps rewritten. **Not yet tested in a clean clone.** All of it is in `git stash` "WIP final-audit fix a2 ...". | stash@{0} |
+| 3. Ops runner documented | **Done in HLD and the user manual.** The README lines are in the same block as the bootstrap steps, so they wait in the stash. | `69e9b4e`, `3484879` |
+| 4. Batch next to the full serve stack | **Done.** The runner stops the frontend and Grafana, then starts exactly those again. The TLS proxy serves a 503 "Back in a few minutes" page meanwhile. Checked live with the real runner (`docs/metrics.md`). | `4841b2e` |
+| 5. Stale architecture/HLD text | **Done** (inconsistencies 1-4, 8) | `4841b2e`, `3400783` |
+| 6. `ci` trigger in LLD | **Done.** LLD lists `manual`, `drift_alert`, `ci`, `initial`. Only the stashed bootstrap script writes `initial`. | `fd7d292` |
+| 7. Failures visible in the console | **Done, not yet seen in the browser.** The console has a "Failed runs" table. A labelled failure was run on purpose: run `demo-failure-20261027`, validate with the PM2.5 ceiling lowered to 500, 4 hard checks failed. `params.yaml` and `reports/validation.json` were restored. | `e10f521`; record in `reports/runs.jsonl` |
+| 8. Console replay-time box | **Done** | `e10f521` |
+| 9. Small doc fixes (inconsistencies 9-12) | **Done** | `3400783`, `56779b3` |
+| 10. Real `dvc repro` | **Not started.** It also refills the pipeline dashboard (item 1) and clears the failed validate status the demo pushed. | |
+| Extra: MLproject in a fresh environment | **In progress, no result.** `mlflow run . -e main --env-manager uv` builds the environment from `uv.lock`, not `python_env.yaml`. The first try failed on a download (`dvc==3.67.1`). The retry ran from 14:57:58 and was still downloading packages when I stopped it at about 15:06. Its last log line was written at 15:03:54. It never trained. I deleted the half-built environment in `~/.mlflow/envs/`. | |
+| Extra: OpenAPI error responses (inconsistency 11) | **Done** | `56779b3` |
+| Re-audit, `test_report.md` (still says 341 tests), README test count, final CI | **Not started** | |
+
+Things left on the machine:
+
+- `.env` has a new line, `PUSHGATEWAY_URL=http://localhost:19091`, so host pipeline runs push their metrics.
+- `ops/requests/rt-20261027-audit.json` is the refused request from the runner check (status `failed`).
+- The Pushgateway's saved file holds the demo failure (`aq_stage_status{stage="validate"} 0`). When the stack comes up, `PipelineStageFailed` will fire until a real pipeline run pushes success. That run is item 10.
+
+## What's left (as found on 2026-10-27, before the fixes)
 
 ### (a) Things I can fix
 

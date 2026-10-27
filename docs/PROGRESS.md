@@ -1334,3 +1334,36 @@ Start from the run ID. Its tags give the commit, the cutoff and the data version
 
 **5. 341 tests pass. What do they not cover?**
 A real browser, a real phone, concurrent load, a real failed smoke check, and the batch container. The report says this in its last section.
+
+## Part 18: fixing the final audit (paused 2026-10-27, resume 2026-11-03)
+
+`docs/final_audit.md` found 10 things I could fix (its section (a)). I fixed them one commit each and paused part-way. The table "Status of the fixes" at the top of that file is the exact state; this part says what I did and how to resume.
+
+### Done
+
+- **Pushgateway persistence** (`cc0822a`). The image runs as `nobody`, and the volume on `/data` was root-owned, so the save file was never written. The volume is now on `/pushgateway`, the image's own folder. A probe metric survived a full `down`/`up`.
+- **Ops runner pauses containers around the batch** (`4841b2e`). It stops the frontend and Grafana before its memory check and starts exactly those again when `dvc repro` ends, also when it fails or memory is short. I checked live that `docker compose stop frontend` leaves the TLS proxy up. The proxy now answers 503 with a "Back in a few minutes" page instead of an empty 502. Live check with the real runner: both containers were stopped and started again within 2.3 s, and `params.yaml` was unchanged (`docs/metrics.md`, "Final audit fixes").
+- **How to start the runner** (`69e9b4e`, `3484879`): HLD and the user manual.
+- **OpenAPI error responses** (`56779b3`), **console** (short replay time, "Failed runs" table, `e10f521`), **LLD trigger values** (`fd7d292`), **architecture diagram and the other doc inconsistencies** (`3400783`), **test plan rows** for the new tests (`efb8883`).
+- **A deliberate failure for the console demo.** This was not a real defect. I lowered the PM2.5 ceiling in `params.yaml` from 1000 to 500 and ran `dvc repro validate` with `PIPELINE_RUN_ID=demo-failure-20261027`. The stage failed as designed: "4 hard check(s) failed: ... city_hour/values_below_ceiling: PM2.5 > 500 in 2120 rows ...". I then restored `params.yaml` and `reports/validation.json` from git. The record is in `reports/runs.jsonl`, and its status was pushed to the Pushgateway.
+
+### Not finished
+
+- **`scripts/bootstrap.sh`** for a fresh clone is written but not tested. It sits with its README and user-manual run steps, the `.env.example` cleanup and the new E2E-18 to E2E-22 test-plan rows in `git stash`, under "WIP final-audit fix a2 ...". `.env.example` had container addresses such as `MODEL_SERVER_URL=http://model-server:5001`, which the host tools load from `.env` and cannot resolve. The stash removes them.
+- **MLproject in a fresh environment.** `mlflow run . -e main --env-manager uv` rebuilds the environment from `uv.lock` (not from `python_env.yaml`) and downloads everything. Over this VM's slow link it had not finished downloading after several minutes, so I stopped it. It never trained.
+- **A real `dvc repro -f`** to refill the pipeline dashboard and clear the failed validate status: not started.
+
+### What went wrong
+
+- I wrote in HLD that compose stops the TLS proxy together with the frontend. I tested it before committing: it does not. I corrected the docs, and the runner still compares running containers before and after the stop, in case another Compose version behaves differently.
+- I misremembered which PROGRESS parts held two numbers I moved into `metrics.md`, and guessed how they were measured. I checked and corrected both before committing.
+- The shell's safety check failed on and off all afternoon. That is why the work took longer than the code needed.
+
+### How to resume on 3 Nov
+
+1. `git stash list`, then `git stash pop` the "WIP final-audit fix a2" entry.
+2. Stop everything (`docker compose --profile serve down`). Clone into `/tmp`, run `scripts/bootstrap.sh`, `docker compose --profile serve up -d`, smoke-test, then `down -v` and delete the clone. The clone uses the same host ports, so the main stack must stay down. Commit fix a2 if it passes.
+3. MLproject: retry with `UV_HTTP_TIMEOUT=900`, or accept it as WEAK and say why.
+4. With only the Pushgateway up (`docker compose --profile batch up -d pushgateway`), run `PIPELINE_TRIGGER=manual uv run --frozen dvc repro -f`. Then `dvc push`, and commit `dvc.lock` and `reports/`.
+5. Bring the stack up and check that the console shows `demo-failure-20261027` and that the pipeline dashboard has data.
+6. `scripts/ci.sh`. Update `test_report.md` (now 350 tests), the README test count, the rubric table in `final_audit.md`, and PLAN.
