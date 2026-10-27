@@ -672,6 +672,26 @@ def test_lld_lists_the_backend_routes(env):
             assert path in lld, path
 
 
+def test_openapi_documents_the_lld_error_responses(env):
+    """/openapi.json shows the LLD error body and codes, not FastAPI's defaults."""
+    spec = env[0].get("/openapi.json").json()
+    expected = {
+        ("get", "/forecast"): {"404", "422", "503", "500"},
+        ("get", "/pipeline/runs"): {"422", "500"},
+        ("get", "/ops/drift"): {"401", "422", "500"},
+        ("post", "/ops/replay"): {"401", "409", "422", "500"},
+        ("post", "/ops/retrain"): {"401", "409", "422", "500"},
+        ("post", "/ops/rollback"): {"400", "401", "422", "500"},
+    }
+    for (method, path), codes in expected.items():
+        responses = spec["paths"][path][method]["responses"]
+        assert codes <= set(responses), (method, path)
+        for code in codes:
+            ref = responses[code]["content"]["application/json"]["schema"]["$ref"]
+            assert ref.endswith("/ErrorBody"), (method, path, code)
+    assert "HTTPValidationError" not in spec["components"]["schemas"]
+
+
 def test_episode_gate_closes_after_quiet_period(tmp_path):
     gate = EpisodeGate(tmp_path, 72)
     t0 = datetime(2020, 4, 1)

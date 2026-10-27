@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.backend import aqi, pipeline_view
 from src.backend.drift import DriftReport
-from src.backend.errors import ApiError, error_response, install_handlers
+from src.backend.errors import ApiError, error_docs, error_response, install_handlers
 from src.backend.forecaster import Forecaster
 from src.backend.metrics import Metrics
 from src.backend.model_client import ModelServerClient, ModelUnavailableError
@@ -94,7 +94,8 @@ def create_app(
         episode.observe(report["any_drift"], datetime.fromisoformat(report["sim_time"]))
         return report
 
-    app = FastAPI(title="AQ forecast backend", version="1.0")
+    # Every route can answer 500; the routes add their own codes from LLD.
+    app = FastAPI(title="AQ forecast backend", version="1.0", responses=error_docs(500))
     install_handlers(app)
 
     @app.middleware("http")
@@ -146,7 +147,7 @@ def create_app(
     def aqi_categories() -> dict:
         return {"categories": aqi.categories(), "note": aqi.NOTE}
 
-    @app.get("/forecast")
+    @app.get("/forecast", responses=error_docs(404, 422, 503))
     def forecast(city: str) -> dict:
         if city not in settings.cities:
             raise ApiError(404, "UNKNOWN_CITY", f"City '{city}' is not supported.")
@@ -166,7 +167,7 @@ def create_app(
     def pipeline_stages() -> dict:
         return pipeline_view.stages(settings.reports_dir)
 
-    @app.get("/pipeline/runs")
+    @app.get("/pipeline/runs", responses=error_docs(422))
     def pipeline_runs(limit: int = Query(default=20, ge=1, le=100)) -> dict:
         return {"runs": pipeline_view.runs(settings.reports_dir, limit)}
 
@@ -187,21 +188,26 @@ def create_app(
 
     # ---- ops endpoints ----------------------------------------------------
 
-    @app.get("/ops/drift", dependencies=ops)
+    @app.get("/ops/drift", dependencies=ops, responses=error_docs(401, 422))
     def ops_drift() -> dict:
         report = current_drift()
         metrics.set_drift(report)
         return report
 
-    @app.get("/ops/replay", dependencies=ops)
+    @app.get("/ops/replay", dependencies=ops, responses=error_docs(401, 422))
     def replay_state() -> dict:
         return clock.state()
 
-    @app.post("/ops/replay", dependencies=ops)
+    @app.post("/ops/replay", dependencies=ops, responses=error_docs(401, 409, 422))
     def replay_apply(body: ReplayRequest) -> dict:
         return clock.apply(body.action, body.speed_hps)
 
-    @app.post("/ops/retrain", status_code=202, dependencies=ops)
+    @app.post(
+        "/ops/retrain",
+        status_code=202,
+        dependencies=ops,
+        responses=error_docs(401, 409, 422),
+    )
     def retrain(body: RetrainRequest) -> dict:
         record = queue.create(body.reason, clock.state()["sim_time"])
         metrics.retrain_requests.labels("manual").inc()
@@ -211,7 +217,7 @@ def create_app(
             "status": record["status"],
         }
 
-    @app.post("/ops/rollback", dependencies=ops)
+    @app.post("/ops/rollback", dependencies=ops, responses=error_docs(400, 401, 422))
     def rollback(body: RollbackRequest) -> dict:
         try:
             old, new = registry.rollback(body.version)
@@ -220,7 +226,7 @@ def create_app(
         log.warning("Rollback: champion %s -> %s", old, new)
         return {"from_version": old, "to_version": new}
 
-    @app.post("/ops/alerts", dependencies=ops)
+    @app.post("/ops/alerts", dependencies=ops, responses=error_docs(401, 422))
     def alerts(body: AlertPayload) -> dict:
         current_drift()
         requested = queue.from_alerts(

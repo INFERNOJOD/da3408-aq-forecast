@@ -160,7 +160,7 @@ Request:
 ```json
 {"version": "2"}
 ```
-`version` is optional; if omitted, the `previous` alias is used.
+`version` is optional, a string of 1-20 characters; if omitted, the `previous` alias is used.
 
 200:
 ```json

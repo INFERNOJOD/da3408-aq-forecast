@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.common.logging_setup import get_logger
@@ -16,6 +17,39 @@ _CODE_BY_STATUS = {
     405: "METHOD_NOT_ALLOWED",
     409: "CONFLICT",
 }
+
+# What each status means, for the OpenAPI spec (the table in LLD section 1).
+_WHEN = {
+    400: "BAD_REQUEST: semantically invalid request",
+    401: "UNAUTHORIZED: missing or wrong API key",
+    404: "UNKNOWN_CITY: city not in the supported list",
+    409: "CONFLICT: already queued, running or in the requested state",
+    422: "VALIDATION_ERROR: wrong type, missing field or value out of range",
+    500: "INTERNAL_ERROR: unexpected error, details only in the log",
+    503: "MODEL_UNAVAILABLE or NO_DATA",
+}
+
+
+class ErrorDetail(BaseModel):
+    """The inner part of the error body."""
+
+    code: str
+    message: str
+
+
+class ErrorBody(BaseModel):
+    """The body of every non-2xx answer: ``{"error": {"code", "message"}}``."""
+
+    error: ErrorDetail
+
+
+def error_docs(*statuses: int) -> dict[int | str, dict]:
+    """Return ``responses=`` for a route, so /openapi.json shows the LLD body.
+
+    Without this the generated spec listed only FastAPI's own 422 schema, which
+    the handlers below replace (final audit, inconsistency 11).
+    """
+    return {s: {"model": ErrorBody, "description": _WHEN[s]} for s in statuses}
 
 
 class ApiError(Exception):
