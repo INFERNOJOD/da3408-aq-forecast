@@ -115,6 +115,7 @@ The page never shows technical error messages. Instead you may see:
 |---------|---------------|------------|
 | "Sorry, the forecast service is not reachable right now. Nothing is wrong with your device..." | The part of the system that makes forecasts is not running or not reachable. | Wait a few minutes and press Refresh. If it stays, tell the operator. |
 | "The forecast model is taking a break, so there is no forecast at the moment..." | The model is restarting, for example while a new one is being switched in. | Wait a minute and press Refresh. |
+| "Back in a few minutes" | A new model is being trained and the page is switched off for two to three minutes, or the page is restarting. | Nothing. The page reloads by itself every 30 seconds. |
 | The browser warning page | See section 2. | |
 
 > **[SCREENSHOT 7: the friendly "not reachable" message (stop the backend with `docker compose stop backend` to show it, then start it again). Save as `docs/screenshots/07_down_message.png`]**
@@ -158,7 +159,9 @@ The key is not saved anywhere. If you reload the page, you type it again.
 - **Error ratio (72 h):** how the model's recent error compares with its error in testing. It's for information only and does not trigger anything.
 - A table with each city's score and its own limit.
 
-When drift is detected, the system starts a retrain by itself. You don't need to press anything.
+When drift is detected, the system starts a retrain by itself, as long as the ops runner is running (section 1). You don't need to press anything. If the runner is not running, the request waits in a queue until you start it.
+
+While a retrain runs, the web pages (Forecast and this console) and Grafana are switched off for two to three minutes to free memory for the training. During that time the browser shows a short page saying **"Back in a few minutes"**, which reloads by itself. The rest of the system keeps running.
 
 > **[SCREENSHOT 10: the Drift section during the lockdown replay showing "YES". Save as `docs/screenshots/10_drift.png`]**
 
@@ -176,7 +179,7 @@ After each button you see a green message with the result, or a red one if it wa
 
 > **[SCREENSHOT 11: the Operations section after a successful "Roll back", showing the green result message. Save as `docs/screenshots/11_ops.png`]**
 
-A retrain needs about 2 GB of memory, and on the demo machine it only starts when enough is free. It runs in the background. You can watch it in the runs table and in Grafana.
+A retrain needs about 2.5 GB of free memory. To get it, the ops runner switches off the web pages and Grafana while it trains, and switches them back on afterwards, also when the training fails. The retrain runs in the background. Afterwards you can see it in the runs table. While it runs you can follow it in Prometheus, which stays on.
 
 ### Grafana dashboards
 

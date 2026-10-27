@@ -19,6 +19,23 @@ https://:8443 {
 			keepalive off
 		}
 	}
+	# The ops runner stops the frontend while a retrain runs (8 GB limit), and
+	# the frontend can also be restarting. Users then get this short page
+	# instead of Caddy's empty 502.
+	handle_errors {
+		header Content-Type "text/html; charset=utf-8"
+		header Retry-After "120"
+		respond <<HTML
+			<!doctype html><html lang="en"><head><meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<meta http-equiv="refresh" content="30"><title>Air quality forecast</title></head>
+			<body style="font-family:sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem">
+			<h1>Back in a few minutes</h1>
+			<p>The forecast page is paused while a new model is trained, or it is restarting.
+			This usually takes two to three minutes. The page reloads by itself.</p>
+			</body></html>
+			HTML 503
+	}
 }
 
 http://:8080 {

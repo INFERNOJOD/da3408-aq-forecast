@@ -635,3 +635,11 @@ Measured on 2026-10-27 on the same VM.
 `nobody`. I pushed a probe metric at 14:39:08. The file `/pushgateway/pushgateway.db` (1,989
 bytes) was there by 14:40:09, inside the 1-minute persistence interval. After
 `docker compose --profile serve down` and `up -d` the probe was still served. Then I deleted it.
+
+**Ops runner pause and resume.** One pass of the real runner (`--once`) on the live stack, with a
+hand-written request (cutoff 2020-05-01) and `RUNNER_MIN_FREE_MB=999999`, so the memory check
+refuses after the pause and nothing trains. It stopped `frontend` and `grafana` at 14:46:19.
+Memory available then was 3,067 MB. It started both again at 14:46:20.9, and the request was
+marked `failed` with `paused: ["frontend", "grafana"]`. `params.yaml` was unchanged. With only
+those two stopped, the TLS proxy stayed up and answered `https://localhost/` with its 503 page
+(`Retry-After: 120`). The frontend and Grafana used 51 and 109 MiB at idle (`docker stats`).

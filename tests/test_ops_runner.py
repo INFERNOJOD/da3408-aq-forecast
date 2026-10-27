@@ -67,7 +67,9 @@ def setup(tmp_path):
     reports.mkdir()
     (tmp_path / "ops" / "requests").mkdir(parents=True)
 
-    def make(pipeline=None, smoke=(True, "ok"), registry=None, free=8000):
+    def make(
+        pipeline=None, smoke=(True, "ok"), registry=None, free=8000, services=None
+    ):
         pipeline = pipeline or FakePipeline(reports)
         registry = registry or FakeRegistry()
         runner = ops.OpsRunner(
@@ -80,6 +82,7 @@ def setup(tmp_path):
             run_pipeline=pipeline,
             free_mb=lambda: free,
             now=lambda: datetime(2026, 10, 20, 12, 0, 0),
+            services=services,
         )
         return runner, pipeline, registry
 
@@ -224,6 +227,106 @@ def test_only_queued_requests_run_and_recover_marks_running_failed(setup):
     assert runner.recover() == 1
     assert json.loads(stale.read_text())["status"] == "failed"
     assert runner.run_once() == 0 and pipeline.calls == []
+
+
+class FakeCompose:
+    """Plays `docker compose` for a stack where the given services run."""
+
+    def __init__(self, running, cascade=(), fail=None):
+        self.running = set(running)
+        self.cascade = set(cascade)  # extra services `stop` takes down with it
+        self.fail = fail  # a command word that raises, e.g. "stop"
+        self.calls = []
+
+    def __call__(self, args):
+        self.calls.append(args)
+        if args[0] == self.fail:
+            raise RuntimeError(f"docker compose {args[0]} failed")
+        if args[0] == "ps":
+            return "\n".join(sorted(self.running)) + "\n"
+        if args[0] == "stop":
+            self.running -= set(args[1:]) | self.cascade
+        if args[0] == "start":
+            self.running |= set(args[1:])
+        return ""
+
+
+SERVE = ["backend", "frontend", "grafana", "model-server", "tls-proxy"]
+
+
+def test_frontend_and_grafana_are_stopped_for_the_batch_and_started_after(setup):
+    tmp_path, make = setup
+    compose = FakeCompose(SERVE)
+    seen = {}
+
+    class Watching(FakePipeline):
+        def __call__(self, env, log_path):
+            seen["running"] = set(compose.running)
+            return super().__call__(env, log_path)
+
+    services = ops.ServicePause(["frontend", "grafana"], compose)
+    runner, _, _ = make(pipeline=Watching(tmp_path / "reports"), services=services)
+    path = request(tmp_path)
+    runner.run_once()
+    assert seen["running"] == {"backend", "model-server", "tls-proxy"}
+    assert compose.running == set(SERVE)
+    assert json.loads(path.read_text())["paused"] == ["frontend", "grafana"]
+
+
+def test_services_come_back_when_the_pipeline_fails(setup):
+    tmp_path, make = setup
+    compose = FakeCompose(SERVE)
+    pipe = FakePipeline(tmp_path / "reports", code=1, stage_error="boom")
+    runner, _, _ = make(pipeline=pipe, services=ops.ServicePause(
+        ["frontend", "grafana"], compose))  # fmt: skip
+    path = request(tmp_path)
+    runner.run_once()
+    assert json.loads(path.read_text())["status"] == "failed"
+    assert compose.running == set(SERVE)
+    assert compose.calls[-1] == ["start", "frontend", "grafana"]
+
+
+def test_services_come_back_when_memory_is_still_short(setup):
+    tmp_path, make = setup
+    compose = FakeCompose(SERVE)
+    runner, pipeline, _ = make(
+        free=1200, services=ops.ServicePause(["frontend", "grafana"], compose)
+    )
+    path = request(tmp_path)
+    runner.run_once()
+    error = json.loads(path.read_text())["error"]
+    assert "1200 MB free after stopping frontend, grafana" in error
+    assert pipeline.calls == [] and compose.running == set(SERVE)
+
+
+def test_pause_restarts_exactly_what_it_stopped():
+    # grafana was stopped by hand: it stays stopped. If compose also stops a
+    # container that depends on the frontend (Compose v5.6 left the TLS proxy
+    # up in my check, but this is not promised), that one is started again too.
+    compose = FakeCompose(["backend", "frontend", "tls-proxy"], cascade={"tls-proxy"})
+    pause = ops.ServicePause(["frontend", "grafana"], compose)
+    stopped = pause.pause()
+    assert stopped == ["frontend", "tls-proxy"]
+    assert ["stop", "frontend"] in compose.calls
+    pause.resume(stopped)
+    assert compose.running == {"backend", "frontend", "tls-proxy"}
+
+
+def test_docker_errors_never_fail_the_request(setup):
+    tmp_path, make = setup
+    for fail in ("ps", "start"):
+        compose = FakeCompose(SERVE, fail=fail)
+        runner, _, _ = make(services=ops.ServicePause(["frontend"], compose))
+        path = request(tmp_path, rid=f"rt-{fail}")
+        runner.run_once()
+        assert json.loads(path.read_text())["status"] == "done"
+        ops.write_cutoff(tmp_path / "params.yaml", "2020-03-24 23:00:00")
+
+
+def test_no_services_means_no_docker_calls():
+    compose = FakeCompose(SERVE)
+    pause = ops.ServicePause([], compose)
+    assert pause.pause() == [] and compose.calls == []
 
 
 class FakeClient:

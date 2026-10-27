@@ -4,12 +4,13 @@ The backend never trains. It writes ``ops/requests/<id>.json``; this runner, on
 the host, handles one request at a time:
 
 1. mark it ``running``,
-2. check there is enough free memory for Spark (the batch must not squeeze the
-   serving stack),
+2. stop the frontend and Grafana, so the batch never runs next to the full
+   serve stack (CLAUDE.md), and check there is enough free memory for Spark,
 3. move ``cutoff`` in params.yaml to the request's simulated time, so the
    retrain sees the replayed hours up to then,
 4. hand the drift numbers to the train stage (``reports/drift_trigger.json``),
 5. run ``dvc repro`` with ``PIPELINE_TRIGGER`` and one ``PIPELINE_RUN_ID``,
+   then start the frontend and Grafana again, whether the run passed or not,
 6. read ``reports/register.json``. If the candidate was promoted, wait until the
    model server serves the new version and answers a test forecast (smoke
    check). If it does not, roll back to the previous champion.
@@ -113,6 +114,86 @@ def run_dvc_repro(env: dict[str, str], log_path: Path, timeout_s: int) -> int:
     return done.returncode
 
 
+def run_compose(args: list[str]) -> str:
+    """Run ``docker compose --profile serve <args>`` here; return its stdout.
+
+    Raises RuntimeError when docker is missing, times out or fails.
+    """
+    try:
+        done = subprocess.run(
+            ["docker", "compose", "--profile", "serve", *args],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"docker compose {' '.join(args)}: {exc}") from exc
+    if done.returncode != 0:
+        raise RuntimeError(
+            f"docker compose {' '.join(args)} exited with {done.returncode}: "
+            f"{done.stderr.strip()[-200:]}"
+        )
+    return done.stdout
+
+
+class ServicePause:
+    """Stops some serve containers for the batch and starts them again after.
+
+    On 8 GB the Spark batch must not run next to the full serve stack. The
+    frontend and Grafana are the two nobody needs while a model trains. The
+    backend, model server, MLflow and the monitoring keep running, so the
+    retrain can be watched in Prometheus and the new model can be smoke-checked.
+
+    Only containers that were running are stopped, and exactly the ones that
+    stopped are started again, so a service the operator had stopped on purpose
+    stays stopped. A docker error never fails the request: the memory check
+    after the pause still decides whether the batch may start.
+    """
+
+    def __init__(
+        self,
+        services: list[str],
+        compose: Callable[[list[str]], str] = run_compose,
+    ) -> None:
+        """``services`` are compose service names, such as ``frontend``."""
+        self.services = list(services)
+        self._compose = compose
+
+    def _running(self) -> set[str]:
+        return set(self._compose(["ps", "--status", "running", "--services"]).split())
+
+    def pause(self) -> list[str]:
+        """Stop the configured services that run; return the ones now stopped."""
+        if not self.services:
+            return []
+        try:
+            before = self._running()
+            names = [s for s in self.services if s in before]
+            if not names:
+                return []
+            self._compose(["stop", *names])
+            # Compared before and after: if compose also stops a dependent
+            # container (Compose v5.6 leaves the TLS proxy up), it is restarted too.
+            stopped = sorted(before - self._running())
+        except RuntimeError as exc:
+            log.warning("Could not stop %s (%s)", ", ".join(self.services), exc)
+            return []
+        log.info("Stopped %s for the batch", ", ".join(stopped))
+        return stopped
+
+    def resume(self, names: list[str]) -> None:
+        """Start the services ``pause`` stopped. Errors are logged, not raised."""
+        if not names:
+            return
+        try:
+            self._compose(["start", *names])
+            log.info("Started %s again", ", ".join(names))
+        except RuntimeError as exc:
+            log.error("Could not start %s again: %s", ", ".join(names), exc)
+
+
 class SmokeCheck:
     """Asks the model server for a forecast until the expected version answers."""
 
@@ -164,14 +245,20 @@ class OpsRunner:
         min_free_mb: float = 2500,
         free_mb: Callable[[], float] = available_mb,
         now: Callable[[], datetime] = datetime.now,
+        services: ServicePause | None = None,
     ) -> None:
-        """Keep the collaborators; tests pass fakes for the pipeline and checks."""
+        """Keep the collaborators; tests pass fakes for the pipeline and checks.
+
+        ``services`` stops and restarts containers around the batch; None
+        leaves every container alone.
+        """
         self.requests = Path(ops_dir) / "requests"
         self.logs = Path(ops_dir) / "logs"
         self.params_path, self.reports = Path(params_path), Path(reports_dir)
         self.replay_end = replay_end
         self.registry, self.smoke, self.run_pipeline = registry, smoke, run_pipeline
         self.min_free_mb, self.free_mb, self._now = min_free_mb, free_mb, now
+        self.services = services or ServicePause([])
 
     def _save(self, path: Path, record: dict) -> None:
         """Write the request atomically, so the backend never reads half a file."""
@@ -233,26 +320,35 @@ class OpsRunner:
 
     def _run(self, record: dict, run_id: str) -> dict:
         """Run the steps of ``process``. Raises RequestError when a step fails."""
-        free = self.free_mb()
-        if free < self.min_free_mb:
-            raise RequestError(
-                f"only {free:.0f} MB free, the batch needs {self.min_free_mb:.0f} MB; "
-                "stop the frontend and Grafana first"
-            )
         current = read_cutoff(self.params_path)
         cutoff = new_cutoff(record.get("cutoff"), current, self.replay_end)
-        write_cutoff(self.params_path, cutoff)
-        log.info("cutoff %s -> %s", current, cutoff)
 
-        trigger = record.get("trigger") or "manual"
-        trigger_file = self.reports / "drift_trigger.json"
-        if trigger == "drift_alert" and record.get("drift"):
-            trigger_file.write_text(json.dumps(record["drift"]), encoding="utf-8")
-        env = {"PIPELINE_TRIGGER": trigger, "PIPELINE_RUN_ID": run_id}
+        # The batch only starts with the frontend and Grafana stopped, and they
+        # come back as soon as dvc repro ends, also when it fails.
+        paused = self.services.pause()
+        record["paused"] = paused
         try:
-            code = self.run_pipeline(env, self.logs / f"{record['request_id']}.log")
+            free = self.free_mb()
+            if free < self.min_free_mb:
+                raise RequestError(
+                    f"only {free:.0f} MB free after stopping "
+                    f"{', '.join(paused) or 'nothing'}; "
+                    f"the batch needs {self.min_free_mb:.0f} MB"
+                )
+            write_cutoff(self.params_path, cutoff)
+            log.info("cutoff %s -> %s", current, cutoff)
+
+            trigger = record.get("trigger") or "manual"
+            trigger_file = self.reports / "drift_trigger.json"
+            if trigger == "drift_alert" and record.get("drift"):
+                trigger_file.write_text(json.dumps(record["drift"]), encoding="utf-8")
+            env = {"PIPELINE_TRIGGER": trigger, "PIPELINE_RUN_ID": run_id}
+            try:
+                code = self.run_pipeline(env, self.logs / f"{record['request_id']}.log")
+            finally:
+                trigger_file.unlink(missing_ok=True)
         finally:
-            trigger_file.unlink(missing_ok=True)
+            self.services.resume(paused)
         if code != 0:
             raise RequestError(
                 f"dvc repro exited with {code}; {self._stage_error(run_id)}"
@@ -341,6 +437,9 @@ def build(params: dict) -> OpsRunner:
         smoke=smoke,
         run_pipeline=lambda env, log_path: run_dvc_repro(env, log_path, timeout),
         min_free_mb=float(os.environ.get("RUNNER_MIN_FREE_MB", "2500")),
+        services=ServicePause(
+            os.environ.get("RUNNER_PAUSE_SERVICES", "frontend grafana").split()
+        ),
     )
 
 
