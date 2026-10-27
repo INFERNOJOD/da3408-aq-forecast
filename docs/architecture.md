@@ -1,6 +1,6 @@
 # Architecture
 
-Everything runs locally on one ARM64 VM under Docker Compose. I split the stack into two compose profiles. **serve** is always on. **batch** holds the Spark pipeline and training, and I start it only when needed.
+Everything runs locally on one ARM64 VM under Docker Compose. I split the stack into two compose profiles. **serve** is always on. **batch** packages the Spark pipeline and training as a container. In practice the ops runner and my scripts run the same pipeline on the host, from the `uv` environment. The two never run next to the full serve stack.
 
 ```mermaid
 flowchart LR
@@ -19,11 +19,12 @@ flowchart LR
         ne["node-exporter :9100"]
     end
 
-    subgraph batch["Compose profile: batch"]
-        pipe["Pipeline container<br/>dvc repro: ingest → validate → features →<br/>train → evaluate → test → register<br/>(Spark local, LightGBM)"]
+    subgraph host["Host (uv environment in .venv)"]
+        runner["Ops runner<br/>python -m src.ops.runner<br/>retrain requests, smoke check,<br/>auto-rollback"]
+        pipe["DVC pipeline: dvc repro<br/>ingest → validate → features →<br/>train → evaluate → test → register<br/>(Spark local, LightGBM)"]
     end
 
-    runner["Ops runner (host process)<br/>executes retrain requests,<br/>post-deploy smoke check, auto-rollback"]
+    batchc["Compose profile: batch<br/>pipeline container, same command<br/>(built, run by hand only)"]
     raw[("data/raw CSV<br/>DVC-tracked, local remote")]
     feat[("data/features Parquet<br/>reports/ stage records")]
     git[("Git repo<br/>code, dvc.lock, params")]
@@ -36,23 +37,26 @@ flowchart LR
     be -->|registry aliases, run info| mlf
     ms -->|loads model on alias change| mlf
     be -->|reads| feat
-    be -->|writes retrain request| runner
-    runner -->|dvc repro on the host| pipe
+    be -->|writes ops/requests/*.json| runner
+    runner -->|stops, then restarts| fe & graf
+    runner -->|runs on the host| pipe
+    runner -->|smoke check| ms
     pipe --> raw
     pipe --> feat
     pipe -->|params, metrics, artifacts, models| mlf
     pipe -->|stage duration, rows/sec| pgw
-    runner -->|commit dvc.lock + params| git
-    prom -->|scrape /metrics 15s| fe & be & ms & pgw & ne
+    git -->|code, params.yaml, dvc.lock| pipe
+    prom -->|scrape /metrics 15s| fe & be & ms & mlf & pgw & ne
     prom -->|alerts| am
     am -->|webhook /ops/alerts, HTTPS| be
     graf -->|queries| prom
-    pipe -. images .-> hub
+    batchc -. same pipeline .-> pipe
+    serve -. images, scripts/build_multiarch.sh .-> hub
 ```
 
 ## The blocks
 
-**TLS proxy (Caddy).** Browsers reach the system only through this small proxy. It holds the certificate, ends TLS on port 443 and passes requests and Streamlit's websocket to the frontend. Plain `http://` on port 80, and the old address on port 8501, get a redirect to `https://` instead of a broken page. I added it because Streamlit's own TLS option cannot answer plain HTTP on the same port, so a user who typed the old address would see an empty error page.
+**TLS proxy (Caddy).** Browsers reach the system only through this small proxy. It holds the certificate, ends TLS on port 443 and passes requests and Streamlit's websocket to the frontend. Plain `http://` on port 80, and the old address on port 8501, get a redirect to `https://` instead of a broken page. I added it because Streamlit's own TLS option cannot answer plain HTTP on the same port, so a user who typed the old address would see an empty error page. When the frontend is down (stopped for a retrain, or restarting), the proxy answers with a short "Back in a few minutes" page.
 
 **Frontend (Streamlit).** It has two pages. The Forecast page is for ordinary users: a city dropdown, the 1h and 24h PM2.5 forecast, an AQI colour card and health advice. The Pipeline console is for the operator: DAG status, run history with failures and error messages, throughput, drift, model versions and the ops buttons. I kept the frontend ignorant of everything except `BACKEND_URL`. That way I can replace it or move it without touching the rest.
 
@@ -62,9 +66,11 @@ flowchart LR
 
 **MLflow tracking and registry.** It stores runs (parameters, metrics, artifacts, git commit, data hash) and model versions with the aliases `champion` and `previous`. Tracking, promotion and rollback all go through this one registry.
 
-**Pipeline (batch).** This is the 7-stage DVC DAG. Spark handles ingest, validate and features. LightGBM, Ridge and the naive baselines handle train, followed by the evaluation gate and registration. DVC gives me the CI DAG and the data versioning, and Spark is the engine the course requires for data engineering. `scripts/ci.sh` is the CI run on top of it: lint, tests, `dvc repro`, `dvc push`, and a check that the pipeline and the DVC remote match git.
+**Pipeline (host, or batch container).** This is the 7-stage DVC DAG. Spark handles ingest, validate and features. LightGBM, Ridge and the naive baselines handle train, followed by the evaluation gate and registration. DVC gives me the CI DAG and the data versioning, and Spark is the engine the course requires for data engineering. `scripts/ci.sh` is the CI run on top of it: lint, tests, `dvc repro`, `dvc push`, and a check that the pipeline and the DVC remote match git.
 
-**Ops runner (host).** It watches `ops/requests/` for retrain requests. When one arrives it checks that enough memory is free, moves the cutoff to the request's simulated time, runs `dvc repro` on the host, smoke-tests the new champion and rolls back if that fails. (The diagram used to say it starts the batch container. It never did; I corrected this in Stage 17. The batch container can run the same command by hand, `docker compose --profile batch run --rm pipeline dvc repro`, but I have not run a full pipeline in it.) The plan is to pause the frontend and Grafana during the batch once the compose stack exists (Stage 13), so batch and the full serve stack never run together on 8 GB. The runner does not commit `dvc.lock`; the MLflow run records the commit, the cutoff and the pipeline run id instead. I run it on the host because starting containers from inside a container needs the Docker socket, and I don't want to hand that to any container.
+**Ops runner (host).** I start it with one command, `uv run --frozen python -m src.ops.runner`, and it keeps running. It watches `ops/requests/` for retrain requests. When one arrives it stops the frontend and Grafana (the TLS proxy stays up and shows a "Back in a few minutes" page), checks that enough memory is free, moves the cutoff to the request's simulated time and runs `dvc repro` on the host. When the run ends it starts those containers again, smoke-tests a new champion and rolls back if that fails. Stopping the two containers keeps the batch from running next to the full serve stack on 8 GB. The backend, model server, MLflow and the monitoring stay up, so the retrain can be watched. Without the runner, drift alerts still fire and requests are still written, but they stay `queued` and nothing retrains.
+
+The runner does not commit anything to git. The MLflow run records the commit, the cutoff and the pipeline run id instead. I run it on the host because starting containers from inside a container needs the Docker socket, and I don't want to hand that to any container. The batch container can run the same pipeline by hand (`docker compose --profile batch run --rm pipeline dvc repro`), but the runner does not use it, and I have not run a full pipeline in it. (Until Stage 17 the diagram said the runner starts that container. Until the final audit it also showed the runner committing `dvc.lock`. Neither was ever true.)
 
 **Prometheus, Pushgateway and node-exporter.** Prometheus scrapes every component every 15 seconds: the frontend, backend and model server, the MLflow server, the Pushgateway, node-exporter, and Prometheus, Alertmanager and Grafana themselves. The pipeline pushes its stage metrics to the Pushgateway, because batch jobs are too short-lived to be scraped. The Pushgateway runs in both compose profiles and saves its values to a file, so numbers pushed during a batch are still there when the serve stack comes back. node-exporter reports host RAM and CPU.
 
@@ -72,4 +78,4 @@ flowchart LR
 
 **Grafana.** Its dashboards are provisioned from JSON and refresh every 15 seconds.
 
-**DVC local remote, Git and Docker Hub.** DVC holds data and model versions, git holds code and the pipeline lock, and Docker Hub holds the published multi-arch images. Docker Hub stores images and nothing else.
+**DVC local remote, Git and Docker Hub.** DVC holds data and model versions, git holds code and the pipeline lock, and Docker Hub holds the multi-arch images that `scripts/build_multiarch.sh` publishes. Docker Hub stores images and nothing else. The MLflow registry (`mlflow.db`, `mlruns/`) is local state that is in neither git nor DVC. On a fresh clone, `scripts/bootstrap.sh` makes it by running the pipeline once, which registers the first model.

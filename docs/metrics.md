@@ -636,6 +636,14 @@ Measured on 2026-10-27 on the same VM.
 bytes) was there by 14:40:09, inside the 1-minute persistence interval. After
 `docker compose --profile serve down` and `up -d` the probe was still served. Then I deleted it.
 
+**Two numbers that were only in PROGRESS.md.** The README and HLD quote them, so they belong here
+too. Both were measured at the time, and I have not measured them again.
+
+| Number | Stage | Source |
+|--------|-------|--------|
+| MLflow server OOM-killed 11 times in 5 minutes at `mem_limit: 512m` (4 workers and the job runner); about 350 MiB with `--workers 1` and the job runner off | 13 | PROGRESS Part 12 |
+| LightGBM fit about 11 s per horizon with the L1 loss, against about 3 s with the squared loss; train stage 23.6 to 26.7 s (10.3 s with the squared loss) | 7 | PROGRESS Part 5 (table) and Part 6 |
+
 **Ops runner pause and resume.** One pass of the real runner (`--once`) on the live stack, with a
 hand-written request (cutoff 2020-05-01) and `RUNNER_MIN_FREE_MB=999999`, so the memory check
 refuses after the pause and nothing trains. It stopped `frontend` and `grafana` at 14:46:19.

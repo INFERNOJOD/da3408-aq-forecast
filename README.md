@@ -66,7 +66,7 @@ All of these were measured on the project VM (4 CPU, 7.2 GB RAM, ARM64). The ful
 | Ridge | 5.03 | 14.25 | 4.27 | 10.55 |
 | **LightGBM (served)** | **4.50** | **13.54** | **3.54** | **9.39** |
 
-v1 was trained up to 24 March 2020. v4 is the model the system trained by itself after the drift alert, with data up to 2 April. The evaluation windows are short (497 rows at 1 h, 336 at 24 h), and the model still loses to a baseline in Kolkata and Lucknow.
+v1 was trained up to 24 March 2020. v4 is the model the system trained by itself after the drift alert, with data up to 2 April. The evaluation windows are short (497 rows at 1 h, 336 at 24 h). Per city the model is not better everywhere. On v4's window it beats the best baseline in all 7 cities at 1 h, but at 24 h it loses to it in 4 of 7 (Chennai, Lucknow, Hyderabad and Jaipur, by 0.5 to 2.1 µg/m³). It still has the lowest MAE over all cities together at 24 h, mainly because of Delhi (11.06 against 14.38). Each city has only about 48 rows at 24 h on this window, so these per-city numbers are noisy. On v1's window it lost in Kolkata and Lucknow.
 
 **Serving.** `GET /forecast` over HTTPS takes 9.5 ms at p50 and 13.5 ms at p95 (300 serial calls). The acceptance limit was 300 ms. The model server alone takes 6.5 ms for the 14 rows the backend sends. A cold start of the stack takes 25 to 36 s with 0 restarts.
 
