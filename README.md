@@ -62,6 +62,7 @@ docker compose --profile serve stop
 scripts/ci.sh --repro                 # + the full DVC pipeline and dvc push (about 2.5 min)
 python -m scripts.replay              # drift acceptance test over 2016-2020
 python -m scripts.rollback --list     # registry versions and aliases
+mlflow run . -e main --env-manager uv --experiment-name aq-pm25   # train through MLproject in its own environment
 ```
 
 ## What I measured

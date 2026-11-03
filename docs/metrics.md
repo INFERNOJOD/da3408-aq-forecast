@@ -209,7 +209,8 @@ design and did not change it.
 
 I use the second setting. Two forced reruns of the stage gave the same MAE (14.13 at 24 h).
 `mlflow run . -e main --env-manager local` also gave 14.13. I have not run it with the
-virtualenv environment manager, which would build a fresh environment.
+virtualenv environment manager, which would build a fresh environment. (Done on 2026-11-03 with
+`--env-manager uv`, see "Final audit fixes" at the end of this file.)
 
 ### Check: the same-season drift reference (from Stage 6)
 
@@ -670,3 +671,31 @@ Then `docker compose --profile serve up -d`: every container was up and healthy 
 horizons, `/pipeline/runs` listed the run with `trigger: initial`, `/ops/*` gave 401 without the
 key and answered with it (rollback 400 "No previous version to roll back to", correct with one
 version), and all 9 Prometheus targets were `up`. Then `down -v`, and I deleted the clone.
+
+**Real pipeline run** (audit fix 10, 2026-11-03, commit `0a81f6e`). Only the Pushgateway was up.
+`PIPELINE_TRIGGER=manual dvc repro -f` ran all 7 stages in 75.5 s (peak RSS 1.0 GB): ingest 7.8 s
+(442,395 rows/s), validate 28.3 s, features 11.3 s, train 21.4 s, evaluate 0.6 s, test 0.0 s,
+register 0.3 s. Candidate `94dc83e2` tied champion v4 (mean MAE 6.467 both) and the gate rejected
+it. All 7 stages then had `aq_stage_status 1` in the Pushgateway, which replaced the `validate 0`
+left by the console demo failure. `dvc.lock` changed only because Spark gives its Parquet part
+files random names.
+
+**MLproject in a fresh environment** (E2E-21, 2026-11-03). `~/.mlflow/envs/` was empty.
+`mlflow run . -e main --env-manager uv` made a new environment. MLflow found `uv.lock` next to
+`MLproject` and ran `uv sync`, so the environment comes from the lock file and not from
+`python_env.yaml`. The two list the same versions (`test_pinned_env_matches_the_lock_file`).
+The packages were all in uv's cache from the fresh-clone test an hour earlier, so the environment
+was ready in 1 s. On 2026-10-27, with a cold cache, the same step was still downloading after
+8 minutes.
+
+The first run trained both horizons and then crashed when it logged to MLflow: "Cannot start run
+with ID ... because active experiment ID does not match environment run ID". `mlflow run` creates
+its run in the Default experiment, and `train.py` calls `set_experiment("aq-pm25")`. With
+`--experiment-name aq-pm25` the run succeeded in 22 s (train stage 19.0 s). Compared with the
+pipeline's train run `94dc83e2` from the same commit's data: same raw data and feature hashes, the
+same MAE for every model, horizon and city (LightGBM 3.54 at 1 h, 9.39 at 24 h), and
+byte-identical `h1.txt`, `h24.txt`, `meta.json`, `requirements.txt` and `python_env.yaml`. Only
+`MLmodel` differed, in its temporary paths, model UUID and creation time. The crashed run is left in
+MLflow's Default experiment as FAILED. Its failed `train` record went to the Pushgateway too, and
+the successful retry replaced it with `1`. Afterwards I restored the committed `models/candidate`
+and `reports/train_metrics.json` with `dvc checkout` and `git checkout`.
