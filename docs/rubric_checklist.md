@@ -15,7 +15,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 4. **The drift margin is one city.** Normal years reach 3 cities above threshold and the rule needs 4. The thresholds and the city count were set on the same 2016-2019 weeks I count false alarms on, so "0 false alarms" is in-sample. Hyderabad almost never votes (1 lockdown hour).
 5. **The evaluation window is short** (497 rows at 1 h, 336 at 24 h), and the model loses to a baseline in Kolkata and Lucknow.
 6. **Auto-rollback after a failed smoke check is tested with fakes only.** The live rollback drill (test report, AC-5) used the manual endpoint.
-7. **The batch container has never run the pipeline.** The ops runner and `scripts/ci.sh --repro` run `dvc repro` on the host. The `aq-pipeline` image is built and its packages checked, nothing more. I corrected `docs/architecture.md`, which had said the runner starts the container. The runner also does not pause the frontend and Grafana during a retrain (the HLD memory table assumes it does). It only refuses to start below 2,500 MB free.
+7. **The batch container has never run the pipeline.** The ops runner and `scripts/ci.sh --repro` run `dvc repro` on the host. The `aq-pipeline` image is built and its packages checked, nothing more. I corrected `docs/architecture.md`, which had said the runner starts the container. Since the final audit the runner stops the frontend and Grafana around a retrain and starts them again (E2E-19).
 8. **Rollback with MLflow down gives the wrong message** ("No previous version to roll back to"). Nothing changes, so it is safe, but the text is wrong. A forecast with MLflow down answers 200 but takes 4.5 s.
 9. **The MLflow container now mounts the whole project folder** (fix D-1 in the test report). It can read `.env`. The pipeline container already had the same mount.
 10. **Internal traffic is partly plain HTTP** (model server, MLflow, exporters on the compose network). Only the browser-to-proxy and frontend-to-backend hops, which carry the API key, are TLS.
@@ -69,7 +69,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 | Design document strictly adhered to | The LLD is checked by tests: routes (`test_lld_lists_the_backend_routes`), feature columns (`test_features_match_lld_table_in_order`), metrics (`test_metrics_endpoint_lists_lld_metrics`, `test_every_lld_metric_is_on_a_dashboard`), alert rules (`test_alert_rules_match_lld`), model signature (`test_model_signature_matches_the_lld_columns`). When the design changed (drift rule, Stage 11), HLD, LLD and PLAN changed in the same commit |
 | Inline code comments | Docstrings on every module and function (enforced by ruff `D` rules); comments where a choice needs explaining, e.g. `docker-compose.yml`, `src/frontend/app.py` |
 | APIs follow the design doc interface spec | Same tests as above; `docs/test_report.md` TC-27 to TC-35 |
-| Unit tests implemented | 341 pytest cases in 30 files, one per module (`tests/`), 341 passed (`reports/ci/stage17/junit.xml`) |
+| Unit tests implemented | 350 pytest cases in 30 files, one per module (`tests/`), 350 passed (`reports/ci/final/junit.xml`, 2026-11-03) |
 
 ### Testing [1]
 
@@ -77,7 +77,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 |-------------|-------|
 | Test plan | `docs/test_plan.md` (scope, levels, environment, how to run) |
 | List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-17 |
-| Test report with passed and failed counts | `docs/test_report.md`: 341 run, 341 passed, 0 failed, per file; JUnit XML `reports/ci/stage17/junit.xml` |
+| Test report with passed and failed counts | `docs/test_report.md`: 350 run, 350 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
 | Acceptance criteria defined and met | `docs/test_plan.md` section 5 (AC-1 to AC-7); `docs/test_report.md` section 4, all 7 met with evidence |
 
 ## AIOps Implementation [10]
@@ -119,7 +119,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 | Rubric line | Proof |
 |-------------|-------|
 | MLflow for APIfication of the model | `mlflow models serve` of `aq-pm25@champion` behind a metrics proxy (`src/model_server/`, `docker/model_server/Dockerfile`); `/invocations` latency in `docs/metrics.md` Stage 9 |
-| MLprojects for identical dev and test environments | `MLproject` with `python_env.yaml`; `test_pinned_env_matches_the_lock_file`; `mlflow run . -e main --env-manager local` gave the same numbers as the pipeline (metrics.md, Stage 7). **Weak:** never run with a fresh virtualenv |
+| MLprojects for identical dev and test environments | `MLproject` with `python_env.yaml`; `test_pinned_env_matches_the_lock_file`; `mlflow run . -e main --env-manager local` gave the same numbers as the pipeline (metrics.md, Stage 7). In a fresh environment (2026-11-03, E2E-21) `mlflow run . -e main --env-manager uv --experiment-name aq-pm25` gave the same MAE and byte-identical LightGBM files (metrics.md, "Final audit fixes") |
 | FastAPI for the APIs the UI needs | `src/backend/app.py`, contract in `docs/LLD.md` |
 | Backend and frontend dockerized | `docker/backend/Dockerfile`, `docker/frontend/Dockerfile` (non-root, health checks) |
 | Docker compose with them as two separate services | `docker-compose.yml` services `backend` and `frontend` (plus 8 more) in the `serve` profile; E2E-01 cold start |

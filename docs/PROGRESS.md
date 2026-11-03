@@ -1337,6 +1337,8 @@ A real browser, a real phone, concurrent load, a real failed smoke check, and th
 
 ## Part 18: fixing the final audit (paused 2026-10-27, resume 2026-11-03)
 
+(Finished on 2026-11-03, see Part 19.)
+
 `docs/final_audit.md` found 10 things I could fix (its section (a)). I fixed them one commit each and paused part-way. The table "Status of the fixes" at the top of that file is the exact state; this part says what I did and how to resume.
 
 ### Done
@@ -1367,3 +1369,35 @@ A real browser, a real phone, concurrent load, a real failed smoke check, and th
 4. With only the Pushgateway up (`docker compose --profile batch up -d pushgateway`), run `PIPELINE_TRIGGER=manual uv run --frozen dvc repro -f`. Then `dvc push`, and commit `dvc.lock` and `reports/`.
 5. Bring the stack up and check that the console shows `demo-failure-20261027` and that the pipeline dashboard has data.
 6. `scripts/ci.sh`. Update `test_report.md` (now 350 tests), the README test count, the rubric table in `final_audit.md`, and PLAN.
+
+## Part 19: finishing the final-audit fixes (2026-11-03)
+
+I resumed the list from Part 18. All of section (a) in `docs/final_audit.md` is now done, and the re-audit is in that file.
+
+### What I did
+
+- **Bootstrap in a clean clone** (`e0a7cb1`). I restored the stash, stopped the stack and cloned into `/var/tmp/aq-clone`. Part 18 said `/tmp`, but `/tmp` on this VM is a RAM disk (tmpfs, 3.7 GB). A venv, the raw data and the DVC cache there would have taken memory from Spark. The folder name also matters: Compose names the project after it, and a clone called `da3408-project-aq-forecast` would have shared the main stack's volumes, so `down -v` would have deleted them. `scripts/bootstrap.sh` ran with exit 0 in 7 min 20 s. Six of those minutes were `uv sync` downloading 24 packages that were not in uv's cache, and the pipeline took 75 s. The serve stack was healthy in about 25 s, a forecast answered 200, all 9 targets were up, and keyed ops calls worked. Then `down -v`, and I deleted the clone. The README had said "about 2 minutes", so I changed it to the measured time.
+- **A real pipeline run** (`0a81f6e`). With only the Pushgateway up: `PIPELINE_TRIGGER=manual dvc repro -f`, 75.5 s, all 7 stages. The candidate tied v4 (6.467) and was rejected. All 7 stage statuses went to 1, which replaced the `validate 0` from the demo failure, and the pipeline dashboard has data again.
+- **MLproject in a fresh environment** (`e10bbaf`). It built a new environment from `uv.lock` in 1 s, because the clone test had just filled uv's cache. It trained, then crashed when it logged the run (defect D-3 in the test report). `mlflow run` puts its run in the Default experiment and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` it worked, with the same MAE and byte-identical LightGBM files as the pipeline. I documented the flag and did not change `train.py`, because both paths should log to one experiment.
+- **Stale images.** The re-audit found that the backend and frontend images were from 2026-10-21. The console and OpenAPI fixes of 2026-10-27 were committed and tested, but not running. I rebuilt both images and restarted the two services. The console now shows the failed runs live. The README has `up -d --build` for after a code change.
+- **Re-audit and docs.** `final_audit.md` (status table, re-audit, tally), `test_report.md` (350 tests, E2E-18 to E2E-22, D-3), README test count, `rubric_checklist.md`, `metrics.md`, this file and PLAN.
+
+### What went wrong
+
+- The crashed MLproject run pushed `train 0` to the Pushgateway, which would have fired `PipelineStageFailed`. The successful retry pushed `1` over it. The failed run stays in `runs.jsonl` and shows in the console. It is a real failure, so I left it there.
+- The MLproject run overwrote `models/candidate` and `reports/train_metrics.json`. I restored both with `dvc checkout --force` and `git checkout`, after keeping a copy to compare. `dvc status` is clean.
+- I guessed an ops path that does not exist (`/ops/models`) and the wrong auth header during the clone smoke test. The LLD says `Authorization: Bearer`, and with that every call worked.
+- I did not notice the stale images on 2026-10-27, because I checked those fixes with unit tests and not on the running stack.
+
+### State I left
+
+The serve stack is running on the rebuilt images. The ops runner is not running. Start it with `uv run --frozen python -m src.ops.runner`. Registry: champion 4, previous 1. What is left is all mine to do (final audit (b)): screenshots and the browser check, Docker Hub and the multi-arch images, the GitHub remote, the demo video.
+
+### How to run what I checked
+
+```
+scripts/bootstrap.sh                                   # fresh clone, once (stack must be down)
+docker compose --profile serve up -d --build           # rebuild the images after a code change
+mlflow run . -e main --env-manager uv --experiment-name aq-pm25
+PIPELINE_TRIGGER=manual uv run --frozen dvc repro -f   # only the Pushgateway up
+```

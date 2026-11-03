@@ -2,33 +2,79 @@
 
 I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROGRESS.md` or `docs/rubric_checklist.md`. Every mark below comes from a file I read, a command I ran today, or a live call to the running stack. Where a mark rests on older evidence (a drill I could not repeat without changing the served model), I say so.
 
+I fixed section (a) and re-audited on 2026-11-03; the results are in the next two sections.
+
 PASS means the evidence is there and works. WEAK means it exists but has a gap a grader could point at. FAIL means it is missing or broken.
 
-## Status of the fixes (paused 2026-10-27, resume 2026-11-03)
+## Status of the fixes (finished 2026-11-03)
 
-I started fixing section (a) on 2026-10-27 and paused part-way. The rubric table in section 1 is still the audit as of `1cdba84`. I have not marked anything again, because the re-audit comes after the last fix. Last check of the committed tree (`3400783` plus the test-plan rows): `scripts/ci.sh` passed, 350 tests run, 0 failed, ruff clean, `dvc status` and `dvc status -c` clean.
+I fixed section (a) between 2026-10-27 and 2026-11-03, one commit each. Section 1 below is still the audit as of `1cdba84`. The new marks are in "Re-audit on 2026-11-03", right after this table.
 
 | (a) item | Status | Commit(s) / where |
 |---|---|---|
-| 1. Pushgateway persistence | **Fix done; dashboard refill not started.** Volume moved to `/pushgateway`. Proved: a probe metric survived a full `down`/`up`. The dashboard still has to be refilled by a real pipeline run (item 10). | `cc0822a` |
-| 2. Fresh clone / `scripts/bootstrap.sh` | **In progress, not committed.** Script written. `.env.example` no longer has the container URLs, which broke host tools. README and user-manual run steps rewritten. **Not yet tested in a clean clone.** All of it is in `git stash` "WIP final-audit fix a2 ...". | stash@{0} |
-| 3. Ops runner documented | **Done in HLD and the user manual.** The README lines are in the same block as the bootstrap steps, so they wait in the stash. | `69e9b4e`, `3484879` |
-| 4. Batch next to the full serve stack | **Done.** The runner stops the frontend and Grafana, then starts exactly those again. The TLS proxy serves a 503 "Back in a few minutes" page meanwhile. Checked live with the real runner (`docs/metrics.md`). | `4841b2e` |
+| 1. Pushgateway persistence | **Done.** Volume moved to `/pushgateway`. A probe metric survived a full `down`/`up` (E2E-18). The real pipeline run (item 10) refilled the dashboard. | `cc0822a` |
+| 2. Fresh clone / `scripts/bootstrap.sh` | **Done, tested in a clean clone** (E2E-20). Exit 0 in 7 min 20 s, v1 registered as champion, serve stack healthy in about 25 s, forecast 200, 9/9 targets up. `.env.example` no longer has container URLs. README and user manual give the new run steps. | `e0a7cb1` |
+| 3. Ops runner documented | **Done** in HLD, the user manual and the README | `69e9b4e`, `3484879`, `e0a7cb1` |
+| 4. Batch next to the full serve stack | **Done.** The runner stops the frontend and Grafana, then starts exactly those again. The TLS proxy serves a 503 "Back in a few minutes" page meanwhile (E2E-19). | `4841b2e` |
 | 5. Stale architecture/HLD text | **Done** (inconsistencies 1-4, 8) | `4841b2e`, `3400783` |
-| 6. `ci` trigger in LLD | **Done.** LLD lists `manual`, `drift_alert`, `ci`, `initial`. Only the stashed bootstrap script writes `initial`. | `fd7d292` |
-| 7. Failures visible in the console | **Done, not yet seen in the browser.** The console has a "Failed runs" table. A labelled failure was run on purpose: run `demo-failure-20261027`, validate with the PM2.5 ceiling lowered to 500, 4 hard checks failed. `params.yaml` and `reports/validation.json` were restored. | `e10f521`; record in `reports/runs.jsonl` |
-| 8. Console replay-time box | **Done** | `e10f521` |
-| 9. Small doc fixes (inconsistencies 9-12) | **Done** | `3400783`, `56779b3` |
-| 10. Real `dvc repro` | **Not started.** It also refills the pipeline dashboard (item 1) and clears the failed validate status the demo pushed. | |
-| Extra: MLproject in a fresh environment | **In progress, no result.** `mlflow run . -e main --env-manager uv` builds the environment from `uv.lock`, not `python_env.yaml`. The first try failed on a download (`dvc==3.67.1`). The retry ran from 14:57:58 and was still downloading packages when I stopped it at about 15:06. Its last log line was written at 15:03:54. It never trained. I deleted the half-built environment in `~/.mlflow/envs/`. | |
+| 6. `ci` trigger in LLD | **Done.** LLD lists `manual`, `drift_alert`, `ci`, `initial`. The clone test produced an `initial` run. | `fd7d292` |
+| 7. Failures visible in the console | **Done, live since 2026-11-03.** The console has a "Failed runs" table. The labelled failure `demo-failure-20261027` (validate, PM2.5 ceiling lowered to 500, 4 hard checks failed) shows in it. Until 2026-11-03 the running frontend image did not have this code (see the re-audit). | `e10f521`; record in `reports/runs.jsonl` |
+| 8. Console replay-time box | **Done, live since 2026-11-03** ("25 Mar, 00:00") | `e10f521` |
+| 9. Small doc fixes (inconsistencies 9-12) | **Done.** The OpenAPI part went live on 2026-11-03 with the rebuilt backend image. | `3400783`, `56779b3` |
+| 10. Real `dvc repro` | **Done.** `dvc repro -f`, all 7 stages ran in 75.5 s. The candidate tied v4 at 6.467 and was rejected. All 7 stage statuses are 1 in the Pushgateway, and `PipelineStageFailed` is inactive. | `0a81f6e` |
+| Extra: MLproject in a fresh environment | **Done after a fix** (E2E-21). The first run crashed after training: `mlflow run` creates its run in the Default experiment, and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` the run gives the same MAE and byte-identical LightGBM files as the pipeline. The command is documented with the flag. | `e10bbaf` |
 | Extra: OpenAPI error responses (inconsistency 11) | **Done** | `56779b3` |
-| Re-audit, `test_report.md` (still says 341 tests), README test count, final CI | **Not started** | |
+| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed. | this commit |
 
-Things left on the machine:
+## Re-audit on 2026-11-03
 
-- `.env` has a new line, `PUSHGATEWAY_URL=http://localhost:19091`, so host pipeline runs push their metrics.
+I checked each line that a fix touched again, on the live stack or from a file, at `e10bbaf` and later. The other PASS lines rest on the 2026-10-27 audit. Since `1cdba84` the code changes are the runner, the console, the OpenAPI error docs, the Caddyfile, compose (the Pushgateway volume) and the bootstrap script. None of them touches what those lines depend on.
+
+### A new finding: the running images were stale
+
+The backend and frontend images were built on 2026-10-21. Compose copies the code into the image and mounts no `src/`, and `docker compose up -d` does not rebuild an image that already exists. So the 2026-10-27 fixes to the console and the OpenAPI spec were committed and unit-tested, but the live stack did not run them. I noticed this because the live `/openapi.json` still listed only 200, 202 and 422. I rebuilt both images (`docker compose --profile serve build backend frontend`, 4 min 55 s, because the pip layer was no longer in the build cache) and restarted the two services. After that the spec listed 400, 401, 404, 409, 500 and 503. Rendered with Streamlit's `AppTest` against the live backend, the console showed "18 successful, 2 failed (last 20)", the "Failed runs" table and "Replay time 25 Mar, 00:00". The README now gives `up -d --build` for after a code change. The clone test (E2E-20) also ran on the old images. That does not change its result, because what it tested (`.env`, data, first model, health checks, forecast) does not depend on the console or the OpenAPI text.
+
+### Marks that changed
+
+| Rubric item | Was | Now | Evidence today |
+|---|---|---|---|
+| Free of UI errors | WEAK | PASS | Replay time no longer cut off ("25 Mar, 00:00" live), Deploy button hidden in the running image. Not yet seen in a real browser (E2E-17, (b)1) |
+| Console of errors, failures, successful runs | WEAK | PASS | Live console: 18 successful, 2 failed in the last 20, "Failed runs" table with `demo-failure-20261027` and the real MLproject crash `20261103-173537` |
+| Pipeline speed and throughput | WEAK | PASS | Every query in the "AQ pipeline" dashboard returns data (7 stage durations, 6 throughputs; `test` reports no rows/s). Fresh run: ingest 442,395 rows/s |
+| Architecture diagram | WEAK | PASS | `architecture.md`: the runner runs the pipeline "on the host", stops and restarts frontend and Grafana, no commit arrow |
+| Design document strictly adhered to | WEAK | PASS | `ci` is in the LLD trigger list; the runner pauses the frontend and Grafana as HLD says; all 14 routes match the LLD both ways (live spec) |
+| Grafana in near real time | WEAK | PASS | Pipeline dashboard has data, 15 s refresh |
+| MLproject for identical environments | WEAK | PASS | E2E-21, fresh environment, same MAE and identical model files |
+| Architecture diagram with block explanations (mandatory doc) | WEAK | PASS | as above |
+| Automated retraining | WEAK | PASS | The runner is documented as the second start command (README, user manual, HLD). Pause and resume checked live (E2E-19), the full drift-to-new-model loop in E2E-07. Caveat: the full loop has not been run again since the pause was added, and the runner is not running right now |
+
+Unchanged:
+
+- Responsive: WEAK
+- User manual exists: WEAK
+- User manual (mandatory doc): WEAK
+- Docker Hub: FAIL
+- Multi-arch images: FAIL
+
+All five need me (section (b)).
+
+**Tally:** 60 lines. On 2026-10-27: 46 PASS, 12 WEAK, 2 FAIL. Now: 55 PASS, 3 WEAK, 2 FAIL. Every line still open is in section (b).
+
+### Other checks I ran today
+
+- 300 serial forecasts over HTTPS on a reused connection: p50 7.5 ms, p95 10.7 ms, all 200.
+- Errors: `/forecast?city=Pune` 404, missing `city` 422, `limit=0` 422, an unknown route 404, `/ops/drift` with a wrong key 401.
+- 9/9 Prometheus targets up. All 6 alert rules loaded and inactive.
+- The 10 serve containers used 1,298 MiB.
+- `scripts/ci.sh`: ruff and format pass, 350 of 350 tests, `dvc status` and `dvc status -c` clean.
+
+### What I left on the machine
+
+- `.env` has `PUSHGATEWAY_URL=http://localhost:19091`, so host pipeline runs push their metrics.
 - `ops/requests/rt-20261027-audit.json` is the refused request from the runner check (status `failed`).
-- The Pushgateway's saved file holds the demo failure (`aq_stage_status{stage="validate"} 0`). When the stack comes up, `PipelineStageFailed` will fire until a real pipeline run pushes success. That run is item 10.
+- MLflow's Default experiment holds the crashed MLproject run (FAILED). The `aq-pm25` experiment has two new rejected candidates: `94dc83e2` from `dvc repro -f` and `de1388b9` from `mlflow run`. The registry is unchanged: champion 4, previous 1.
+- The serve stack is running. The ops runner is not.
+- The a4 monitoring stack from another course project (`a4-prometheus`, `a4-grafana`, `a4-alertmanager`, about 700 MB) started at 17:20 and was running the whole time I worked. I left it alone.
 
 ## What's left (as found on 2026-10-27, before the fixes)
 
