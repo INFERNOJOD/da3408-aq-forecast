@@ -21,10 +21,13 @@ If you type `http://localhost` or `localhost:8501`, that works too. The app send
 
 ### If you start it yourself
 
-You need a computer with Docker installed and a copy of the project folder. You do the set-up once:
+You need a computer with Docker, uv and Java 17 installed, and a copy of the project folder. You do the set-up once, in the project folder:
 
-1. In the project folder, copy `.env.example` to `.env` and fill in the values. The most important one is `OPS_API_KEY`, the operator password. Make it long and random, and keep it to yourself.
-2. Make the certificates for the secure connection: `scripts/make_certs.sh`
+```
+scripts/bootstrap.sh
+```
+
+It prepares everything and trains the first model, which takes a few minutes. It also writes the file `.env` with `OPS_API_KEY`, the operator password for the console. Keep that file to yourself.
 
 After that, starting the app takes two commands:
 

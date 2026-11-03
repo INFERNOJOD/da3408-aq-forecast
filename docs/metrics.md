@@ -651,3 +651,22 @@ Memory available then was 3,067 MB. It started both again at 14:46:20.9, and the
 marked `failed` with `paused: ["frontend", "grafana"]`. `params.yaml` was unchanged. With only
 those two stopped, the TLS proxy stayed up and answered `https://localhost/` with its 503 page
 (`Retry-After: 120`). The frontend and Grafana used 51 and 109 MiB at idle (`docker stats`).
+
+**Fresh clone with `scripts/bootstrap.sh`** (E2E-20, 2026-11-03, at `c27e809` plus the bootstrap
+change). With the main stack down, I cloned the repository into `/var/tmp/aq-clone`, not `/tmp`,
+because `/tmp` on this VM is a RAM disk and the clone (venv, raw data, DVC cache) would have taken
+memory from Spark. The folder name also gives Compose its own project name (`aq-clone`), so the
+clone's volumes could not touch the main stack's.
+
+| Step | Time | Result |
+|------|------|--------|
+| `uv sync --frozen` | 6 min 00 s | 24 of 180 packages were not in uv's cache and were downloaded; installing took 83 ms |
+| `dvc pull data/raw.dvc` and starting the Pushgateway | under 5 s (from the log timestamps) | 6 files from the local remote |
+| `dvc repro`, 7 stages | 75 s | ingest 7.9 s (432,698 rows/s), validate 25.9 s (48 checks pass), features 11.1 s, train 20.9 s, evaluate 0.5 s, test 0.0 s, register 0.3 s; v1 registered as champion, trigger `initial` |
+| whole script | 7 min 20 s | exit 0; peak RSS of the script's own processes 1.0 GB |
+
+Then `docker compose --profile serve up -d`: every container was up and healthy within about 25 s.
+`https://localhost/forecast` and `/console` gave 200, `GET /forecast?city=Delhi` gave both
+horizons, `/pipeline/runs` listed the run with `trigger: initial`, `/ops/*` gave 401 without the
+key and answered with it (rollback 400 "No previous version to roll back to", correct with one
+version), and all 9 Prometheus targets were `up`. Then `down -v`, and I deleted the clone.

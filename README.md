@@ -33,11 +33,24 @@ The diagram with every block explained is in `docs/architecture.md`. The design 
 
 ## Run it
 
-Once per machine: copy `.env.example` to `.env` and fill in the values, then make the certificates with `scripts/make_certs.sh`. After that it is one command:
+You need Docker with Compose, [uv](https://docs.astral.sh/uv/), Java 17 (for Spark) and openssl. The DVC remote is a folder on this VM (`.dvc/config`). On another machine, copy that folder over and point DVC at it with `dvc remote modify localremote url <path>`.
+
+**Once, on a fresh clone:**
+
+```
+scripts/bootstrap.sh
+```
+
+It writes `.env` with a random operator key, makes the certificates, installs the pinned Python environment (`uv sync --frozen`), pulls the raw data with `dvc pull`, and runs the whole pipeline once, which registers the first model as champion. In a fresh clone on this VM it took 7 min 20 s: 6 minutes to download the Python packages that were not in uv's cache, and 75 s for the pipeline itself. git and DVC hold the code and the data, but not the MLflow registry. Without this first run the model server has no model to load, and the backend never starts. The script refuses to run while the serve stack is up, because Spark and the stack do not fit in 8 GB together.
+
+**Every time, two commands:**
 
 ```
 docker compose --profile serve up -d
+uv run --frozen python -m src.ops.runner
 ```
+
+The first starts the app and the monitoring (10 containers). The second starts the ops runner on the host and keeps running, so start it in its own terminal or with `nohup`. The runner turns retrain requests into `dvc repro`. Without it, a drift alert still fires and a retrain request is still written to `ops/requests/`, but it stays `queued` and nothing retrains. During a retrain the runner stops the frontend and Grafana for two to three minutes, so the batch never runs next to the full stack, and starts them again afterwards. In that time the page shows "Back in a few minutes".
 
 Open **https://localhost**. The browser warns about the certificate the first time, because I made it myself. `docs/user_manual.md` explains what that means and how to get rid of it. The console is at `https://localhost/console`, Grafana at `http://localhost:13000`, MLflow at `http://localhost:5000` and Prometheus at `http://localhost:19090`.
 
