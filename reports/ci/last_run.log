@@ -1,17 +1,17 @@
-CI run 2026-10-21 12:52:43  commit 92537ef  uncommitted changes: no  mode: repro
+CI run 2026-11-03 17:49:14  commit c8201f8  uncommitted changes: no  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
 
 == ruff-format: uv run --frozen ruff format --check .
-101 files already formatted
+107 files already formatted
 
 == pytest: uv run --frozen pytest -q -p no:cacheprovider --junitxml=reports/ci/junit.xml
-........................................................................ [ 21%]
-........................................................................ [ 42%]
-........................................................................ [ 63%]
-........................................................................ [ 84%]
-.....................................................                    [100%]
+........................................................................ [ 20%]
+........................................................................ [ 41%]
+........................................................................ [ 61%]
+........................................................................ [ 82%]
+..............................................................           [100%]
 =============================== warnings summary ===============================
 .venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: 1 warning
 tests/test_promotion_flow.py: 25 warnings
@@ -28,136 +28,19 @@ tests/test_promotion_flow.py::test_first_model_is_promoted_then_an_equal_candida
     sqlalchemy.orm.configure_mappers()
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-341 passed, 38 warnings in 51.13s
-
-== dvc-repro: uv run --frozen dvc repro
-'data/raw.dvc' didn't change, skipping
-Running stage 'ingest':
-> python -m src.pipeline.ingest
-2026-10-21 12:53:38,913 INFO src.common.stage_runner: Stage 'ingest' started (run ci-20261021-125338)
-26/10/21 12:53:39 WARN Utils: Your hostname, krish-yadav-QEMU-Virtual-Machine resolves to a loopback address: 127.0.1.1; using 192.168.64.7 instead (on interface enp0s1)
-26/10/21 12:53:39 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-26/10/21 12:53:39 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-2026-10-21 12:53:40,356 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
-[Stage 0:>                                                          (0 + 1) / 1]                                                                                2026-10-21 12:53:42,829 INFO __main__: Ingested city_day: 29531 rows
-[Stage 5:>                                                          (0 + 4) / 4][Stage 5:============================================>              (3 + 1) / 4]                                                                                2026-10-21 12:53:44,799 INFO __main__: Ingested city_hour: 707875 rows
-2026-10-21 12:53:45,362 INFO __main__: Ingested station_day: 108035 rows
-[Stage 15:>                                                         (0 + 4) / 4][Stage 15:==============>                                           (1 + 3) / 4]                                                                                2026-10-21 12:53:48,709 INFO __main__: Ingested station_hour: 2589083 rows
-2026-10-21 12:53:48,916 INFO __main__: Ingested stations: 230 rows
-2026-10-21 12:53:49,287 INFO src.common.stage_runner: Stage 'ingest' done in 10.4s (3434754 rows, 331188.3 rows/s)
-2026-10-21 12:53:49,288 INFO py4j.clientserver: Closing down clientserver connection
-Updating lock file 'dvc.lock'
-
-Running stage 'validate':
-> python -m src.pipeline.validate
-2026-10-21 12:53:49,675 INFO src.common.stage_runner: Stage 'validate' started (run ci-20261021-125338)
-26/10/21 12:53:50 WARN Utils: Your hostname, krish-yadav-QEMU-Virtual-Machine resolves to a loopback address: 127.0.1.1; using 192.168.64.7 instead (on interface enp0s1)
-26/10/21 12:53:50 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-26/10/21 12:53:50 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-2026-10-21 12:53:51,131 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
-26/10/21 12:53:52 WARN SparkStringUtils: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
-[Stage 1:>                                                          (0 + 1) / 1][Stage 3:>                                                          (0 + 2) / 2][Stage 3:=============================>                             (1 + 1) / 2]                                                                                2026-10-21 12:53:55,615 INFO __main__: Validated city_day: 29531 rows
-[Stage 8:>                                                          (0 + 4) / 4][Stage 8:==============>                                            (1 + 3) / 4][Stage 8:=============================>                             (2 + 2) / 4][Stage 10:>                                                         (0 + 4) / 4][Stage 10:===========================================>              (3 + 1) / 4]                                                                                2026-10-21 12:54:03,505 INFO __main__: Validated city_hour: 707875 rows
-[Stage 15:===================>                                      (1 + 2) / 3][Stage 17:=============================>                            (3 + 3) / 6][Stage 17:================================================>         (5 + 1) / 6]                                                                                2026-10-21 12:54:05,430 INFO __main__: Validated station_day: 108035 rows
-[Stage 22:>                                                         (0 + 4) / 4][Stage 22:==============>                                           (1 + 3) / 4][Stage 22:=============================>                            (2 + 2) / 4][Stage 24:>                                                         (0 + 4) / 5][Stage 24:===========>                                              (1 + 4) / 5][Stage 24:=======================>                                  (2 + 3) / 5][Stage 24:==================================>                       (3 + 2) / 5][Stage 24:==============================================>           (4 + 1) / 5]                                                                                2026-10-21 12:54:24,652 INFO __main__: Validated station_hour: 2589083 rows
-2026-10-21 12:54:26,690 INFO __main__: Validation passed: 48 checks, 0 warnings
-2026-10-21 12:54:26,692 INFO src.common.stage_runner: Stage 'validate' done in 37.0s (3434524 rows, 92787.4 rows/s)
-2026-10-21 12:54:26,692 INFO py4j.clientserver: Closing down clientserver connection
-Updating lock file 'dvc.lock'
-
-Running stage 'features':
-> python -m src.pipeline.features
-2026-10-21 12:54:27,072 INFO src.common.stage_runner: Stage 'features' started (run ci-20261021-125338)
-26/10/21 12:54:27 WARN Utils: Your hostname, krish-yadav-QEMU-Virtual-Machine resolves to a loopback address: 127.0.1.1; using 192.168.64.7 instead (on interface enp0s1)
-26/10/21 12:54:27 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-26/10/21 12:54:28 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-2026-10-21 12:54:28,701 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
-[Stage 7:>                                                          (0 + 4) / 8][Stage 7:=======>                                                   (1 + 4) / 8][Stage 7:====================================>                      (5 + 3) / 8][Stage 7:===================================================>       (7 + 1) / 8][Stage 9:==============>                                            (2 + 4) / 8][Stage 9:======================>                                    (3 + 4) / 8][Stage 9:============================================>              (6 + 2) / 8]                                                                                2026-10-21 12:54:38,747 INFO __main__: Wrote 272096 training rows and 30576 serving rows
-[Stage 26:>                                                         (0 + 4) / 4]                                                                                2026-10-21 12:54:41,885 WARNING __main__: Kolkata has no PSI threshold and will not vote
-2026-10-21 12:54:42,194 INFO src.common.stage_runner: Stage 'features' done in 15.1s (302672 rows, 20016.7 rows/s)
-2026-10-21 12:54:42,194 INFO py4j.clientserver: Closing down clientserver connection
-Updating lock file 'dvc.lock'
-
-Running stage 'train':
-> python -m src.pipeline.train
-2026/10/21 12:54:43 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
-2026-10-21 12:54:43,996 INFO src.common.stage_runner: Stage 'train' started (run ci-20261021-125338)
-2026-10-21 12:54:57,188 INFO __main__: Horizon 1 h: train 254432 rows (effective 43525), eval 497 rows, MAE {'persistence': 4.02, 'seasonal_naive': 10.26, 'ridge': 4.27, 'lightgbm': 3.54}
-2026-10-21 12:55:09,748 INFO __main__: Horizon 24 h: train 254386 rows (effective 43524), eval 336 rows, MAE {'persistence': 10.8, 'seasonal_naive': 10.8, 'ridge': 10.55, 'lightgbm': 9.39}
-/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
-  color_warning(
-2026/10/21 12:55:10 INFO mlflow.pyfunc: Validating input example against model signature
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2017.46it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1756.41it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1328.15it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1236.89it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 10538.45it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 6636.56it/s] 
-2026/10/21 12:55:10 WARNING mlflow.utils.environment: Failed to resolve installed pip version. ``pip`` will be added to conda.yaml environment spec without a version specifier.
-2026/10/21 12:55:10 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
-2026/10/21 12:55:10 INFO mlflow.utils.uv_utils: Copied uv.lock to model artifacts
-2026/10/21 12:55:10 INFO mlflow.utils.uv_utils: Copied pyproject.toml to model artifacts
-2026/10/21 12:55:10 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
-/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
-  color_warning(
-2026/10/21 12:55:11 INFO mlflow.pyfunc: Validating input example against model signature
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1356.94it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1268.31it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2882.68it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2639.59it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 11037.64it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 8256.50it/s] 
-2026/10/21 12:55:11 WARNING mlflow.utils.environment: Failed to resolve installed pip version. ``pip`` will be added to conda.yaml environment spec without a version specifier.
-2026/10/21 12:55:11 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
-2026/10/21 12:55:11 INFO mlflow.utils.uv_utils: Copied uv.lock to model artifacts
-2026/10/21 12:55:11 INFO mlflow.utils.uv_utils: Copied pyproject.toml to model artifacts
-/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
-  color_warning(
-2026-10-21 12:55:11,066 INFO code_model_1bc0d7910e6c4f28ac19810d2ad90374: Loaded AQ model: {1: 'lightgbm', 24: 'lightgbm'}
-2026-10-21 12:55:11,086 INFO __main__: Logged MLflow run c9933e83138f4e0484af3ba4febb3f99
-2026-10-21 12:55:11,086 INFO src.common.stage_runner: Stage 'train' done in 27.1s (508818 rows, 18781.8 rows/s)
-Updating lock file 'dvc.lock'
-
-Running stage 'evaluate':
-> python -m src.pipeline.evaluate
-2026/10/21 12:55:12 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
-2026-10-21 12:55:12,786 INFO src.common.stage_runner: Stage 'evaluate' started (run ci-20261021-125338)
-/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
-  color_warning(
-2026-10-21 12:55:13,302 INFO code_model_975688e92df24da984d90119b879c08f: Loaded AQ model: {1: 'lightgbm', 24: 'lightgbm'}
-/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
-  color_warning(
-2026-10-21 12:55:13,362 INFO code_model_5a22f8d398084dcd9993e54850270a68: Loaded AQ model: {1: 'lightgbm', 24: 'lightgbm'}
-2026-10-21 12:55:13,375 INFO __main__: Mean MAE on the same window: candidate 6.467, champion v4 6.467
-2026-10-21 12:55:13,376 INFO src.common.stage_runner: Stage 'evaluate' done in 0.6s (833 rows, 1414.3 rows/s)
-Updating lock file 'dvc.lock'
-
-Running stage 'test':
-> python -m src.pipeline.test_gate
-2026-10-21 12:55:13,914 INFO src.common.stage_runner: Stage 'test' started (run ci-20261021-125338)
-2026-10-21 12:55:13,915 WARNING __main__: Gate rejected the candidate: mean MAE 6.467 is not lower than champion v4 6.467 on the same window
-2026-10-21 12:55:13,915 INFO src.common.stage_runner: Stage 'test' done in 0.0s (1 rows, None rows/s)
-Updating lock file 'dvc.lock'
-
-Running stage 'register':
-> python -m src.pipeline.register
-2026/10/21 12:55:14 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
-2026-10-21 12:55:14,573 INFO src.common.stage_runner: Stage 'register' started (run ci-20261021-125338)
-2026-10-21 12:55:14,888 INFO __main__: Candidate c9933e83: rejected
-2026-10-21 12:55:14,889 INFO src.common.stage_runner: Stage 'register' done in 0.3s (1 rows, 3.2 rows/s)
-Updating lock file 'dvc.lock'
-
-To track the changes with git, run:
-
-	git add dvc.lock
-
-To enable auto staging, run:
-
-	dvc config core.autostage true
-Use `dvc push` to send your updates to remote storage.
-
-== dvc-push: uv run --frozen dvc push
-50 files pushed
+350 passed, 38 warnings in 42.66s
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/krish-yadav/.local/share/uv/python/cpython-3.12.15-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 673, in __del__
+    self.close()
+  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 570, in close
+    logger.info("Closing down clientserver connection")
+Message: 'Closing down clientserver connection'
+Arguments: ()
 
 == dvc-status: dvc_clean
 Data and pipelines are up to date.
@@ -165,12 +48,10 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit 92537ef)
+== summary (commit c8201f8)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    55s
-dvc-repro      PASS    97s
-dvc-push       PASS     0s
-dvc-status     PASS     1s
+pytest         PASS    46s
+dvc-status     PASS     0s
 dvc-remote     PASS     0s
 CI PASSED
