@@ -1,4 +1,4 @@
-CI run 2026-11-05 22:30:57  commit 1341240  uncommitted changes: yes  mode: check
+CI run 2026-11-05 22:39:45  commit a580bd2  uncommitted changes: yes  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
@@ -28,19 +28,7 @@ tests/test_promotion_flow.py::test_first_model_is_promoted_then_an_equal_candida
     sqlalchemy.orm.configure_mappers()
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-359 passed, 38 warnings in 48.68s
---- Logging error ---
-Traceback (most recent call last):
-  File "/home/krish-yadav/.local/share/uv/python/cpython-3.12.15-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 1163, in emit
-    stream.write(msg + self.terminator)
-ValueError: I/O operation on closed file.
-Call stack:
-  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 673, in __del__
-    self.close()
-  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 570, in close
-    logger.info("Closing down clientserver connection")
-Message: 'Closing down clientserver connection'
-Arguments: ()
+359 passed, 38 warnings in 55.14s
 
 == dvc-status: dvc_clean
 Data and pipelines are up to date.
@@ -48,10 +36,10 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit 1341240)
-ruff           PASS     0s
+== summary (commit a580bd2)
+ruff           PASS     1s
 ruff-format    PASS     0s
-pytest         PASS    52s
-dvc-status     PASS     0s
-dvc-remote     PASS     1s
+pytest         PASS    58s
+dvc-status     PASS     1s
+dvc-remote     PASS     0s
 CI PASSED

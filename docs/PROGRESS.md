@@ -1446,7 +1446,10 @@ The serve stack is running and healthy. Registry: champion 4, previous 1. The op
 
 - I trusted a structural test for a visual fault on 2026-11-03. Only a real browser showed it.
 
+### D-5 verified
+
+Screenshot 08 was taken again at 22:37 in Firefox at default zoom. It shows the two rows of two, and "Replay time" reads "25 Mar, 00:00" in full. D-5 is closed in the test report.
+
 ### Still open
 
-- Screenshot 08 predates the fix and needs to be taken again. I have no browser on the VM.
 - Section (b) of the final audit: the GitHub remote, the demo video and viva preparation, and a check on a real phone (optional).

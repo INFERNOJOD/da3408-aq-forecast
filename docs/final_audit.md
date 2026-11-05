@@ -92,9 +92,9 @@ The 11 screenshots are in `docs/screenshots/`. Every image link in `docs/user_ma
 | Responsive | WEAK | PASS | `05_forecast_mobile.png`: Firefox responsive mode at iPhone 14 size (393 x 852). The page fits the width, the text wraps and the two cards stack (E2E-17) |
 | User manual exists | WEAK | PASS | `docs/user_manual.md` with 11 screenshots |
 | User manual (mandatory doc) | WEAK | PASS | same |
-| Free of UI errors | PASS | PASS, after a fix | The browser check contradicted the 2026-11-03 evidence. Screenshot 08 shows "Replay time" cut off as "25 Mar, …" at 90% zoom, because `AppTest` sees values and not widths. Fixed the same day: two status boxes per row, with a test, checked on the rebuilt frontend (test report D-5). Screenshot 08 predates the fix and should be taken again |
+| Free of UI errors | PASS | PASS, after a fix | The browser check contradicted the 2026-11-03 evidence. The first screenshot 08 showed "Replay time" cut off as "25 Mar, …" at 90% zoom, because `AppTest` sees values and not widths. Fixed the same day: two status boxes per row, with a test, checked on the rebuilt frontend (test report D-5). Verified in a real browser: the retaken screenshot 08 shows "25 Mar, 00:00" in full |
 
-**Tally after this update:** 60 PASS, 0 WEAK, 0 FAIL. What is left in section (b): retake screenshot 08, the GitHub remote, the demo video and viva preparation, and a check on a real phone (optional).
+**Tally after this update:** 60 PASS, 0 WEAK, 0 FAIL. What is left in section (b): the GitHub remote, the demo video and viva preparation, and a check on a real phone (optional).
 
 ### Other checks I ran today
 

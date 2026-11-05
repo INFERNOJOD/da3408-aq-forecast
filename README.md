@@ -204,4 +204,5 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 
 ## Not done yet
 
-- Screenshot 08 (console top) shows the console before the fix for the cut-off replay time, and needs to be taken again.
+- The GitHub remote and the demo video.
+- A check on a real phone. The narrow layout is checked only in Firefox's responsive mode.
