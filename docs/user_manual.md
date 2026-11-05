@@ -44,7 +44,7 @@ Wait about half a minute, then open **https://localhost**. To stop everything, p
 docker compose --profile serve down
 ```
 
-> **[SCREENSHOT 1: a terminal after `docker compose --profile serve up -d`, every container "Started" or "Healthy". Save as `docs/screenshots/01_start.png`]**
+![Terminal after starting the stack, every container Started or Healthy](screenshots/01_start.png)
 
 ---
 
@@ -61,7 +61,7 @@ The first time you open the app, your browser will probably show a warning page.
 
 The browser remembers this choice, so you only do it once.
 
-> **[SCREENSHOT 2: the browser warning page with the "Advanced" button visible. Save as `docs/screenshots/02_cert_warning.png`]**
+**How to recognise the warning:** Chrome and Edge show a page titled "Your connection is not private". Firefox shows "Warning: Potential Security Risk Ahead". Both have an **Advanced** button near the bottom. If you see either page at `https://localhost`, follow the steps above.
 
 **What to do (permanent way, no more warnings):** import the file `certs/ca.crt` from the project folder into your browser as a trusted "authority".
 
@@ -70,13 +70,17 @@ The browser remembers this choice, so you only do it once.
 
 Only do this for a `ca.crt` file you made yourself or got from someone you trust. It tells your browser to trust any site that certificate vouches for.
 
-> **[SCREENSHOT 3: the browser's certificate import dialog with `ca.crt` selected. Save as `docs/screenshots/03_import_ca.png`]**
+**How to check the import worked:**
+
+1. Close every browser window and open the browser again.
+2. Go to `https://localhost`.
+3. The Forecast page opens straight away, with no warning page in between.
 
 ---
 
 ## 3. The Forecast page
 
-> **[SCREENSHOT 4: the whole Forecast page for Delhi, with both colour cards visible. Save as `docs/screenshots/04_forecast.png`]**
+![The Forecast page for Delhi with both colour cards](screenshots/04_forecast.png)
 
 1. **Choose your city** from the **City** list. There are seven: Delhi, Chennai, Lucknow, Hyderabad, Bengaluru, Jaipur and Kolkata. You can't type a city name. The list holds only the cities the system has a model for, so you can't pick one it doesn't know.
 2. **Read the two cards.** The top card is **"In 1 hour"** and the second is **"In 24 hours"**. Each card shows:
@@ -89,7 +93,7 @@ Only do this for a `ca.crt` file you made yourself or got from someone you trust
 
 The line "Forecast made for ..." tells you the (replayed) time the forecast starts from.
 
-> **[SCREENSHOT 5: the Forecast page in a narrow window or on a phone, with the cards stacked. Save as `docs/screenshots/05_forecast_mobile.png`]**
+![The Forecast page on a narrow screen with the cards stacked](screenshots/05_forecast_mobile.png)
 
 ### What the colours mean
 
@@ -106,7 +110,7 @@ The colours and advice follow the official Indian air-quality scale (CPCB). Open
 
 A practical way to read it: green means go about your day; yellow means people with asthma, heart problems, children and older people should take it easy outdoors; orange and red mean most people should limit long or hard outdoor activity; dark red means everyone should avoid it.
 
-> **[SCREENSHOT 6: the "What do the colours mean?" section opened. Save as `docs/screenshots/06_colours.png`]**
+![The "What do the colours mean?" section opened](screenshots/06_colours.png)
 
 **Two things to keep in mind:**
 
@@ -124,7 +128,7 @@ The page never shows technical error messages. Instead you may see:
 | "Back in a few minutes" | A new model is being trained and the page is switched off for two to three minutes, or the page is restarting. | Nothing. The page reloads by itself every 30 seconds. |
 | The browser warning page | See section 2. | |
 
-> **[SCREENSHOT 7: the friendly "not reachable" message (stop the backend with `docker compose stop backend` to show it, then start it again). Save as `docs/screenshots/07_down_message.png`]**
+![The friendly "not reachable" message](screenshots/07_down_message.png)
 
 ---
 
@@ -134,7 +138,7 @@ Open it from the link **Pipeline console** in the left sidebar, or go to **https
 
 Everything at the top of the page can be seen without a password. The buttons that change things need the operator key.
 
-> **[SCREENSHOT 8: the top of the console: the four status boxes and the pipeline diagram. Save as `docs/screenshots/08_console_top.png`]**
+![Top of the Pipeline console: status boxes and pipeline diagram](screenshots/08_console_top.png)
 
 ### What you see without the key
 
@@ -145,7 +149,7 @@ Everything at the top of the page can be seen without a password. The buttons th
 - **Runs:** how many recent runs succeeded and how many failed, then a table of the last 20 runs. If a run failed, its error message is in the table.
 - **Model versions:** every model in the registry, with its labels. `champion` is the one in use, and `previous` is the one a rollback would go back to.
 
-> **[SCREENSHOT 9: the runs table and the model versions table. Save as `docs/screenshots/09_console_runs.png`]**
+![The runs table and the model versions table](screenshots/09_console_runs.png)
 
 ### Entering the operator key
 
@@ -169,7 +173,7 @@ When drift is detected, the system starts a retrain by itself, as long as the op
 
 While a retrain runs, the web pages (Forecast and this console) and Grafana are switched off for two to three minutes to free memory for the training. During that time the browser shows a short page saying **"Back in a few minutes"**, which reloads by itself. The rest of the system keeps running.
 
-> **[SCREENSHOT 10: the Drift section during the lockdown replay showing "YES". Save as `docs/screenshots/10_drift.png`]**
+![The Drift section showing YES during the lockdown replay](screenshots/10_drift.png)
 
 ### Operations (the buttons)
 
@@ -183,7 +187,7 @@ While a retrain runs, the web pages (Forecast and this console) and Grafana are 
 
 After each button you see a green message with the result, or a red one if it was refused. For example, a retrain is refused while another is still running, and a rollback is refused for a version that doesn't exist.
 
-> **[SCREENSHOT 11: the Operations section after a successful "Roll back", showing the green result message. Save as `docs/screenshots/11_ops.png`]**
+![The Operations section after a successful roll back](screenshots/11_ops.png)
 
 A retrain needs about 2.5 GB of free memory. To get it, the ops runner switches off the web pages and Grafana while it trains, and switches them back on afterwards, also when the training fails. The retrain runs in the background. Afterwards you can see it in the runs table. While it runs you can follow it in Prometheus, which stays on.
 
@@ -191,9 +195,9 @@ A retrain needs about 2.5 GB of free memory. To get it, the ops runner switches 
 
 The **Grafana** link opens the live charts without a login (view only). The home dashboard, "AQ service", shows forecasts, response times, error rates, drift scores per city and memory use. A second dashboard, "AQ pipeline", shows the seven steps' durations and speeds. Both update every 15 seconds.
 
-> **[SCREENSHOT 12: the Grafana "AQ service" dashboard during a replay. Save as `docs/screenshots/12_grafana.png`]**
+![The Grafana AQ service dashboard during a replay](screenshots/12_grafana.png)
 >
-> **[SCREENSHOT 13: Prometheus alerts page with `PM25DriftHigh` firing. Save as `docs/screenshots/13_alert.png`]**
+![Prometheus alerts page with PM25DriftHigh firing](screenshots/13_alert.png)
 
 ---
 
