@@ -196,7 +196,7 @@ A retrain needs about 2.5 GB of free memory. To get it, the ops runner switches 
 The **Grafana** link opens the live charts without a login (view only). The home dashboard, "AQ service", shows forecasts, response times, error rates, drift scores per city and memory use. A second dashboard, "AQ pipeline", shows the seven steps' durations and speeds. Both update every 15 seconds.
 
 ![The Grafana AQ service dashboard during a replay](screenshots/12_grafana.png)
->
+
 ![Prometheus alerts page with PM25DriftHigh firing](screenshots/13_alert.png)
 
 ---

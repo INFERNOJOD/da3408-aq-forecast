@@ -4,7 +4,7 @@ I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROG
 
 I fixed section (a) and re-audited on 2026-11-03; the results are in the next two sections.
 
-Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 359 passed, 0 failed (2026-11-05: 3 frontend tests for the replay-clock note, 5 for the rollback fix and 1 for the console layout). `docs/test_report.md` has the per-file numbers.
+Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 362 passed, 0 failed (2026-11-05: 3 frontend tests for the replay-clock note, 5 for the rollback fix, 1 for the console layout and 3 for the console's ops messages and drift table). `docs/test_report.md` has the per-file numbers.
 
 PASS means the evidence is there and works. WEAK means it exists but has a gap a grader could point at. FAIL means it is missing or broken.
 
@@ -26,7 +26,7 @@ I fixed section (a) between 2026-10-27 and 2026-11-03, one commit each. Section 
 | 10. Real `dvc repro` | **Done.** `dvc repro -f`, all 7 stages ran in 75.5 s. The candidate tied v4 at 6.467 and was rejected. All 7 stage statuses are 1 in the Pushgateway, and `PipelineStageFailed` is inactive. | `0a81f6e` |
 | Extra: MLproject in a fresh environment | **Done after a fix** (E2E-21). The first run crashed after training: `mlflow run` creates its run in the Default experiment, and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` the run gives the same MAE and byte-identical LightGBM files as the pipeline. The command is documented with the flag. | `e10bbaf` |
 | Extra: OpenAPI error responses (inconsistency 11) | **Done** | `56779b3` |
-| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 359 passed, 0 failed since 2026-11-05. | `c8201f8`, `a9610f2` |
+| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 362 passed, 0 failed since 2026-11-05. | `c8201f8`, `a9610f2` |
 
 ## Re-audit on 2026-11-03
 
@@ -125,7 +125,7 @@ The 11 screenshots are in `docs/screenshots/`. Every image link in `docs/user_ma
 7. **Make failures visible in the console.** `runs.jsonl` has one failed stage record ever (`20261020-141854`, validate, `KeyError: 'NO'`, a code crash rather than a data check). It is older than the last 20 runs, so the console shows "20 successful, 0 failed". For the rubric's "console of errors, failures" I need a recent, deliberate failure, for example a validation failure on a bad row, or a control to show more runs.
 8. **Console layout.** The "Replay time" status box is cut off ("25 Mar 2…") at the default width (visible in the existing console screenshot).
 9. **Small doc fixes:** inconsistencies 9-12 below.
-10. **Optional: a real `dvc repro` for fresh evidence.** Today's `scripts/ci.sh --repro` passed, but every stage was cached (`dvc-repro PASS 0s`), so no stage actually ran. The last full execution is the 2026-10-21 CI run (97 s, `reports/ci/last_run.log`). `dvc repro -f` would re-run everything, but it would also log one more rejected candidate in MLflow.
+10. **Optional: a real `dvc repro` for fresh evidence.** Today's `scripts/ci.sh --repro` passed, but every stage was cached (`dvc-repro PASS 0s`), so no stage actually ran. The last full execution is the 2026-10-21 CI run (97 s, `reports/ci/stage16/repro_run.log`). `dvc repro -f` would re-run everything, but it would also log one more rejected candidate in MLflow.
 
 ### (b) Things only I can do
 

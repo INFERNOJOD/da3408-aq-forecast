@@ -93,3 +93,57 @@ def count_runs(runs: list[dict]) -> tuple[int, int]:
     """Return (successful, failed) run counts."""
     failed = sum(1 for r in runs if r.get("status") == "failed")
     return len(runs) - failed, failed
+
+
+# Shown in tables where the backend has no value (JSON null).
+NO_VALUE = "–"
+
+
+def ops_message(label: str, path: str, result: dict) -> str:
+    """Return the answer of an ops call as one plain sentence.
+
+    The console used to print the raw response, e.g.
+    ``Rolled back: {'from_version': '4', 'to_version': '1'}``. The response
+    shapes are the ones in docs/LLD.md section 3. If a response does not have
+    the expected fields, the label alone is shown rather than a crash.
+    """
+    try:
+        if path == "/ops/rollback":
+            return (
+                f"Rolled back from version {result['from_version']} "
+                f"to version {result['to_version']}."
+            )
+        if path == "/ops/retrain":
+            return (
+                f"{label}: request {result['request_id']}, with data up to "
+                f"{nice_time(result['cutoff'])}. It is {result['status']} for "
+                "the ops runner."
+            )
+        if path == "/ops/replay":
+            speed = result["speed_hps"]
+            unit = "hour" if speed == 1 else "hours"
+            return (
+                f"{label}. The replay clock is at {nice_time(result['sim_time'])}, "
+                f"{speed:g} simulated {unit} per second."
+            )
+    except (KeyError, TypeError, ValueError):
+        pass
+    return f"{label}."
+
+
+def drift_rows(cities: list[dict]) -> list[dict]:
+    """Return the drift table rows as text, with "–" where a value is null.
+
+    Streamlit printed JSON nulls as "None" (Kolkata has no threshold, and every
+    city has no PSI before 168 replayed hours). Turning every cell into text
+    also keeps each column one type, which Streamlit's table needs.
+    """
+
+    def cell(value) -> str:
+        if value is None:
+            return NO_VALUE
+        if isinstance(value, bool):
+            return "yes" if value else "no"
+        return str(value)
+
+    return [{key: cell(value) for key, value in row.items()} for row in cities]

@@ -1,13 +1,13 @@
 # Test Report
 
-I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5), and ran it once more. The pytest numbers below come from that last run; the other sections say when each check was run.
+I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5) (359 of 359). Last, I added 3 tests for the console's ops messages and drift table, which now show plain sentences and "–" instead of the raw response and "None", and ran the suite once more. The pytest numbers below come from that last run; the other sections say when each check was run. Screenshots 10 and 11 in the user manual were taken before that last change, so they still show the old "None" cells and, in 11, the raw rollback response.
 
 ## 1. Summary
 
 | | Count |
 |---|---:|
-| pytest test cases run | **359** |
-| Passed | **359** |
+| pytest test cases run | **362** |
+| Passed | **362** |
 | Failed | **0** |
 | Errors | 0 |
 | Skipped | 0 |
@@ -15,15 +15,15 @@ I ran the whole suite and every acceptance check again on 2026-10-21, against th
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
 | Defects found | 5, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/final/junit.xml` (`tests="359" failures="0" errors="0" skipped="0"`, 48.7 s), at commit `1341240` with the D-5 console fix in the workspace. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/final/junit.xml` (`tests="362" failures="0" errors="0" skipped="0"`, 50.2 s), at commit `5092d56` with the console message change in the workspace. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
-== summary (commit 1341240)
+== summary (commit 5092d56)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    52s
+pytest         PASS    54s
 dvc-status     PASS     0s
-dvc-remote     PASS     1s
+dvc-remote     PASS     0s
 CI PASSED
 ```
 
@@ -56,13 +56,13 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_backend_drift.py` | TC-37 | 9 | 9 | 0 |
 | `test_replay_script.py` | TC-38 | 5 | 5 | 0 |
 | `test_ops_runner.py` | TC-39 | 22 | 22 | 0 |
-| `test_frontend.py` | TC-40 to TC-44 | 25 | 25 | 0 |
+| `test_frontend.py` | TC-40 to TC-44 | 28 | 28 | 0 |
 | `test_monitoring.py`, `test_push_stage_metrics.py` | TC-45 | 9 | 9 | 0 |
 | `test_security.py` | TC-46, TC-47 | 11 | 11 | 0 |
 | `test_ci.py` | TC-48 | 6 | 6 | 0 |
-| **Total** | 48 cases | **359** | **359** | **0** |
+| **Total** | 48 cases | **362** | **362** | **0** |
 
-The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, `test_validate_all_passes_on_good_data` 2.7 s, `test_validate_all_fails_on_impossible_value` 2.3 s). The suite took 48.7 s inside the 52 s pytest step.
+The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, `test_validate_all_passes_on_good_data` 2.7 s, `test_validate_all_fails_on_impossible_value` 2.3 s). The suite took 50.2 s inside the 54 s pytest step.
 
 ## 3. End-to-end checks
 
@@ -81,9 +81,9 @@ The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, 
 | E2E-09 promtool | Pass | Stage 14 | `promtool test rules`: SUCCESS |
 | E2E-10 Gate rejects a tie | Pass | Stage 16 | `reports/gate.json` (section 4, AC-4) |
 | E2E-11 Rollback, live | Pass after fix | Today | section 4, AC-5; the first try failed (defect D-1) |
-| E2E-12 Rollback with MLflow down | Pass after fix | Today | 400 after 5.0 s; aliases unchanged afterwards (defect D-2) |
+| E2E-12 Rollback with MLflow down | Pass after fix | 2026-11-05 | 503 `REGISTRY_UNAVAILABLE` in 4.4 s (4.9 s with a named version); aliases unchanged 35 s after MLflow was back (defect D-2 and the fix after it, section 5) |
 | E2E-13 Hot swap | Pass | Stage 9 | 0 failed requests, both versions seen; run outside Docker (metrics.md, Stage 9) |
-| E2E-14 CI with `--repro` | Pass | Stage 16 | every step PASS, `reports/ci/last_run.log` |
+| E2E-14 CI with `--repro` | Pass | Stage 16 | every step PASS, `dvc-repro` 97 s, at `92537ef`: `reports/ci/stage16/repro_run.log` |
 | E2E-15 Reproduce the champion | Pass | Today | section 4, AC-6 |
 | E2E-16 Pre-commit hook | Pass | Stage 16 | commit refused with ruff D100 and F401; guard failed on `certs/ca.crt` and `.env` (PROGRESS Part 16) |
 | E2E-17 Pages in a browser | Pass | 2026-11-05 | 11 screenshots in Firefox on the VM's desktop, in `docs/screenshots/` and linked from the user manual. Responsive: `05_forecast_mobile.png` uses Firefox's responsive mode at iPhone 14 size (393 x 852). The page fits the width, the text wraps and the two colour cards stack in one column. The first console screenshot `08_console_top.png` showed the replay time cut off (defect D-5). The retaken one shows it in full |
@@ -133,7 +133,7 @@ The p95 is about 20 times below the limit. Each run had one slow call (380 ms an
 acceptance: PASSED {'lockdown_triggers': True, 'normal_weeks_quiet': True, 'false_alarm_hours': 0, 'passed': True}
 ```
 
-These match the committed `reports/drift_replay.json`. I want to be clear about one weakness. The rule needs 4 cities, and normal years reach 3, so the margin is one city. The thresholds and the city count were also chosen on the same 2016-2019 weeks, so "0 false alarms" is an in-sample result (HLD and PROGRESS Part 10).
+These match the committed `reports/drift_replay.json`. I want to be clear about one weakness. 4 cities required; the most seen in normal 2016–2019 weeks was 3, so the margin is one city, and it was set on those same weeks. So "0 false alarms" is an in-sample result (HLD and PROGRESS Part 10).
 
 ### AC-4: the gate rejects a non-improving model: **met**
 
@@ -180,7 +180,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `1341240` plus the D-5 fix): ruff and format pass, 359 of 359 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
+`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
 
 ## 5. Defects found in this run
 

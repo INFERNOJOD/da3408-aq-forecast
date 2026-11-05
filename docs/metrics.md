@@ -399,8 +399,7 @@ loading the champion for the MAE part. Hours with at least k voting cities above
 
 Result: **passed**. The lockdown triggers drift for 661 of 2,185 hours, and normal weeks trigger
 it for 0 hours. The lockdown episodes: 31 Mar 23:00 - 4 Apr 21:00 (95 h), 6-7 Apr (46 h),
-9-11 Apr (49 h), 13-14 Apr (11 h) and 24 Apr - 13 May (460 h). The largest number of cities above
-threshold at once in a normal year is 3, so the margin is zero. Hours each city was above its
+9-11 Apr (49 h), 13-14 Apr (11 h) and 24 Apr - 13 May (460 h). 4 cities required; the most seen in normal 2016–2019 weeks was 3, so the margin is one city, and it was set on those same weeks. Hours each city was above its
 threshold during the lockdown: Delhi 1,258, Lucknow 1,239, Jaipur 1,028, Bengaluru 768, Chennai
 597, Hyderabad 1. Hyderabad almost never votes for drift, as the Stage 6 check predicted.
 
@@ -575,7 +574,7 @@ Tests: 334 passed (11 new in `tests/test_security.py`), ruff clean.
 ## Stage 16: CI
 
 Measured on 2026-10-21 at commit `92537ef`, serve stack stopped, with `scripts/ci.sh --repro`
-(log in `reports/ci/last_run.log`). Every stage ran because `src/common` had changed since the
+(log in `reports/ci/stage16/repro_run.log`). Every stage ran because `src/common` had changed since the
 last `dvc repro`.
 
 | Step | Time | Result |

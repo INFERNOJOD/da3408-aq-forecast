@@ -57,7 +57,7 @@ Open **https://localhost**. The browser warns about the certificate the first ti
 Other commands I use:
 
 ```
-scripts/ci.sh                         # lint, 359 tests, dvc status, dvc status -c (about 1 min)
+scripts/ci.sh                         # lint, 362 tests, dvc status, dvc status -c (about 1 min)
 docker compose --profile serve stop
 scripts/ci.sh --repro                 # + the full DVC pipeline and dvc push (about 2.5 min)
 python -m scripts.replay              # drift acceptance test over 2016-2020
@@ -87,7 +87,7 @@ v1 was trained up to 24 March 2020. v4 is the model the system trained by itself
 
 **Drift and retraining.** Replaying 25 March to 30 June of every year, the drift rule fires for 661 of 2,185 hours in 2020 and for 0 hours in 2016-2019. In the live loop it took 2 min 47 s from "drift is true" to the new model answering forecasts: the alert, the webhook, the retrain request, `dvc repro` with the new cutoff, the gate, the registry and the hot swap. The new model beat the old one on the lockdown window (mean MAE 6.467 against 6.750).
 
-**Tests.** 359 pytest cases, 359 passed, 0 failed. `docs/test_report.md` checks the seven acceptance criteria one by one, and all seven are met.
+**Tests.** 362 pytest cases, 362 passed, 0 failed. `docs/test_report.md` checks the seven acceptance criteria one by one, and all seven are met.
 
 ## Reproduce a result
 
@@ -120,7 +120,7 @@ These are the problems that taught me the most. The full story of each stage is 
 
 **My data fingerprint changed on every run.** Spark puts random IDs in part-file names, and even after removing the names, 63 bytes of the Parquet footer differed between identical runs. I now hash the values themselves, sorted by city and time. A tag that is always different looks exactly like a tag that works, so I would not have noticed without comparing two runs.
 
-**The drift rule I designed could never fire.** The plan was "3 cities above their PSI threshold and the 72 h error ratio above 1.5". I measured it before building anything around it. It fired for 13 hours in normal 2018 and never during the lockdown. The model's error grows with the PM2.5 level, and lockdown air is cleaner, so the error went *down* (ratio at most 1.47). I took the error condition out of the trigger and set the city count from normal weeks only: in 2016-2019 at most 3 cities were ever above threshold at once, so the rule needs 4. The margin is one city, and I say so in the test report.
+**The drift rule I designed could never fire.** The plan was "3 cities above their PSI threshold and the 72 h error ratio above 1.5". I measured it before building anything around it. It fired for 13 hours in normal 2018 and never during the lockdown. The model's error grows with the PM2.5 level, and lockdown air is cleaner, so the error went *down* (ratio at most 1.47). I took the error condition out of the trigger and set the city count from normal weeks only. 4 cities required; the most seen in normal 2016–2019 weeks was 3, so the margin is one city, and it was set on those same weeks. I say so in the test report.
 
 **MLflow kept getting killed.** At a 512 MB limit it was OOM-killed 11 times in 5 minutes, and at 1 GB it still hit the limit. The cause was 4 server workers plus a background job runner. With one worker and the job runner off, it uses about 350 MB.
 
@@ -201,6 +201,12 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 | Monitoring | `monitoring/` (Prometheus, alert rules and promtool tests, Grafana dashboards) |
 | Containers | `docker/`, `docker-compose.yml`, `scripts/build_multiarch.sh`, Docker Hub ("Docker images" above) |
 | CI | `scripts/ci.sh`, `.pre-commit-config.yaml`, `reports/ci/` |
+
+## How I built this, and AI use
+
+I used Claude Code, Anthropic's AI coding assistant, throughout this project, under my direction. I chose the problem and made the design decisions. `docs/HLD.md` records them with their reasons, and I can defend each one. Claude Code wrote code, tests and documents from my instructions. I worked one stage at a time and reviewed every stage before it was committed: I read the changes, ran the tests and the live checks, and asked for fixes where something was wrong. The rules I gave it (the fixed stack, the machine limits, the code rules and this writing voice) are in `CLAUDE.md`, and `docs/PROGRESS.md` records each stage as it was built.
+
+Every commit carries a `Co-Authored-By: Claude …` trailer, so the git history shows that this applies to the whole project, not to selected parts.
 
 ## Not done yet
 

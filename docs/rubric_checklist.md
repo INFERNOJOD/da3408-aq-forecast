@@ -23,7 +23,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 
 **Weak (true, but I should be ready to defend it in the viva):**
 
-4. **The drift margin is one city.** Normal years reach 3 cities above threshold and the rule needs 4. The thresholds and the city count were set on the same 2016-2019 weeks I count false alarms on, so "0 false alarms" is in-sample. Hyderabad almost never votes (1 lockdown hour).
+4. **The drift margin is one city.** 4 cities required; the most seen in normal 2016–2019 weeks was 3, so the margin is one city, and it was set on those same weeks. So "0 false alarms" is in-sample. Hyderabad almost never votes (1 lockdown hour).
 5. **The evaluation window is short** (497 rows at 1 h, 336 at 24 h), and the model loses to a baseline in Kolkata and Lucknow.
 6. **Auto-rollback after a failed smoke check is tested with fakes only.** The live rollback drill (test report, AC-5) used the manual endpoint.
 7. **The ops runner and `scripts/ci.sh --repro` run `dvc repro` on the host, not in the batch container.** The batch container itself ran the full pipeline once on 2026-11-05, with the serve stack stopped (E2E-23): all 7 stages in 74 s, peak memory 2.39 GiB under its 2.5 GiB limit. The first try found defect D-4 (the host uid was unknown inside the image), fixed in compose. I corrected `docs/architecture.md`, which had said the runner starts the container. Since the final audit the runner stops the frontend and Grafana around a retrain and starts them again (E2E-19).
@@ -40,11 +40,11 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 
 | Rubric line | Proof |
 |-------------|-------|
-| Intuitive for the problem | Forecast page: city dropdown, two colour cards ("In 1 hour", "In 24 hours"), advice, colour guide. `src/frontend/forecast_page.py`; screenshot 4 in `docs/user_manual.md` (pending) |
+| Intuitive for the problem | Forecast page: city dropdown, two colour cards ("In 1 hour", "In 24 hours"), advice, colour guide. `src/frontend/forecast_page.py`; `docs/screenshots/04_forecast.png` |
 | Easy for non-technical users | Plain-language text, no numbers without units, demo note about 2020 dates; `test_forecast_page_says_it_is_a_2020_demo`; `docs/user_manual.md` |
 | Foolproof | No free text for the city (dropdown filled from `/cities`); unknown city is 404, missing is 422 (`test_forecast_unknown_city_is_404`, `test_forecast_missing_city_is_422`); ops buttons hidden until the backend accepts the key (`test_console_hides_ops_until_key_and_rejects_wrong_key`); `http://` and `:8501` redirect to HTTPS |
 | Free of UI errors | Friendly messages instead of tracebacks (`test_forecast_page_friendly_message_when_backend_down`, `..._when_model_down`); every error has one JSON shape (`test_unknown_route_and_method_use_error_body`); `/forecast` and `/console` paths exist (`test_app_serves_forecast_and_console_paths`); developer toolbar hidden (`.streamlit/config.toml`, `test_streamlit_config_hides_developer_toolbar`). Browser check done (E2E-17); the one UI fault it found, the cut-off replay time (D-5), is fixed |
-| Good colours, shapes, look-and-feel | CPCB colours (`src/backend/aqi.py`, `test_aqi_categories_match_hld`), readable text colour on each (`test_text_color_picks_readable_ink`), rounded cards (`src/frontend/helpers.py::card_html`). Screenshots 4 and 6 (pending) |
+| Good colours, shapes, look-and-feel | CPCB colours (`src/backend/aqi.py`, `test_aqi_categories_match_hld`), readable text colour on each (`test_text_color_picks_readable_ink`), rounded cards (`src/frontend/helpers.py::card_html`); `docs/screenshots/04_forecast.png`, `06_colours.png` |
 | Responsive | Streamlit centred layout and column flow. Checked in Firefox's responsive mode at iPhone 14 size, 393 x 852: the page fits and the two cards stack (`docs/screenshots/05_forecast_mobile.png`, E2E-17) |
 | User manual exists | `docs/user_manual.md`, with 11 screenshots (`docs/screenshots/`) |
 
@@ -52,8 +52,8 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 
 | Rubric line | Proof |
 |-------------|-------|
-| Separate UI screen for the pipeline, incl. ingestion and engineering | `https://localhost/console` (`src/frontend/console_page.py`): DVC DAG of all 7 stages coloured by last status, stage table with duration, rows and rows/sec; Grafana "AQ pipeline" dashboard (`monitoring/grafana/dashboards/aq_pipeline.json`). Screenshots 8, 9 (pending) |
-| Pipeline management console | Console Operations section: replay start/stop/reset, retrain, rollback (`/ops/*`, `test_console_with_key_shows_drift_and_posts_retrain`); links to MLflow, Grafana, Prometheus. Screenshot 11 (pending) |
+| Separate UI screen for the pipeline, incl. ingestion and engineering | `https://localhost/console` (`src/frontend/console_page.py`): DVC DAG of all 7 stages coloured by last status, stage table with duration, rows and rows/sec; Grafana "AQ pipeline" dashboard (`monitoring/grafana/dashboards/aq_pipeline.json`); `docs/screenshots/08_console_top.png`, `09_console_runs.png` |
+| Pipeline management console | Console Operations section: replay start/stop/reset, retrain, rollback (`/ops/*`, `test_console_with_key_shows_drift_and_posts_retrain`); links to MLflow, Grafana, Prometheus; `docs/screenshots/11_ops.png` |
 | Console of errors, failures and successful runs | Runs table with counts of successful and failed runs and the error column (`/pipeline/runs`, `test_pipeline_stages_and_runs`, `test_count_runs`); failed stage records written by `src/common/stage_runner.py` (`test_failure_is_recorded_and_wrapped`); `PipelineStageFailed` alert |
 | Pipeline speed and throughput | rows/sec per stage in `reports/stage_metrics/*.json`, the console table and the Pushgateway; numbers in `docs/metrics.md` (ingest about 420,000 rows/s, validate about 100,000, features about 24,000) |
 
@@ -80,15 +80,15 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Design document strictly adhered to | The LLD is checked by tests: routes (`test_lld_lists_the_backend_routes`), feature columns (`test_features_match_lld_table_in_order`), metrics (`test_metrics_endpoint_lists_lld_metrics`, `test_every_lld_metric_is_on_a_dashboard`), alert rules (`test_alert_rules_match_lld`), model signature (`test_model_signature_matches_the_lld_columns`). When the design changed (drift rule, Stage 11), HLD, LLD and PLAN changed in the same commit |
 | Inline code comments | Docstrings on every module and function (enforced by ruff `D` rules); comments where a choice needs explaining, e.g. `docker-compose.yml`, `src/frontend/app.py` |
 | APIs follow the design doc interface spec | Same tests as above; `docs/test_report.md` TC-27 to TC-35 |
-| Unit tests implemented | 359 pytest cases in 30 files, one per module (`tests/`), 359 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
+| Unit tests implemented | 362 pytest cases in 30 files, one per module (`tests/`), 362 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
 
 ### Testing [1]
 
 | Rubric line | Proof |
 |-------------|-------|
 | Test plan | `docs/test_plan.md` (scope, levels, environment, how to run) |
-| List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-17 |
-| Test report with passed and failed counts | `docs/test_report.md`: 359 run, 359 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
+| List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-23 |
+| Test report with passed and failed counts | `docs/test_report.md`: 362 run, 362 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
 | Acceptance criteria defined and met | `docs/test_plan.md` section 5 (AC-1 to AC-7); `docs/test_report.md` section 4, all 7 met with evidence |
 
 ## AIOps Implementation [10]
@@ -104,7 +104,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 
 | Rubric line | Proof |
 |-------------|-------|
-| CI implemented using DVC | `scripts/ci.sh --repro`: ruff, pytest, `dvc repro`, `dvc push`, `dvc status`, `dvc status -c`; `reports/ci/last_run.log` (Stage 16, every step PASS); `.pre-commit-config.yaml` |
+| CI implemented using DVC | `scripts/ci.sh --repro`: ruff, pytest, `dvc repro`, `dvc push`, `dvc status`, `dvc status -c`; `reports/ci/stage16/repro_run.log` (Stage 16, every step PASS, `dvc repro` 97 s); `.pre-commit-config.yaml` |
 | DVC DAG representing the CI pipeline | `dvc.yaml` (ingest → validate → features → train → evaluate → test → register), `dvc dag`; `test_dvc_dag_has_the_seven_stages_in_order`; drawn in the console |
 | Git / DVC for source, data and model versioning | Git history (one commit or more per stage); `data/raw.dvc` and `dvc.lock` with a local remote (`.dvc/config`, `test_remote_is_local_path_not_cloud`); `models/candidate` is a DVC output; served models versioned in the MLflow registry with `champion` and `previous` aliases (`python -m scripts.rollback --list`) |
 
@@ -123,7 +123,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Prometheus instrumentation | `src/backend/metrics.py`, `src/frontend/metrics.py`, `src/model_server/proxy.py`, `src/common/stage_runner.py` (Pushgateway), MLflow `--expose-prometheus` |
 | Information points monitored | Request rate, latency histograms, error rate, prediction values, drift score per city and threshold, MAE ratio, model version, stage duration, rows/sec, memory and CPU (`docs/LLD.md` section 5, `test_metrics_endpoint_lists_lld_metrics`) |
 | All components monitored | 9 scrape jobs: backend, model server, frontend, MLflow, Pushgateway (pipeline), node-exporter, Prometheus, Alertmanager, Grafana (`monitoring/prometheus.yml`, `test_prometheus_scrapes_every_component_every_15s`); all 9 targets up (metrics.md, Stage 14) |
-| Grafana visualization in near real time | Two provisioned dashboards refreshing every 15 s (`monitoring/grafana/dashboards/`, `test_dashboards_refresh_every_15s_and_use_provisioned_source`). Screenshot 12 (pending) |
+| Grafana visualization in near real time | Two provisioned dashboards refreshing every 15 s (`monitoring/grafana/dashboards/`, `test_dashboards_refresh_every_15s_and_use_provisioned_source`); `docs/screenshots/12_grafana.png` |
 
 ### Software Packaging [2]
 
@@ -158,9 +158,9 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Every experiment reproducible via git commit + MLflow run ID | Run tags (above); `README.md` "Reproduce a result"; `docs/test_report.md` AC-6: v4 rebuilt with identical data hash, MAE and model files. Deterministic training: `test_lightgbm_training_is_repeatable` |
 | EDA and documented data biases | `docs/eda.md` (9 biases with evidence), `docs/img/eda_*.png`, `reports/eda/*.csv` |
 | Rollback for failed deployments | `ModelRegistryClient.rollback` (`src/pipeline/registry.py`), `scripts/rollback.py`, `POST /ops/rollback`, console button; auto-rollback in `src/ops/runner.py` when the smoke check fails (`test_failed_smoke_check_rolls_back`, fakes only); live drill in `docs/test_report.md` AC-5 |
-| Automated monitoring and alerting | `monitoring/alerts.yml` (6 rules), `monitoring/alerts_test.yml` (promtool SUCCESS), Alertmanager webhook to the backend; live firing in metrics.md, Stage 14. Screenshot 13 (pending) |
+| Automated monitoring and alerting | `monitoring/alerts.yml` (6 rules), `monitoring/alerts_test.yml` (promtool SUCCESS), Alertmanager webhook to the backend; live firing in metrics.md, Stage 14; `docs/screenshots/13_alert.png` |
 | Automated retraining | Drift alert → webhook → `ops/requests/` → `src/ops/runner.py` → `dvc repro` with the new cutoff → gate → registry → hot swap; 2 min 47 s end to end, MLflow run tagged `trigger=drift_alert` (metrics.md, Stage 11) |
 | Encryption and security | TLS 1.3 with a local CA (`scripts/make_certs.sh`), Caddy proxy (`docker/tls_proxy/Caddyfile`), HTTPS backend; API key in constant time on `/ops/*` (`test_ops_requires_key`, 30 cases); secrets only in `.env` (`test_secrets_come_only_from_env_file`, `test_certs_and_env_are_gitignored`); non-root containers (`test_every_container_runs_as_non_root`) |
 | Docker Hub | All 5 custom images on Docker Hub, multi-arch (amd64 + arm64), tags `latest` and `0.1.0` (item 1, README "Docker images") |
 | Multi-arch images (CLAUDE.md) | Every pushed image lists `linux/amd64` and `linux/arm64` in `docker buildx imagetools inspect`, and each config's `architecture` matches (item 1) |
-| No cloud platforms | Local Spark, DVC remote is a local folder (`test_remote_is_local_path_not_cloud`), local MLflow (SQLite), CI is a local script, no cloud SDK in `pyproject.toml`. Docker Hub would be the one allowed exception, for publishing images only |
+| No cloud platforms | Local Spark, DVC remote is a local folder (`test_remote_is_local_path_not_cloud`), local MLflow (SQLite), CI is a local script, no cloud SDK in `pyproject.toml`. Docker Hub is the one allowed exception, used only to publish the images |

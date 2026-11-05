@@ -13,7 +13,14 @@ import streamlit as st
 
 from src.frontend import metrics
 from src.frontend.client import BackendClient, BackendError
-from src.frontend.helpers import count_runs, dag_dot, nice_time, short_time
+from src.frontend.helpers import (
+    count_runs,
+    dag_dot,
+    drift_rows,
+    nice_time,
+    ops_message,
+    short_time,
+)
 
 LINKS = {
     "MLflow": ("MLFLOW_URL", "http://localhost:5000"),
@@ -117,7 +124,7 @@ def _drift_section(client: BackendClient, key: str) -> bool:
         f"As of {nice_time(drift['sim_time'])}. Drift needs "
         f"{drift['min_cities']} cities above their own threshold."
     )
-    st.dataframe(pd.DataFrame(drift["cities"]), hide_index=True,
+    st.dataframe(pd.DataFrame(drift_rows(drift["cities"])), hide_index=True,
                  width="stretch")  # fmt: skip
     return True
 
@@ -132,7 +139,7 @@ def _ops_section(client: BackendClient, key: str) -> None:
         except BackendError as exc:
             _show_error(exc)
         else:
-            st.success(f"{label}: {result}")
+            st.success(ops_message(label, path, result))
 
     st.markdown("**Replay of the 2020 lockdown**")
     speed = st.slider("Speed (simulated hours per second)", 0.1, 20.0, 1.0, 0.1)

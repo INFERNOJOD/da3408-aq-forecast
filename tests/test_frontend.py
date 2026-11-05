@@ -9,8 +9,10 @@ from src.frontend.helpers import (
     card_html,
     count_runs,
     dag_dot,
+    drift_rows,
     horizon_label,
     nice_time,
+    ops_message,
     short_time,
     text_color,
 )
@@ -145,6 +147,48 @@ def test_count_runs():
     assert count_runs([{"status": "failed"}, {"status": "success"}, {}]) == (2, 1)
 
 
+def test_ops_message_is_a_plain_sentence_for_each_ops_call():
+    rollback = {"from_version": "4", "to_version": "1"}
+    assert ops_message("Rolled back", "/ops/rollback", rollback) == (
+        "Rolled back from version 4 to version 1."
+    )
+    retrain = {"request_id": "rt-1", "cutoff": "2020-04-02T23:00:00"}
+    retrain["status"] = "queued"
+    assert ops_message("Retrain requested", "/ops/retrain", retrain) == (
+        "Retrain requested: request rt-1, with data up to 02 Apr 2020, 23:00. "
+        "It is queued for the ops runner."
+    )
+    replay = {"running": False, "sim_time": "2020-03-25T00:00:00", "speed_hps": 2.5}
+    assert ops_message("Replay reset", "/ops/replay", replay) == (
+        "Replay reset. The replay clock is at 25 Mar 2020, 00:00, "
+        "2.5 simulated hours per second."
+    )
+    replay["speed_hps"] = 1.0
+    assert ops_message("Replay started", "/ops/replay", replay).endswith(
+        "00:00, 1 simulated hour per second."
+    )
+
+
+def test_ops_message_falls_back_to_the_label_without_the_raw_dict():
+    assert ops_message("Rolled back", "/ops/rollback", {"ok": True}) == "Rolled back."
+    assert ops_message("Replay stopped", "/ops/replay", None) == "Replay stopped."
+    assert ops_message("Done", "/ops/other", {"a": 1}) == "Done."
+
+
+def test_drift_rows_show_a_dash_for_null_and_yes_no_for_flags():
+    rows = drift_rows(
+        [{"city": "Kolkata", "psi": None, "psi_threshold": None, "exceeds": None,
+          "votes": False, "mae_ratio_1h": 0.64},
+         {"city": "Delhi", "psi": 3.37, "psi_threshold": 2.0307, "exceeds": True,
+          "votes": True, "mae_ratio_1h": None}]
+    )  # fmt: skip
+    assert rows[0] == {"city": "Kolkata", "psi": "–", "psi_threshold": "–",
+                       "exceeds": "–", "votes": "no",
+                       "mae_ratio_1h": "0.64"}  # fmt: skip
+    assert rows[1]["psi"] == "3.37" and rows[1]["exceeds"] == "yes"
+    assert rows[1]["mae_ratio_1h"] == "–"
+
+
 # ---- pages (Streamlit's AppTest, with a fake backend) ----------------------
 
 
@@ -193,12 +237,23 @@ class FakeBackend:
                 raise BackendError("UNAUTHORIZED", "Missing or wrong API key.", 401)
             return {"any_drift": True, "cities_exceeding": 4, "min_cities": 4,
                     "mae_ratio_pooled": None, "sim_time": "2020-04-01T00:00:00",
-                    "cities": [{"city": "Delhi", "psi": 3.4}]}  # fmt: skip
+                    "cities": [
+                        {"city": "Delhi", "psi": 3.4, "psi_threshold": 2.0307,
+                         "exceeds": True, "votes": True},
+                        {"city": "Kolkata", "psi": None, "psi_threshold": None,
+                         "exceeds": None, "votes": False}]}  # fmt: skip
         raise AssertionError(path)
 
     def post(self, path, body, api_key=None):
+        # Response shapes from docs/LLD.md section 3.
         self.posts.append((path, body, api_key))
-        return {"ok": True}
+        if path == "/ops/rollback":
+            return {"from_version": "4", "to_version": "1"}
+        if path == "/ops/retrain":
+            return {"request_id": "rt-20261105-120000",
+                    "cutoff": "2020-04-01T00:00:00", "status": "queued"}  # fmt: skip
+        return {"running": True, "sim_time": "2020-04-01T00:00:00",
+                "speed_hps": 1.0}  # fmt: skip
 
 
 def forecast_app(backend):
@@ -334,10 +389,15 @@ def test_console_with_key_shows_drift_and_posts_retrain():
     at.text_input[0].set_value("good").run()
     assert not at.exception
     assert any(m.label == "Drift detected" and m.value == "YES" for m in at.metric)
+    drift = next(t.value for t in at.dataframe if "psi" in t.value.columns)
+    assert drift.loc[1, "psi_threshold"] == "–" and drift.loc[1, "exceeds"] == "–"
+    assert "None" not in drift.to_string()
     next(b for b in at.button if b.label == "Retrain now").click().run()
     assert backend.posts[0][0] == "/ops/retrain" and backend.posts[0][2] == "good"
     next(b for b in at.button if b.label == "Roll back").click().run()
     assert backend.posts[1] == ("/ops/rollback", {}, "good")
+    # The result is a sentence, not the raw response dict.
+    assert at.success[0].value == "Rolled back from version 4 to version 1."
 
 
 def test_modules_import():
