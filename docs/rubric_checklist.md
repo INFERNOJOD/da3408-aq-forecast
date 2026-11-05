@@ -6,7 +6,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 
 **Missing (needs me):**
 
-1. **Docker Hub (done on 2026-11-05, except `aq-mlflow`).** Four images are published for amd64 and arm64: [aq-frontend](https://hub.docker.com/r/infernogod/aq-frontend), [aq-backend](https://hub.docker.com/r/infernogod/aq-backend), [aq-model-server](https://hub.docker.com/r/infernogod/aq-model-server) and [aq-pipeline](https://hub.docker.com/r/infernogod/aq-pipeline), each tagged `latest` and `0.1.0`. `aq-mlflow`, a thin layer on the model-server image, is not published. The full inspect output is in the README, "Docker images".
+1. **Docker Hub (done on 2026-11-05).** All five custom images are published for amd64 and arm64: [aq-frontend](https://hub.docker.com/r/infernogod/aq-frontend), [aq-backend](https://hub.docker.com/r/infernogod/aq-backend), [aq-model-server](https://hub.docker.com/r/infernogod/aq-model-server), [aq-mlflow](https://hub.docker.com/r/infernogod/aq-mlflow) and [aq-pipeline](https://hub.docker.com/r/infernogod/aq-pipeline), each tagged `latest` and `0.1.0`. The full inspect output is in the README, "Docker images".
 
 Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0` (2026-11-05; `latest` gives the same digests):
 
@@ -15,7 +15,9 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | `infernogod/aq-frontend` | `sha256:14ec891bb604…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-backend` | `sha256:b5a254bd2b86…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-model-server` | `sha256:9a701010d9d4…` | linux/amd64, linux/arm64 |
+| `infernogod/aq-mlflow` | `sha256:480341e8bcc9…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-pipeline` | `sha256:376209d720ec…` | linux/amd64, linux/arm64 |
+
 2. **Screenshots.** None are committed. The user manual has 13 marked placeholders (`docs/user_manual.md`). The Grafana dashboards and a fired alert (Stage 14) also need screenshots. The two files in `docs/screenshots/` are early drafts from before the UI was final.
 3. **A browser check of both pages (E2E-17).** The pages are tested through Streamlit's `AppTest` and `curl`, never clicked through on this VM. "Responsive" is not checked at all: Streamlit's column layout should stack on a narrow screen, but I have not looked at it in a narrow window or on a phone.
 
@@ -159,6 +161,6 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Automated monitoring and alerting | `monitoring/alerts.yml` (6 rules), `monitoring/alerts_test.yml` (promtool SUCCESS), Alertmanager webhook to the backend; live firing in metrics.md, Stage 14. Screenshot 13 (pending) |
 | Automated retraining | Drift alert → webhook → `ops/requests/` → `src/ops/runner.py` → `dvc repro` with the new cutoff → gate → registry → hot swap; 2 min 47 s end to end, MLflow run tagged `trigger=drift_alert` (metrics.md, Stage 11) |
 | Encryption and security | TLS 1.3 with a local CA (`scripts/make_certs.sh`), Caddy proxy (`docker/tls_proxy/Caddyfile`), HTTPS backend; API key in constant time on `/ops/*` (`test_ops_requires_key`, 30 cases); secrets only in `.env` (`test_secrets_come_only_from_env_file`, `test_certs_and_env_are_gitignored`); non-root containers (`test_every_container_runs_as_non_root`) |
-| Docker Hub | 4 of 5 custom images on Docker Hub, multi-arch (amd64 + arm64), tags `latest` and `0.1.0` (item 1, README "Docker images"). `aq-mlflow` not pushed |
+| Docker Hub | All 5 custom images on Docker Hub, multi-arch (amd64 + arm64), tags `latest` and `0.1.0` (item 1, README "Docker images") |
 | Multi-arch images (CLAUDE.md) | Every pushed image lists `linux/amd64` and `linux/arm64` in `docker buildx imagetools inspect`, and each config's `architecture` matches (item 1) |
 | No cloud platforms | Local Spark, DVC remote is a local folder (`test_remote_is_local_path_not_cloud`), local MLflow (SQLite), CI is a local script, no cloud SDK in `pyproject.toml`. Docker Hub would be the one allowed exception, for publishing images only |

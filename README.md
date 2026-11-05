@@ -132,18 +132,19 @@ These are the problems that taught me the most. The full story of each stage is 
 
 ## Docker images
 
-I published four images to Docker Hub on 2026-11-05, each for `linux/amd64` and `linux/arm64`. `0.1.0` is the version in `pyproject.toml`, and `latest` points to the same index.
+I published all five custom images to Docker Hub on 2026-11-05, each for `linux/amd64` and `linux/arm64`. `0.1.0` is the version in `pyproject.toml`, and `latest` points to the same index.
 
 | Image | Docker Hub | Tags |
 |---|---|---|
 | frontend | [infernogod/aq-frontend](https://hub.docker.com/r/infernogod/aq-frontend) | `latest`, `0.1.0` |
 | backend | [infernogod/aq-backend](https://hub.docker.com/r/infernogod/aq-backend) | `latest`, `0.1.0` |
 | model server | [infernogod/aq-model-server](https://hub.docker.com/r/infernogod/aq-model-server) | `latest`, `0.1.0` |
+| MLflow server | [infernogod/aq-mlflow](https://hub.docker.com/r/infernogod/aq-mlflow) | `latest`, `0.1.0` |
 | pipeline (batch) | [infernogod/aq-pipeline](https://hub.docker.com/r/infernogod/aq-pipeline) | `latest`, `0.1.0` (also `0.1.0-amd64`, `0.1.0-arm64`, see below) |
 
-`aq-mlflow` is not on Docker Hub. It is a thin layer on top of the model-server image, and I left it out of this publish. Compose still builds it locally.
+`aq-mlflow` is a thin layer on top of the model-server image. The script builds it with `BASE=infernogod/aq-model-server:latest`, so each platform is built on the published model-server image of the same platform. I pushed it last, after the other four, and it took 4.5 min.
 
-The VM is ARM64, so the amd64 half ran under QEMU emulation. With 7.2 to 7.9 GB of free disk, I built one image at a time and pruned the build cache in between. Build and push took 10.5 min for the frontend, 32 min for the backend and 24 min for the model server. The first backend try died after 7 minutes when the connection to PyPI broke, and the second try worked. Those three came from `scripts/build_multiarch.sh` with `SERVICES` set to one image. The pipeline image is 2.6 GB per platform, so building both platforms at once would have needed about 5 to 7 GB of cache. That is too close to a full disk, with the serve stack writing to the same disk. So I built it one platform at a time (25.5 min for arm64, 28.4 min for amd64), pushed each under `0.1.0-arm64` and `0.1.0-amd64`, and joined them with `docker buildx imagetools create`. The default Docker builder cannot push by digest, which is why the two per-platform tags exist. During the pipeline builds, a watchdog checked the disk every 10 s and would have cancelled below 2.5 GB free. The lowest it saw was 4.97 GB.
+The VM is ARM64, so the amd64 half ran under QEMU emulation. With 7.2 to 7.9 GB of free disk, I built one image at a time and pruned the build cache in between. Build and push took 10.5 min for the frontend, 32 min for the backend and 24 min for the model server. The first backend try died after 7 minutes when the connection to PyPI broke, and the second try worked. Those three, and later `aq-mlflow`, came from `scripts/build_multiarch.sh` with `SERVICES` set to one image. The pipeline image is 2.6 GB per platform, so building both platforms at once would have needed about 5 to 7 GB of cache. That is too close to a full disk, with the serve stack writing to the same disk. So I built it one platform at a time (25.5 min for arm64, 28.4 min for amd64), pushed each under `0.1.0-arm64` and `0.1.0-amd64`, and joined them with `docker buildx imagetools create`. The default Docker builder cannot push by digest, which is why the two per-platform tags exist. During the pipeline builds, a watchdog checked the disk every 10 s and would have cancelled below 2.5 GB free. The lowest it saw was 4.97 GB.
 
 `docker buildx imagetools inspect` for each `0.1.0` tag (trimmed to the image manifests; each image also has one provenance attestation per platform, listed as `unknown/unknown`). The `latest` tags give the same index digests. I also checked the `architecture` field in each image config: every amd64 manifest is an amd64 build and every arm64 manifest is arm64.
 
@@ -167,6 +168,13 @@ MediaType: application/vnd.oci.image.index.v1+json
 Digest:    sha256:9a701010d9d4e8c46a7d965f37c523d03d0dd29e460923224bf7e4cdbe0617eb
   linux/amd64  sha256:0844ac3846fd4400a77eb419da16f0450f7ce9ca215542450ad3c80fd0c35572
   linux/arm64  sha256:6547feaafbf04663d2e30d3b52df73c0f9d889031e55c1ec3eb308a1e3cd9d74
+  (+ 2 attestation manifests, unknown/unknown)
+
+$ docker buildx imagetools inspect infernogod/aq-mlflow:0.1.0
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:480341e8bcc93700a38ba59bbbce61b2dd02dc20eddf9142efe1a1ab30e85d55
+  linux/amd64  sha256:27a70ad827071ca0d8d15aab2a7e068bc4967c6da8800e70d230abf5b90b755a
+  linux/arm64  sha256:4980449e03c9990c9e518c003eba38e283341eb9317a4ae174ed86812c8aa31f
   (+ 2 attestation manifests, unknown/unknown)
 
 $ docker buildx imagetools inspect infernogod/aq-pipeline:0.1.0
@@ -196,5 +204,4 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 
 ## Not done yet
 
-- `aq-mlflow` is not on Docker Hub (the other four images are, see "Docker images").
 - The screenshots in the user manual and of Grafana and a fired alert still need to be taken in a desktop browser.

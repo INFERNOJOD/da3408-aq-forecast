@@ -66,7 +66,7 @@ All five need me (section (b)).
 
 | Rubric item | Was | Now | Evidence |
 |---|---|---|---|
-| Docker Hub | FAIL | WEAK | Four images pushed: [aq-frontend](https://hub.docker.com/r/infernogod/aq-frontend), [aq-backend](https://hub.docker.com/r/infernogod/aq-backend), [aq-model-server](https://hub.docker.com/r/infernogod/aq-model-server), [aq-pipeline](https://hub.docker.com/r/infernogod/aq-pipeline), tags `latest` and `0.1.0`. WEAK because `aq-mlflow`, the fifth custom image, is not pushed |
+| Docker Hub | FAIL | PASS | All five custom images pushed: [aq-frontend](https://hub.docker.com/r/infernogod/aq-frontend), [aq-backend](https://hub.docker.com/r/infernogod/aq-backend), [aq-model-server](https://hub.docker.com/r/infernogod/aq-model-server), [aq-mlflow](https://hub.docker.com/r/infernogod/aq-mlflow), [aq-pipeline](https://hub.docker.com/r/infernogod/aq-pipeline), tags `latest` and `0.1.0`. It was WEAK for a few hours, until I pushed `aq-mlflow` the same day |
 | Multi-arch images | FAIL | PASS | Every pushed index lists `linux/amd64` and `linux/arm64`, and each config's `architecture` field matches its platform |
 
 Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0` (2026-11-05; `latest` gives the same digests):
@@ -76,11 +76,12 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | `infernogod/aq-frontend` | `sha256:14ec891bb604…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-backend` | `sha256:b5a254bd2b86…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-model-server` | `sha256:9a701010d9d4…` | linux/amd64, linux/arm64 |
+| `infernogod/aq-mlflow` | `sha256:480341e8bcc9…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-pipeline` | `sha256:376209d720ec…` | linux/amd64, linux/arm64 |
 
 The full trimmed inspect output and how I built the images (one at a time on a small disk, the pipeline one platform at a time) are in the README, "Docker images".
 
-**Tally after this update:** 56 PASS, 4 WEAK, 0 FAIL.
+**Tally after this update:** 57 PASS, 3 WEAK, 0 FAIL. The three WEAK lines are Responsive, User manual exists and User manual (mandatory doc). All three wait on the browser check and the screenshots, which are section (b)1.
 
 ### Other checks I ran today
 
@@ -116,7 +117,7 @@ The full trimmed inspect output and how I built the images (one at a time on a s
 ### (b) Things only I can do
 
 1. **Screenshots.** `docs/user_manual.md` has 13 `[SCREENSHOT n]` placeholders and none are filled. `docs/screenshots/` is untracked and holds two files from 2026-10-20. They predate commit `4d39d3a`, so they still show the "Deploy" button, and their names do not match the names the manual asks for (`04_forecast.png`, `08_console_top.png`, ...). Also needed: a narrow-window screenshot (responsiveness, E2E-17), Grafana during a replay, and `PM25DriftHigh` firing in Prometheus.
-2. **Docker Hub and multi-arch images.** *Done on 2026-11-05 for four of five images, see "Update on 2026-11-05" above; `aq-mlflow` is not pushed.* As of the audit: none are pushed. The local images (`aq-backend`, `aq-frontend`, `aq-model-server`, `aq-mlflow`, `aq-pipeline`) are arm64 only. The only buildx builder supports `linux/arm64`, no QEMU binfmt handler is registered, and Docker is not logged in. I need to log in, install QEMU (needs sudo), run `scripts/build_multiarch.sh`, and add the image names to the README.
+2. **Docker Hub and multi-arch images.** *Done on 2026-11-05 for all five images, see "Update on 2026-11-05" above.* As of the audit: none are pushed. The local images (`aq-backend`, `aq-frontend`, `aq-model-server`, `aq-mlflow`, `aq-pipeline`) are arm64 only. The only buildx builder supports `linux/arm64`, no QEMU binfmt handler is registered, and Docker is not logged in. I need to log in, install QEMU (needs sudo), run `scripts/build_multiarch.sh`, and add the image names to the README.
 3. **GitHub.** The repo has no git remote at all (`git remote` prints nothing). Create the repository and push.
 4. **Demo video and viva preparation.**
 5. **Optional:** open the app on a real phone (the manual says this has not been done).
