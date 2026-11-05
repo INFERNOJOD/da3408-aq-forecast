@@ -5,8 +5,8 @@
     "end": "2020-04-02 19:00:00"
   },
   "candidate": {
-    "run_id": "94dc83e2c1614d5cb1b09d664b65687c",
-    "model_uri": "models:/m-a1c777e4d5ca469abedc4109c304687b",
+    "run_id": "232e23d84b534d6c85c03f89719cd999",
+    "model_uri": "models:/m-2baa60b9d9eb476aab1896addae61716",
     "mean_mae": 6.467113514419853,
     "horizons": {
       "1h": {

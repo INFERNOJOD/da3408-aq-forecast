@@ -1,8 +1,8 @@
 {
-  "run_id": "94dc83e2c1614d5cb1b09d664b65687c",
-  "model_uri": "models:/m-a1c777e4d5ca469abedc4109c304687b",
+  "run_id": "232e23d84b534d6c85c03f89719cd999",
+  "model_uri": "models:/m-2baa60b9d9eb476aab1896addae61716",
   "experiment": "aq-pm25",
-  "git_commit": "e0a7cb1b4d20bd10e141e124802228b4e25e2b74",
+  "git_commit": "4b01925472ebbf2efd114168b5dfa915e65b496a",
   "git_dirty": false,
   "dvc_data_md5": "7921cce1dbe07b5b8c33ffd85e4a34b4.dir",
   "features_md5": "2afa18138f64bab9472d0fa2c773f62d",

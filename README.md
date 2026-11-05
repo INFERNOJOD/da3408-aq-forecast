@@ -103,8 +103,10 @@ dvc pull
 #    cutoff in params.yaml (that is the only file the runner changes)
 # 4. rebuild (batch profile only, so stop the serve stack first)
 docker compose --profile serve stop
-dvc repro
+PIPELINE_TRIGGER=manual PIPELINE_RUN_ID="manual-$(date +%Y%m%d-%H%M%S)" dvc repro
 ```
+
+`PIPELINE_RUN_ID` gives all 7 stages one run id. Without it, each stage stamps its own, and the console's pipeline diagram shows only the last stage of the run, with the other six as not run.
 
 I checked this on the current champion. Its run `498b149f…` gives commit `b2eff79` and cutoff 2020-04-02 19:00. A clean rebuild with that cutoff gave the same data and feature hashes, the same MAE to every printed digit (6.467113514419853), and LightGBM model files that are identical byte for byte. The rebuild was at commit `92537ef`, a later commit with the same pipeline code; I did not check out `b2eff79` itself (`docs/test_report.md`, AC-6). Training is deterministic because I made it so (see below).
 

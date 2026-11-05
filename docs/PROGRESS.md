@@ -1399,17 +1399,19 @@ The serve stack is running on the rebuilt images. The ops runner is not running.
 scripts/bootstrap.sh                                   # fresh clone, once (stack must be down)
 docker compose --profile serve up -d --build           # rebuild the images after a code change
 mlflow run . -e main --env-manager uv --experiment-name aq-pm25
-PIPELINE_TRIGGER=manual uv run --frozen dvc repro -f   # only the Pushgateway up
+PIPELINE_TRIGGER=manual PIPELINE_RUN_ID="manual-$(date +%Y%m%d-%H%M%S)" \
+    uv run --frozen dvc repro -f                       # only the Pushgateway up
 ```
 
-## Part 20: replay-clock note, screenshot links, test count (2026-11-05)
+## Part 20: replay-clock note, screenshot links, test count, full pipeline run (2026-11-05)
 
 ### What I did
 
 - **Replay-clock note on the Forecast page** (`dc684a3`). Under the date, the page reads `replay_running` from `GET /health`. It says "Demo clock is paused. Start the replay in the Pipeline console to move time forward." or "Replay running". If `/health` fails, it leaves the note out and still shows the cards. 3 new tests. I rebuilt only the frontend image (`up -d --build --no-deps frontend`), because the disk was full. With permission, I pruned Docker's unused build cache, which freed 2.9 GB. Rendered with `AppTest` inside the running container against the live backend, the page showed the right note in both replay states. I left the replay stopped, as I found it.
 - **User manual screenshots** (`76de3f9`). The placeholders are now image links to `docs/screenshots/<name>.png`. Placeholders 02 and 03 (certificate warning, CA import) became short written steps. The PNG files are not taken yet.
 - **Test count.** `scripts/ci.sh` at `76de3f9`: 353 passed, 0 failed, in 30 files (`test_frontend.py` 21 to 24), DVC clean and in sync. I copied that run into `reports/ci/final/`. `test_report.md`, the README, `rubric_checklist.md` and `final_audit.md` now say 353. Older numbers in this file and in `final_audit.md` (341, 350) stay as they were, because they are what those runs measured on their day.
+- **A full pipeline run for the console.** The console's latest run was `20261103-173624`, the train-only MLproject test, so 6 of 7 stages showed not run. I stopped the serve stack, started only the Pushgateway and ran `PIPELINE_TRIGGER=manual dvc repro -f`. All 7 stages passed in 1 min 24 s. But each stage wrote its own `run_id`, because the stage runner falls back to a timestamp when `PIPELINE_RUN_ID` is not set. The console groups by `run_id`, so its latest run would have been register alone. The 2026-11-03 run in Part 19 had the same problem. The ops runner and `ci.sh` set `PIPELINE_RUN_ID`, and the manual command did not. I ran it again with `PIPELINE_RUN_ID=manual-20261105-174821`: 1 min 16 s, about 1 GB peak memory. Stage times were ingest 8.4 s (411,200 rows/s), validate 30.0 s, features 10.8 s, train 19.7 s, evaluate 0.6 s, test 0.0 s and register 0.3 s. The candidate tied v4 at a mean MAE of 6.467 and the gate rejected it, so v4 is still champion and v1 previous. The console shows all 7 stages green. The 7 one-stage records from the first try stay in `runs.jsonl`, because they were real runs. `dvc push` sent 16 files. I committed the new `dvc.lock` and the changed reports. `runs.jsonl` stays out of git, because it is runtime data and is in `.gitignore`. The manual command in the README and below now sets `PIPELINE_RUN_ID`.
 
 ### State I left
 
-The serve stack is running. The `aq-mlflow` and `aq-model-server` tags point to images I rebuilt today by accident, while their containers still run the previous builds from the same Dockerfiles. The next `up` switches them. About 1.5 GB of disk was free right after the frontend rebuild and 6.6 GB later in the day. A full `up -d --build` rebuilds four images of 0.8 to 1.3 GB, so I check `df -h /` first.
+The serve stack is running and healthy. Registry: champion 4, previous 1. The replay is stopped at 25 Mar 2020, 00:00. The ops runner is not running. Bringing the stack up after the pipeline run moved MLflow and the model server to the `aq-mlflow` and `aq-model-server` images I rebuilt today by accident. Those images come from the same Dockerfiles, and both services are healthy. About 1.5 GB of disk was free right after the frontend rebuild and 6.6 GB later in the day. A full `up -d --build` rebuilds four images of 0.8 to 1.3 GB, so I check `df -h /` first.
