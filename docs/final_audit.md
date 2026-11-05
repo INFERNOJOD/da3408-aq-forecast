@@ -4,6 +4,8 @@ I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROG
 
 I fixed section (a) and re-audited on 2026-11-03; the results are in the next two sections.
 
+Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 353 passed, 0 failed (2026-11-05, at `76de3f9`, after 3 frontend tests for the replay-clock note). `docs/test_report.md` has the per-file numbers.
+
 PASS means the evidence is there and works. WEAK means it exists but has a gap a grader could point at. FAIL means it is missing or broken.
 
 ## Status of the fixes (finished 2026-11-03)
@@ -24,7 +26,7 @@ I fixed section (a) between 2026-10-27 and 2026-11-03, one commit each. Section 
 | 10. Real `dvc repro` | **Done.** `dvc repro -f`, all 7 stages ran in 75.5 s. The candidate tied v4 at 6.467 and was rejected. All 7 stage statuses are 1 in the Pushgateway, and `PipelineStageFailed` is inactive. | `0a81f6e` |
 | Extra: MLproject in a fresh environment | **Done after a fix** (E2E-21). The first run crashed after training: `mlflow run` creates its run in the Default experiment, and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` the run gives the same MAE and byte-identical LightGBM files as the pipeline. The command is documented with the flag. | `e10bbaf` |
 | Extra: OpenAPI error responses (inconsistency 11) | **Done** | `56779b3` |
-| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed. | this commit |
+| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 353 passed, 0 failed since 2026-11-05. | `c8201f8`, `a9610f2` |
 
 ## Re-audit on 2026-11-03
 

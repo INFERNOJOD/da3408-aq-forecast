@@ -1401,3 +1401,15 @@ docker compose --profile serve up -d --build           # rebuild the images afte
 mlflow run . -e main --env-manager uv --experiment-name aq-pm25
 PIPELINE_TRIGGER=manual uv run --frozen dvc repro -f   # only the Pushgateway up
 ```
+
+## Part 20: replay-clock note, screenshot links, test count (2026-11-05)
+
+### What I did
+
+- **Replay-clock note on the Forecast page** (`dc684a3`). Under the date, the page reads `replay_running` from `GET /health`. It says "Demo clock is paused. Start the replay in the Pipeline console to move time forward." or "Replay running". If `/health` fails, it leaves the note out and still shows the cards. 3 new tests. I rebuilt only the frontend image (`up -d --build --no-deps frontend`), because the disk was full. With permission, I pruned Docker's unused build cache, which freed 2.9 GB. Rendered with `AppTest` inside the running container against the live backend, the page showed the right note in both replay states. I left the replay stopped, as I found it.
+- **User manual screenshots** (`76de3f9`). The placeholders are now image links to `docs/screenshots/<name>.png`. Placeholders 02 and 03 (certificate warning, CA import) became short written steps. The PNG files are not taken yet.
+- **Test count.** `scripts/ci.sh` at `76de3f9`: 353 passed, 0 failed, in 30 files (`test_frontend.py` 21 to 24), DVC clean and in sync. I copied that run into `reports/ci/final/`. `test_report.md`, the README, `rubric_checklist.md` and `final_audit.md` now say 353. Older numbers in this file and in `final_audit.md` (341, 350) stay as they were, because they are what those runs measured on their day.
+
+### State I left
+
+The serve stack is running. The `aq-mlflow` and `aq-model-server` tags point to images I rebuilt today by accident, while their containers still run the previous builds from the same Dockerfiles. The next `up` switches them. About 1.5 GB of disk was free right after the frontend rebuild and 6.6 GB later in the day. A full `up -d --build` rebuilds four images of 0.8 to 1.3 GB, so I check `df -h /` first.

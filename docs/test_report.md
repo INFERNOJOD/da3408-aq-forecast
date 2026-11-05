@@ -1,13 +1,13 @@
 # Test Report
 
-I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again. The pytest numbers below come from that run; the other sections say when each check was run.
+I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note and ran it once more. The pytest numbers below come from that last run; the other sections say when each check was run.
 
 ## 1. Summary
 
 | | Count |
 |---|---:|
-| pytest test cases run | **350** |
-| Passed | **350** |
+| pytest test cases run | **353** |
+| Passed | **353** |
 | Failed | **0** |
 | Errors | 0 |
 | Skipped | 0 |
@@ -15,14 +15,14 @@ I ran the whole suite and every acceptance check again on 2026-10-21, against th
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
 | Defects found | 3, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/final/junit.xml` (`tests="350" failures="0" errors="0" skipped="0"`, 42.2 s), at commit `e10bbaf`. The full CI output is in `reports/ci/final/last_run.log`. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/final/junit.xml` (`tests="353" failures="0" errors="0" skipped="0"`, 54.3 s), at commit `76de3f9`. The full CI output is in `reports/ci/final/last_run.log`. The 2026-11-03 run (350 of 350 at `e10bbaf`) is in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
-== summary (commit e10bbaf)
+== summary (commit 76de3f9)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    45s
-dvc-status     PASS     1s
+pytest         PASS    59s
+dvc-status     PASS     0s
 dvc-remote     PASS     0s
 CI PASSED
 ```
@@ -56,13 +56,13 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_backend_drift.py` | TC-37 | 9 | 9 | 0 |
 | `test_replay_script.py` | TC-38 | 5 | 5 | 0 |
 | `test_ops_runner.py` | TC-39 | 22 | 22 | 0 |
-| `test_frontend.py` | TC-40 to TC-44 | 21 | 21 | 0 |
+| `test_frontend.py` | TC-40 to TC-44 | 24 | 24 | 0 |
 | `test_monitoring.py`, `test_push_stage_metrics.py` | TC-45 | 9 | 9 | 0 |
 | `test_security.py` | TC-46, TC-47 | 11 | 11 | 0 |
 | `test_ci.py` | TC-48 | 6 | 6 | 0 |
-| **Total** | 48 cases | **350** | **350** | **0** |
+| **Total** | 48 cases | **353** | **353** | **0** |
 
-The slowest single tests are the Spark ones (`test_missing_by_city_year` 4.9 s, `test_validate_all_passes_on_good_data` 2.3 s). The suite took 42.2 s inside the 45 s pytest step.
+The slowest single tests are the promotion-flow test (`test_first_model_is_promoted_then_an_equal_candidate_is_rejected` 5.3 s) and the Spark ones (`test_missing_by_city_year` 4.7 s, `test_validate_all_fails_on_impossible_value` 2.9 s). The suite took 54.3 s inside the 59 s pytest step.
 
 ## 3. End-to-end checks
 
@@ -179,7 +179,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-03): ruff and format pass, 350 of 350 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
+`scripts/ci.sh` (2026-11-05, at `76de3f9`): ruff and format pass, 353 of 353 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
 
 ## 5. Defects found in this run
 

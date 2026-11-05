@@ -69,7 +69,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 | Design document strictly adhered to | The LLD is checked by tests: routes (`test_lld_lists_the_backend_routes`), feature columns (`test_features_match_lld_table_in_order`), metrics (`test_metrics_endpoint_lists_lld_metrics`, `test_every_lld_metric_is_on_a_dashboard`), alert rules (`test_alert_rules_match_lld`), model signature (`test_model_signature_matches_the_lld_columns`). When the design changed (drift rule, Stage 11), HLD, LLD and PLAN changed in the same commit |
 | Inline code comments | Docstrings on every module and function (enforced by ruff `D` rules); comments where a choice needs explaining, e.g. `docker-compose.yml`, `src/frontend/app.py` |
 | APIs follow the design doc interface spec | Same tests as above; `docs/test_report.md` TC-27 to TC-35 |
-| Unit tests implemented | 350 pytest cases in 30 files, one per module (`tests/`), 350 passed (`reports/ci/final/junit.xml`, 2026-11-03) |
+| Unit tests implemented | 353 pytest cases in 30 files, one per module (`tests/`), 353 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
 
 ### Testing [1]
 
@@ -77,7 +77,7 @@ This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the 
 |-------------|-------|
 | Test plan | `docs/test_plan.md` (scope, levels, environment, how to run) |
 | List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-17 |
-| Test report with passed and failed counts | `docs/test_report.md`: 350 run, 350 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
+| Test report with passed and failed counts | `docs/test_report.md`: 353 run, 353 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
 | Acceptance criteria defined and met | `docs/test_plan.md` section 5 (AC-1 to AC-7); `docs/test_report.md` section 4, all 7 met with evidence |
 
 ## AIOps Implementation [10]
