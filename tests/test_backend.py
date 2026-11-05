@@ -16,7 +16,7 @@ from src.backend.registry_view import RegistryView
 from src.backend.replay import ReplayClock
 from src.backend.settings import Settings
 from src.backend.store import ServingStore
-from src.common.errors import RegistryError
+from src.common.errors import RegistryError, RegistryUnavailableError
 from src.common.schema import FEATURE_COLUMNS, FEATURES
 
 KEY = "test-key"
@@ -79,6 +79,8 @@ class FakeRegistry:
     def rollback(self, version):
         if version == "9":
             raise RegistryError("Version 9 does not exist")
+        if version == "down":
+            raise RegistryUnavailableError("MLflow is not reachable.")
         self.rolled.append(version)
         return "3", version or "2"
 
@@ -468,6 +470,17 @@ def test_rollback_default_named_and_missing(env):
     assert named.json()["to_version"] == "1" and registry.rolled == [None, "1"]
     bad = client.post("/ops/rollback", json={"version": "9"}, headers=AUTH)
     assert bad.status_code == 400 and error_code(bad) == "BAD_REQUEST"
+
+
+def test_rollback_with_registry_down_is_503(env):
+    resp = env[0].post("/ops/rollback", json={"version": "down"}, headers=AUTH)
+    assert resp.status_code == 503 and error_code(resp) == "REGISTRY_UNAVAILABLE"
+    assert "not reachable" in resp.json()["error"]["message"]
+
+
+def test_openapi_lists_503_for_rollback(env):
+    spec = env[0].get("/openapi.json").json()
+    assert "503" in spec["paths"]["/ops/rollback"]["post"]["responses"]
 
 
 def alert(name="PM25DriftHigh", status="firing", action="retrain"):

@@ -20,7 +20,7 @@ from src.backend.registry_view import RegistryView
 from src.backend.replay import MAX_SPEED, MIN_SPEED, ReplayClock
 from src.backend.settings import Settings
 from src.backend.store import ServingStore
-from src.common.errors import RegistryError
+from src.common.errors import RegistryError, RegistryUnavailableError
 from src.common.logging_setup import get_logger
 from src.pipeline.registry import ModelRegistryClient
 
@@ -217,10 +217,14 @@ def create_app(
             "status": record["status"],
         }
 
-    @app.post("/ops/rollback", dependencies=ops, responses=error_docs(400, 401, 422))
+    @app.post(
+        "/ops/rollback", dependencies=ops, responses=error_docs(400, 401, 422, 503)
+    )
     def rollback(body: RollbackRequest) -> dict:
         try:
             old, new = registry.rollback(body.version)
+        except RegistryUnavailableError as exc:
+            raise ApiError(503, "REGISTRY_UNAVAILABLE", str(exc)) from exc
         except RegistryError as exc:
             raise ApiError(400, "BAD_REQUEST", str(exc)) from exc
         log.warning("Rollback: champion %s -> %s", old, new)

@@ -1,5 +1,6 @@
 import pytest
-from src.common.errors import RegistryError
+from mlflow.exceptions import MlflowException
+from src.common.errors import RegistryError, RegistryUnavailableError
 from src.pipeline.registry import ModelRegistryClient
 
 
@@ -63,3 +64,32 @@ def test_rollback_errors(registry):
     with pytest.raises(RegistryError, match="already the champion"):
         registry.rollback("1")
     assert registry.champion_version() == "1"  # failed rollbacks change nothing
+
+
+def test_rollback_with_mlflow_down_says_so(tmp_path, monkeypatch):
+    # A registry URL where nothing listens: MLflow answers INTERNAL_ERROR, which
+    # used to be read as "alias not set" and gave "No previous version".
+    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "0")
+    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_TIMEOUT", "2")
+    down = ModelRegistryClient("aq-test", "http://127.0.0.1:9")
+    for version in (None, "1"):
+        with pytest.raises(RegistryUnavailableError, match="not reachable"):
+            down.rollback(version)
+    assert down.champion_version() is None  # serving lookups stay lenient
+
+
+def test_rollback_failing_alias_move_is_unavailable(registry, monkeypatch):
+    promote(registry, 1)
+    promote(registry, 2)
+
+    def broken(*args, **kwargs):
+        raise MlflowException("connection reset", error_code="INTERNAL_ERROR")
+
+    monkeypatch.setattr(registry.client, "set_registered_model_alias", broken)
+    with pytest.raises(RegistryUnavailableError):
+        registry.rollback()
+    assert registry.champion_version() == "2"
+
+
+def test_registry_unavailable_is_a_registry_error():
+    assert issubclass(RegistryUnavailableError, RegistryError)

@@ -27,7 +27,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 5. **The evaluation window is short** (497 rows at 1 h, 336 at 24 h), and the model loses to a baseline in Kolkata and Lucknow.
 6. **Auto-rollback after a failed smoke check is tested with fakes only.** The live rollback drill (test report, AC-5) used the manual endpoint.
 7. **The batch container has never run the pipeline.** The ops runner and `scripts/ci.sh --repro` run `dvc repro` on the host. The `aq-pipeline` image is built and its packages checked, nothing more. I corrected `docs/architecture.md`, which had said the runner starts the container. Since the final audit the runner stops the frontend and Grafana around a retrain and starts them again (E2E-19).
-8. **Rollback with MLflow down gives the wrong message** ("No previous version to roll back to"). Nothing changes, so it is safe, but the text is wrong. A forecast with MLflow down answers 200 but takes 4.5 s.
+8. **A forecast with MLflow down answers 200 but takes 4.5 s.** The wrong rollback message with MLflow down ("No previous version to roll back to") is fixed since 2026-11-05: it is now 503 `REGISTRY_UNAVAILABLE`, checked live (test report, D-2).
 9. **The MLflow container now mounts the whole project folder** (fix D-1 in the test report). It can read `.env`. The pipeline container already had the same mount.
 10. **Internal traffic is partly plain HTTP** (model server, MLflow, exporters on the compose network). Only the browser-to-proxy and frontend-to-backend hops, which carry the API key, are TLS.
 11. **The reproducibility check rebuilt v4 at a later commit** (`92537ef`, same pipeline code), not at `b2eff79` itself.

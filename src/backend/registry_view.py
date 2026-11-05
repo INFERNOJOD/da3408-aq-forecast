@@ -111,7 +111,7 @@ class RegistryView:
         return out
 
     def rollback(self, version: str | None) -> tuple[str | None, str]:
-        """Move the champion alias. RegistryError means a 400 for the caller."""
+        """Move the champion alias (400 for RegistryError, 503 if MLflow is down)."""
         try:
             return self.registry.rollback(version)
         finally:

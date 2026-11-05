@@ -26,7 +26,7 @@ _WHEN = {
     409: "CONFLICT: already queued, running or in the requested state",
     422: "VALIDATION_ERROR: wrong type, missing field or value out of range",
     500: "INTERNAL_ERROR: unexpected error, details only in the log",
-    503: "MODEL_UNAVAILABLE or NO_DATA",
+    503: "MODEL_UNAVAILABLE, NO_DATA or REGISTRY_UNAVAILABLE",
 }
 
 

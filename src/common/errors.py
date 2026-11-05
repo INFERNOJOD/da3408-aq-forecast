@@ -29,3 +29,7 @@ class PipelineStageError(AQError):
 
 class RegistryError(AQError):
     """A model registry request cannot be done (unknown version, no champion...)."""
+
+
+class RegistryUnavailableError(RegistryError):
+    """The model registry (MLflow) did not answer, so nothing could be checked."""

@@ -27,6 +27,7 @@ This document is the interface contract. Code must match it exactly; any endpoin
 | 422 | `VALIDATION_ERROR` | Wrong type, missing field, value out of range |
 | 503 | `MODEL_UNAVAILABLE` | Model server unreachable or returned an error |
 | 503 | `NO_DATA` | No feature row for the city at `sim_time` (data gap) |
+| 503 | `REGISTRY_UNAVAILABLE` | `POST /ops/rollback` could not reach the model registry (MLflow) |
 | 500 | `INTERNAL_ERROR` | Unexpected; logged with a traceback, generic message returned |
 
 ## 2. Public endpoints (no auth)
@@ -166,7 +167,7 @@ Request:
 ```json
 {"from_version": "3", "to_version": "2"}
 ```
-400 if the version does not exist or is already champion. The model server picks up the change within 30 s.
+400 if there is no previous version, the version does not exist or it is already champion. 503 `REGISTRY_UNAVAILABLE` if MLflow does not answer; the aliases are then left as they were. The model server picks up the change within 30 s.
 
 ### POST `/ops/alerts`
 The Alertmanager webhook (payload format v4, unchanged). For each alert with `status=firing` and `labels.action="retrain"`,

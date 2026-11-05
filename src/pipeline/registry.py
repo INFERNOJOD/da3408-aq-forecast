@@ -12,7 +12,7 @@ import mlflow
 from mlflow import MlflowClient
 from mlflow.exceptions import MlflowException
 
-from src.common.errors import RegistryError
+from src.common.errors import RegistryError, RegistryUnavailableError
 from src.common.logging_setup import get_logger
 
 log = get_logger(__name__)
@@ -20,6 +20,19 @@ log = get_logger(__name__)
 CHAMPION = "champion"
 PREVIOUS = "previous"
 DEFAULT_TRACKING_URI = "sqlite:///mlflow.db"
+# Error codes MLflow uses when an alias, version or model is simply not there.
+# Anything else (INTERNAL_ERROR for a refused connection, for example) means the
+# registry did not answer, which is a different problem for the operator.
+NOT_FOUND_CODES = {"RESOURCE_DOES_NOT_EXIST", "INVALID_PARAMETER_VALUE"}
+UNAVAILABLE_MESSAGE = (
+    "The model registry (MLflow) is not reachable. Check the mlflow container "
+    "and try again."
+)
+
+
+def _not_found(exc: MlflowException) -> bool:
+    """Return True when MLflow says the thing does not exist (not that it failed)."""
+    return exc.error_code in NOT_FOUND_CODES
 
 
 def tracking_uri() -> str:
@@ -37,11 +50,20 @@ class ModelRegistryClient:
         mlflow.set_tracking_uri(self.uri)
         self.client = MlflowClient(tracking_uri=self.uri, registry_uri=self.uri)
 
-    def _alias_version(self, alias: str) -> str | None:
-        """Version number the alias points to, or None if it is not set."""
+    def _alias_version(self, alias: str, strict: bool = False) -> str | None:
+        """Version number the alias points to, or None if it is not set.
+
+        By default any MLflow error counts as "not set", so serving keeps going
+        while MLflow is down. With ``strict`` only a real "not found" does; any
+        other error raises RegistryUnavailableError. Rollback uses strict lookups:
+        before, MLflow being down showed up as "No previous version".
+        """
         try:
             return str(self.client.get_model_version_by_alias(self.name, alias).version)
-        except MlflowException:
+        except MlflowException as exc:
+            if strict and not _not_found(exc):
+                log.error("Registry lookup of alias %s failed: %s", alias, exc)
+                raise RegistryUnavailableError(UNAVAILABLE_MESSAGE) from exc
             return None
 
     def champion_version(self) -> str | None:
@@ -76,9 +98,9 @@ class ModelRegistryClient:
         ]
         return sorted(rows, key=lambda r: int(r["version"]), reverse=True)
 
-    def _move_champion(self, version: str) -> None:
+    def _move_champion(self, version: str, strict: bool = False) -> None:
         """Point champion at ``version`` and previous at the old champion."""
-        old = self.champion_version()
+        old = self._alias_version(CHAMPION, strict=strict)
         if old == version:
             raise RegistryError(f"Version {version} is already the champion")
         if old is not None:
@@ -110,15 +132,28 @@ class ModelRegistryClient:
 
         Returns (from_version, to_version). The version that was champion
         becomes ``previous``, so a rollback can be rolled back.
+
+        Raises RegistryError for a request that cannot be done (no previous
+        version, unknown version, already champion) and RegistryUnavailableError
+        when MLflow does not answer.
         """
-        target = version if version is not None else self.previous_version()
-        if target is None:
-            raise RegistryError("No previous version to roll back to")
-        target = str(target)
+        if version is None:
+            target = self._alias_version(PREVIOUS, strict=True)
+            if target is None:
+                raise RegistryError("No previous version to roll back to")
+        else:
+            target = str(version)
         try:
             self.client.get_model_version(self.name, target)
         except MlflowException as exc:
+            if not _not_found(exc):
+                log.error("Registry lookup of version %s failed: %s", target, exc)
+                raise RegistryUnavailableError(UNAVAILABLE_MESSAGE) from exc
             raise RegistryError(f"Version {target} does not exist") from exc
-        old = self.champion_version()
-        self._move_champion(target)
+        old = self._alias_version(CHAMPION, strict=True)
+        try:
+            self._move_champion(target, strict=True)
+        except MlflowException as exc:
+            log.error("Moving the champion alias to %s failed: %s", target, exc)
+            raise RegistryUnavailableError(UNAVAILABLE_MESSAGE) from exc
         return old, target
