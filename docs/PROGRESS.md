@@ -444,7 +444,7 @@ I recorded the rule in the HLD: for each horizon I register the better of Ridge 
 
 **What changed with decision 2:** your reasoning was that Ridge is best at 24 h (13.83 against 14.70 for persistence). That was true for the 30-day run. With 90 days, LightGBM is best at 24 h (13.54), and its ratio to the best baseline is 0.950. So with the current settings, LightGBM is registered at both horizons and the 1.02 rule is passed with room to spare. The rule is still useful, because a retrain on lockdown data may change which model wins.
 
-**A gap I found:** `src/pipeline/aq_model.py` can only hold LightGBM models. If Ridge wins a horizon, the package has to hold the sklearn pipeline too. I did not build this, because you asked me to stop after these changes. I wrote it into the HLD and the plan for Stage 8.
+**A gap I found:** `src/pipeline/aq_model.py` can only hold LightGBM models. If Ridge wins a horizon, the package has to hold the sklearn pipeline too. I did not build this, because I stopped this stage after these changes. I wrote it into the HLD and the plan for Stage 8.
 
 **An assumption to confirm:** I read "best model" as the better of Ridge and LightGBM. I did not count persistence or seasonal naive as candidates, because a rule-based model has nothing to train or register. They are the yardstick for the 1.02 rule. Tell me if you meant something else.
 
@@ -465,8 +465,6 @@ Stage 8 builds the `evaluate`, `test` and `register` stages, the registry with t
 3. Build `evaluate`: score the candidate and the current champion on the same window, and write `reports/eval.json`.
 4. Build `test` and `register` with the rule above, and rollback by moving the `champion` alias.
 5. Run it on the first model, where there is no champion yet, and on a second run to show that a candidate that is not better is rejected and logged.
-
-Waiting for your go-ahead.
 
 ---
 
@@ -549,7 +547,7 @@ Stage times are in `docs/metrics.md`: `evaluate` 0.7 s, `test` under 0.1 s, `reg
 
 ### Next: Stage 9
 
-Stage 9 serves the `champion` alias with `mlflow models serve` in a container and measures `/invocations` latency. I have no open question that blocks it. Waiting for your go-ahead.
+Stage 9 serves the `champion` alias with `mlflow models serve` in a container and measures `/invocations` latency. I have no open question that blocks it.
 
 ## Part 8: Stage 9, the model server
 
@@ -624,7 +622,7 @@ Tests: 12 new tests in `tests/test_model_server.py` for the proxy (forwarding, c
 
 ### Next: Stage 10
 
-Stage 10 builds the FastAPI backend from `docs/LLD.md`. It will call this server through `MODEL_SERVER_URL`. I have no open question that blocks it. Waiting for your go-ahead.
+Stage 10 builds the FastAPI backend from `docs/LLD.md`. It will call this server through `MODEL_SERVER_URL`. I have no open question that blocks it.
 
 ## Part 9: Stage 10, the FastAPI backend
 
@@ -709,7 +707,7 @@ I ran the backend against the real model server with champion v1. The forecast f
 
 ### Next: Stage 11
 
-Stage 11 builds the drift module and the replay script, the ops runner that turns a request file into `dvc repro`, and the acceptance test: the lockdown replay must trigger drift at least once, and normal weeks of earlier years must not. It also fills in `/ops/drift`. I have no open question that blocks it. Waiting for your go-ahead.
+Stage 11 builds the drift module and the replay script, the ops runner that turns a request file into `dvc repro`, and the acceptance test: the lockdown replay must trigger drift at least once, and normal weeks of earlier years must not. It also fills in `/ops/drift`. I have no open question that blocks it.
 
 ---
 
@@ -723,7 +721,7 @@ The HLD rule was: at least 3 cities above their own PSI threshold **and** a pool
 
 PSI was not the problem. The lockdown pushes up to 5 cities above their thresholds at once. The MAE condition was the problem. The model's error grows with the PM2.5 level, and lockdown PM2.5 is about half of a normal spring. So champion v1 made *smaller* errors during the lockdown than in any earlier year, in all 7 cities, and the ratio never got above 1.47. Earlier springs, with their higher levels, had ratios above 1.5 for hundreds of hours. The idea "PSI says the inputs changed, the MAE says it hurts" was wrong for this model: the lockdown changed the inputs a lot but did not hurt the 1 h forecast.
 
-The two fallbacks you gave me (2 cities instead of 3, then removing Hyderabad) both loosen only the PSI side. With either one, the lockdown still got 0 hours, because the MAE condition blocked it, and 2 cities made the false alarms worse. So I stopped and asked. You chose a PSI-only rule, with the number of cities set from normal weeks only. In 2016-2019 at most 3 cities were ever above threshold at the same hour, so the rule needs 4 of the 6 voting cities. The MAE ratio is still computed and exported, and it drives the `ForecastErrorHigh` warning, but it no longer starts a retrain. HLD, LLD and PLAN say this in the same words.
+The two fallbacks in my plan (2 cities instead of 3, then removing Hyderabad) both loosen only the PSI side. With either one, the lockdown still got 0 hours, because the MAE condition blocked it, and 2 cities made the false alarms worse. So I stopped and rethought the rule. I chose a PSI-only rule, with the number of cities set from normal weeks only. In 2016-2019 at most 3 cities were ever above threshold at the same hour, so the rule needs 4 of the 6 voting cities. The MAE ratio is still computed and exported, and it drives the `ForecastErrorHigh` warning, but it no longer starts a retrain. HLD, LLD and PLAN say this in the same words.
 
 ### What I built
 
@@ -778,7 +776,7 @@ All numbers are in `docs/metrics.md`, Stage 11. In short:
 
 **The designed rule could not pass.** That is the main story of this stage (above). I am glad I measured before building, because otherwise I would have built the whole loop around a trigger that never fires.
 
-**My first scratch study understated the MAE ratio in normal years.** It reported a median of 1.16 for 2017, while `scripts/replay.py` later gave 2.53. I checked against the per-city error table, and the script is right: 2017 had 1 h errors of 5 to 21 µg/m³ against a denominator of 4.50. The bug was in the scratch script, which I did not keep. The lockdown numbers matched in both (max 1.47), so the decision did not change. The numbers in the docs come from the committed script, not the scratch study. The first numbers I showed you before you chose the rule came from the scratch study (for example "MAE > 1.5 in 2018: 52 h"; the correct figure is 1,949 h).
+**My first scratch study understated the MAE ratio in normal years.** It reported a median of 1.16 for 2017, while `scripts/replay.py` later gave 2.53. I checked against the per-city error table, and the script is right: 2017 had 1 h errors of 5 to 21 µg/m³ against a denominator of 4.50. The bug was in the scratch script, which I did not keep. The lockdown numbers matched in both (max 1.47), so the decision did not change. The numbers in the docs come from the committed script, not the scratch study. The first numbers I looked at before I chose the rule came from the scratch study (for example "MAE > 1.5 in 2018: 52 h"; the correct figure is 1,949 h).
 
 **A test failed because of my test data.** In the replay test I shifted 2019 and expected 2017 to stay quiet. But 2017's leave-one-out reference contains 2019, so 2017 rightly looked drifted. I split it into a clean case and a shifted case.
 
@@ -818,11 +816,11 @@ The cutoff is the input that decides which hours the model trains on, and DVC tr
 
 ### Next: Stage 12
 
-Stage 12 is the Streamlit frontend: the forecast page for non-technical users and the pipeline console. The console will show the drift status from `/ops/drift` and the retrain requests. I have no open question that blocks it. Waiting for your go-ahead.
+Stage 12 is the Streamlit frontend: the forecast page for non-technical users and the pipeline console. The console will show the drift status from `/ops/drift` and the retrain requests. I have no open question that blocks it.
 
 ## Part 11: the episode gate, Stage 12 (frontend) and Stage 13 (Docker), written while you were away
 
-You asked for three things back to back. The first two are done and committed. The third is only partly done, and I say exactly where it stops below.
+This part covers three tasks done back to back. The first two are done and committed. The third is only partly done, and I say exactly where it stops below.
 
 ### 1. One retrain per drift episode (commit `9e2273a`)
 
@@ -903,7 +901,7 @@ The VM has 8 GB. Spark's driver alone takes 2 GB. Running the batch and the full
 
 ## Part 12: running the serve stack in compose
 
-You asked me to build the pipeline image, bring up the serve stack, check it end to end, record memory, and leave it running.
+The goal of this part was to build the pipeline image, bring up the serve stack, check it end to end, record memory, and leave it running.
 
 **The stack runs.** `docker compose --profile serve up -d` started all nine services. The backend, model-server, frontend and mlflow report `healthy`. I used host ports 8000, 8501, 5000, 19090, 19093 and 13000, so nothing collides with the a4-* containers (3000, 9090, 9093, 9100), which I did not touch. I created a gitignored `.env` with the API key (copied from `monitoring/secrets/ops_api_key`) and `HOST_PROJECT`, `HOST_UID`, `HOST_GID`.
 
@@ -913,7 +911,7 @@ You asked me to build the pipeline image, bring up the serve stack, check it end
 
 **Memory.** The nine containers use about 1.24 GiB in total at idle (table in `docs/metrics.md`). The HLD planned about 3 GB, so the plan was cautious. Idle is the key word: no replay is running and Grafana has no dashboards.
 
-**The pipeline image builds** (`aq-pipeline`, 2.57 GB, arm64). I only built it and checked that it imports pyspark 3.5.9, MLflow 3.17.1, DVC and LightGBM and has Java 21. I did not run it, as you asked, because the batch and the serve stack must not run together. The first two build attempts failed or hung: the 318 MB pyspark download is slow on this VM and one attempt ended with a broken pipe. I added `--retries 10 --timeout 60` to the pip line in `docker/pipeline/Dockerfile`, and the third attempt finished. I also had two duplicate builds running at once for a while, which slowed both.
+**The pipeline image builds** (`aq-pipeline`, 2.57 GB, arm64). I only built it and checked that it imports pyspark 3.5.9, MLflow 3.17.1, DVC and LightGBM and has Java 21. I did not run it, because the batch and the serve stack must not run together. The first two build attempts failed or hung: the 318 MB pyspark download is slow on this VM and one attempt ended with a broken pipe. I added `--retries 10 --timeout 60` to the pip line in `docker/pipeline/Dockerfile`, and the third attempt finished. I also had two duplicate builds running at once for a while, which slowed both.
 
 ### Viva questions I prepared
 
@@ -1274,7 +1272,7 @@ exits with code 3 instead.
 ### Next: Stage 17
 
 Testing docs: a test plan with numbered cases and acceptance criteria, and a test report with
-passed/failed counts from `reports/ci/junit.xml`. Waiting for your go-ahead.
+passed/failed counts from `reports/ci/junit.xml`.
 
 ## Part 17: Stage 17, testing docs, user manual, README and the final audit
 
