@@ -130,6 +130,53 @@ These are the problems that taught me the most. The full story of each stage is 
 
 **Rollback through the app had never worked.** I found this while writing the test report. The first `POST /ops/rollback` hung, and MLflow logged "attempt to write a readonly database". I had mounted `mlflow.db` as a single file, so its folder inside the container belonged to root and SQLite could not write its journal. Reads worked, and as far as I can tell every earlier write had come from a process on the host, which is why nothing showed it. Worse, the backend kept retrying the call I had given up on, and applied that rollback about 4 minutes later. I now mount the folder, and the backend's MLflow client gives up after 2 retries and 10 s.
 
+## Docker images
+
+I published four images to Docker Hub on 2026-11-05, each for `linux/amd64` and `linux/arm64`. `0.1.0` is the version in `pyproject.toml`, and `latest` points to the same index.
+
+| Image | Docker Hub | Tags |
+|---|---|---|
+| frontend | [infernogod/aq-frontend](https://hub.docker.com/r/infernogod/aq-frontend) | `latest`, `0.1.0` |
+| backend | [infernogod/aq-backend](https://hub.docker.com/r/infernogod/aq-backend) | `latest`, `0.1.0` |
+| model server | [infernogod/aq-model-server](https://hub.docker.com/r/infernogod/aq-model-server) | `latest`, `0.1.0` |
+| pipeline (batch) | [infernogod/aq-pipeline](https://hub.docker.com/r/infernogod/aq-pipeline) | `latest`, `0.1.0` (also `0.1.0-amd64`, `0.1.0-arm64`, see below) |
+
+`aq-mlflow` is not on Docker Hub. It is a thin layer on top of the model-server image, and I left it out of this publish. Compose still builds it locally.
+
+The VM is ARM64, so the amd64 half ran under QEMU emulation. With 7.2 to 7.9 GB of free disk, I built one image at a time and pruned the build cache in between. Build and push took 10.5 min for the frontend, 32 min for the backend and 24 min for the model server. The first backend try died after 7 minutes when the connection to PyPI broke, and the second try worked. Those three came from `scripts/build_multiarch.sh` with `SERVICES` set to one image. The pipeline image is 2.6 GB per platform, so building both platforms at once would have needed about 5 to 7 GB of cache. That is too close to a full disk, with the serve stack writing to the same disk. So I built it one platform at a time (25.5 min for arm64, 28.4 min for amd64), pushed each under `0.1.0-arm64` and `0.1.0-amd64`, and joined them with `docker buildx imagetools create`. The default Docker builder cannot push by digest, which is why the two per-platform tags exist. During the pipeline builds, a watchdog checked the disk every 10 s and would have cancelled below 2.5 GB free. The lowest it saw was 4.97 GB.
+
+`docker buildx imagetools inspect` for each `0.1.0` tag (trimmed to the image manifests; each image also has one provenance attestation per platform, listed as `unknown/unknown`). The `latest` tags give the same index digests. I also checked the `architecture` field in each image config: every amd64 manifest is an amd64 build and every arm64 manifest is arm64.
+
+```
+$ docker buildx imagetools inspect infernogod/aq-frontend:0.1.0
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:14ec891bb6046746b1a43a920d6045f8fa5e5276c99574a262e32213d7d8558e
+  linux/amd64  sha256:2d6dc66f18e4a8b55acee4da5a415f9d30d00eb27f4b816566525070b5f181fd
+  linux/arm64  sha256:d6d5b82cfdcfd96ae876d8c86fd2df2bf3f9af677db07a1d1e40252c84581c21
+  (+ 2 attestation manifests, unknown/unknown)
+
+$ docker buildx imagetools inspect infernogod/aq-backend:0.1.0
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:b5a254bd2b8684754f01a261f63029a184d105acbb62d3838663fa642d154687
+  linux/amd64  sha256:0ba7b5fc2a4fa1bcac29cbe52a16f63f7bf70b9432f8fc5a00629f85a23074e5
+  linux/arm64  sha256:a4e0584152bc1cc56e1d5c8994bac4a79e7f616fd6165659640ba05c670ad7f6
+  (+ 2 attestation manifests, unknown/unknown)
+
+$ docker buildx imagetools inspect infernogod/aq-model-server:0.1.0
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:9a701010d9d4e8c46a7d965f37c523d03d0dd29e460923224bf7e4cdbe0617eb
+  linux/amd64  sha256:0844ac3846fd4400a77eb419da16f0450f7ce9ca215542450ad3c80fd0c35572
+  linux/arm64  sha256:6547feaafbf04663d2e30d3b52df73c0f9d889031e55c1ec3eb308a1e3cd9d74
+  (+ 2 attestation manifests, unknown/unknown)
+
+$ docker buildx imagetools inspect infernogod/aq-pipeline:0.1.0
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44b4
+  linux/arm64  sha256:1ebc37267c41fa2a8f72104a6c21763d87f011bee7e42c29f56d114b50da05be
+  linux/amd64  sha256:ae37ff7a2bac81b8a830b66fb67f1e39fa3becfaf9f589e81e863db62164523e
+  (+ 2 attestation manifests, unknown/unknown)
+```
+
 ## Where to find things
 
 | What | Where |
@@ -144,10 +191,10 @@ These are the problems that taught me the most. The full story of each stage is 
 | Backend, frontend, model server | `src/backend/`, `src/frontend/`, `src/model_server/` |
 | Drift, ops runner | `src/monitoring/drift.py`, `src/ops/runner.py`, `scripts/replay.py` |
 | Monitoring | `monitoring/` (Prometheus, alert rules and promtool tests, Grafana dashboards) |
-| Containers | `docker/`, `docker-compose.yml`, `scripts/build_multiarch.sh` |
+| Containers | `docker/`, `docker-compose.yml`, `scripts/build_multiarch.sh`, Docker Hub ("Docker images" above) |
 | CI | `scripts/ci.sh`, `.pre-commit-config.yaml`, `reports/ci/` |
 
 ## Not done yet
 
-- The multi-arch images (amd64 and arm64) are not on Docker Hub. `scripts/build_multiarch.sh` is written, but it needs my Docker Hub login and QEMU emulation, which needs sudo on this VM.
+- `aq-mlflow` is not on Docker Hub (the other four images are, see "Docker images").
 - The screenshots in the user manual and of Grafana and a fired alert still need to be taken in a desktop browser.
