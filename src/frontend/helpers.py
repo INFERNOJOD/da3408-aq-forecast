@@ -35,7 +35,9 @@ def short_time(iso: str | None) -> str:
     """Return ``25 Mar, 14:00``, short enough for a status box, or ``unknown``.
 
     The full ``nice_time`` value was cut off to "25 Mar 2…" in the console's
-    four status boxes at the default page width (final audit).
+    four status boxes at the default page width (final audit). Even this short
+    form was cut off in a real browser while the four boxes shared one row, so
+    the console now shows them as two rows of two.
     """
     try:
         return datetime.fromisoformat(iso).strftime("%d %b, %H:%M")

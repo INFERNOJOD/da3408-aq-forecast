@@ -18,8 +18,8 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | `infernogod/aq-mlflow` | `sha256:480341e8bcc9…` | linux/amd64, linux/arm64 |
 | `infernogod/aq-pipeline` | `sha256:376209d720ec…` | linux/amd64, linux/arm64 |
 
-2. **Screenshots.** None are committed. The user manual has 13 marked placeholders (`docs/user_manual.md`). The Grafana dashboards and a fired alert (Stage 14) also need screenshots. The two files in `docs/screenshots/` are early drafts from before the UI was final.
-3. **A browser check of both pages (E2E-17).** The pages are tested through Streamlit's `AppTest` and `curl`, never clicked through on this VM. "Responsive" is not checked at all: Streamlit's column layout should stack on a narrow screen, but I have not looked at it in a narrow window or on a phone.
+2. **Screenshots (done on 2026-11-05).** 11 screenshots are in `docs/screenshots/` and linked from the user manual. Screenshot 08 shows the console before the D-5 fix (replay time cut off) and should be taken again. *As of Stage 17:* None are committed. The user manual has 13 marked placeholders (`docs/user_manual.md`). The Grafana dashboards and a fired alert (Stage 14) also need screenshots. The two files in `docs/screenshots/` are early drafts from before the UI was final.
+3. **A browser check of both pages (E2E-17, passed on 2026-11-05).** Both pages in Firefox, and the forecast page in responsive mode at iPhone 14 size (393 x 852): it fits and the cards stack. It found D-5, the cut-off replay time, which is now fixed. *As of Stage 17:* The pages are tested through Streamlit's `AppTest` and `curl`, never clicked through on this VM. "Responsive" is not checked at all: Streamlit's column layout should stack on a narrow screen, but I have not looked at it in a narrow window or on a phone.
 
 **Weak (true, but I should be ready to defend it in the viva):**
 
@@ -43,10 +43,10 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Intuitive for the problem | Forecast page: city dropdown, two colour cards ("In 1 hour", "In 24 hours"), advice, colour guide. `src/frontend/forecast_page.py`; screenshot 4 in `docs/user_manual.md` (pending) |
 | Easy for non-technical users | Plain-language text, no numbers without units, demo note about 2020 dates; `test_forecast_page_says_it_is_a_2020_demo`; `docs/user_manual.md` |
 | Foolproof | No free text for the city (dropdown filled from `/cities`); unknown city is 404, missing is 422 (`test_forecast_unknown_city_is_404`, `test_forecast_missing_city_is_422`); ops buttons hidden until the backend accepts the key (`test_console_hides_ops_until_key_and_rejects_wrong_key`); `http://` and `:8501` redirect to HTTPS |
-| Free of UI errors | Friendly messages instead of tracebacks (`test_forecast_page_friendly_message_when_backend_down`, `..._when_model_down`); every error has one JSON shape (`test_unknown_route_and_method_use_error_body`); `/forecast` and `/console` paths exist (`test_app_serves_forecast_and_console_paths`); developer toolbar hidden (`.streamlit/config.toml`, `test_streamlit_config_hides_developer_toolbar`). **Weak:** no browser check yet (item 3) |
+| Free of UI errors | Friendly messages instead of tracebacks (`test_forecast_page_friendly_message_when_backend_down`, `..._when_model_down`); every error has one JSON shape (`test_unknown_route_and_method_use_error_body`); `/forecast` and `/console` paths exist (`test_app_serves_forecast_and_console_paths`); developer toolbar hidden (`.streamlit/config.toml`, `test_streamlit_config_hides_developer_toolbar`). Browser check done (E2E-17); the one UI fault it found, the cut-off replay time (D-5), is fixed |
 | Good colours, shapes, look-and-feel | CPCB colours (`src/backend/aqi.py`, `test_aqi_categories_match_hld`), readable text colour on each (`test_text_color_picks_readable_ink`), rounded cards (`src/frontend/helpers.py::card_html`). Screenshots 4 and 6 (pending) |
-| Responsive | Streamlit centred layout and column flow. **Not checked** in a narrow window or on a phone (item 3); screenshot 5 (pending) |
-| User manual exists | `docs/user_manual.md` (screenshots pending) |
+| Responsive | Streamlit centred layout and column flow. Checked in Firefox's responsive mode at iPhone 14 size, 393 x 852: the page fits and the two cards stack (`docs/screenshots/05_forecast_mobile.png`, E2E-17) |
+| User manual exists | `docs/user_manual.md`, with 11 screenshots (`docs/screenshots/`) |
 
 ### ML Pipeline Visualization [2]
 
@@ -80,7 +80,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Design document strictly adhered to | The LLD is checked by tests: routes (`test_lld_lists_the_backend_routes`), feature columns (`test_features_match_lld_table_in_order`), metrics (`test_metrics_endpoint_lists_lld_metrics`, `test_every_lld_metric_is_on_a_dashboard`), alert rules (`test_alert_rules_match_lld`), model signature (`test_model_signature_matches_the_lld_columns`). When the design changed (drift rule, Stage 11), HLD, LLD and PLAN changed in the same commit |
 | Inline code comments | Docstrings on every module and function (enforced by ruff `D` rules); comments where a choice needs explaining, e.g. `docker-compose.yml`, `src/frontend/app.py` |
 | APIs follow the design doc interface spec | Same tests as above; `docs/test_report.md` TC-27 to TC-35 |
-| Unit tests implemented | 358 pytest cases in 30 files, one per module (`tests/`), 358 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
+| Unit tests implemented | 359 pytest cases in 30 files, one per module (`tests/`), 359 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
 
 ### Testing [1]
 
@@ -88,7 +88,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 |-------------|-------|
 | Test plan | `docs/test_plan.md` (scope, levels, environment, how to run) |
 | List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-17 |
-| Test report with passed and failed counts | `docs/test_report.md`: 358 run, 358 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
+| Test report with passed and failed counts | `docs/test_report.md`: 359 run, 359 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
 | Acceptance criteria defined and met | `docs/test_plan.md` section 5 (AC-1 to AC-7); `docs/test_report.md` section 4, all 7 met with evidence |
 
 ## AIOps Implementation [10]
@@ -149,7 +149,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | HLD with design choices and rationale | `docs/HLD.md` |
 | LLD with endpoint definitions and I/O specs | `docs/LLD.md` |
 | Test plan and test cases | `docs/test_plan.md` |
-| User manual for non-technical users | `docs/user_manual.md` (screenshots pending) |
+| User manual for non-technical users | `docs/user_manual.md`, with 11 screenshots and plain-language steps |
 
 ## Guidelines
 

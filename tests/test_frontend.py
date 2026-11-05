@@ -319,6 +319,15 @@ def test_console_lists_failed_runs_with_their_error_and_a_short_replay_time():
     assert any("01 Apr 2020, 00:00" in c.value for c in at.caption)
 
 
+def test_console_status_boxes_are_two_per_row():
+    # In one row of four, "Replay time" was cut off in a real browser
+    # (screenshot 08). Each status box must sit in a half-width column.
+    at = AppTest.from_function(console_app, args=(FakeBackend(),)).run()
+    boxes = {m.label: col.weight for col in at.columns for m in col.get("metric")}
+    status = ["Backend", "Model server", "Champion version", "Replay time"]
+    assert {label: boxes[label] for label in status} == dict.fromkeys(status, 0.5)
+
+
 def test_console_with_key_shows_drift_and_posts_retrain():
     backend = FakeBackend()
     at = AppTest.from_function(console_app, args=(backend,)).run()

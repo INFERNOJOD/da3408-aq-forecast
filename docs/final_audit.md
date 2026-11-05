@@ -4,7 +4,7 @@ I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROG
 
 I fixed section (a) and re-audited on 2026-11-03; the results are in the next two sections.
 
-Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 358 passed, 0 failed (2026-11-05, at `6e29d9e`, after 3 frontend tests for the replay-clock note and 5 for the rollback fix). `docs/test_report.md` has the per-file numbers.
+Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 359 passed, 0 failed (2026-11-05: 3 frontend tests for the replay-clock note, 5 for the rollback fix and 1 for the console layout). `docs/test_report.md` has the per-file numbers.
 
 PASS means the evidence is there and works. WEAK means it exists but has a gap a grader could point at. FAIL means it is missing or broken.
 
@@ -26,7 +26,7 @@ I fixed section (a) between 2026-10-27 and 2026-11-03, one commit each. Section 
 | 10. Real `dvc repro` | **Done.** `dvc repro -f`, all 7 stages ran in 75.5 s. The candidate tied v4 at 6.467 and was rejected. All 7 stage statuses are 1 in the Pushgateway, and `PipelineStageFailed` is inactive. | `0a81f6e` |
 | Extra: MLproject in a fresh environment | **Done after a fix** (E2E-21). The first run crashed after training: `mlflow run` creates its run in the Default experiment, and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` the run gives the same MAE and byte-identical LightGBM files as the pipeline. The command is documented with the flag. | `e10bbaf` |
 | Extra: OpenAPI error responses (inconsistency 11) | **Done** | `56779b3` |
-| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 358 passed, 0 failed since 2026-11-05. | `c8201f8`, `a9610f2` |
+| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 359 passed, 0 failed since 2026-11-05. | `c8201f8`, `a9610f2` |
 
 ## Re-audit on 2026-11-03
 
@@ -83,6 +83,19 @@ The full trimmed inspect output and how I built the images (one at a time on a s
 
 **Tally after this update:** 57 PASS, 3 WEAK, 0 FAIL. The three WEAK lines are Responsive, User manual exists and User manual (mandatory doc). All three wait on the browser check and the screenshots, which are section (b)1.
 
+### Update on 2026-11-05: screenshots and browser check
+
+The 11 screenshots are in `docs/screenshots/`. Every image link in `docs/user_manual.md` resolves to a PNG (3420 x 2214), and I looked at them. The API key field is masked wherever it shows, and the terminal shot shows only `docker compose ps`.
+
+| Rubric item | Was | Now | Evidence |
+|---|---|---|---|
+| Responsive | WEAK | PASS | `05_forecast_mobile.png`: Firefox responsive mode at iPhone 14 size (393 x 852). The page fits the width, the text wraps and the two cards stack (E2E-17) |
+| User manual exists | WEAK | PASS | `docs/user_manual.md` with 11 screenshots |
+| User manual (mandatory doc) | WEAK | PASS | same |
+| Free of UI errors | PASS | PASS, after a fix | The browser check contradicted the 2026-11-03 evidence. Screenshot 08 shows "Replay time" cut off as "25 Mar, …" at 90% zoom, because `AppTest` sees values and not widths. Fixed the same day: two status boxes per row, with a test, checked on the rebuilt frontend (test report D-5). Screenshot 08 predates the fix and should be taken again |
+
+**Tally after this update:** 60 PASS, 0 WEAK, 0 FAIL. What is left in section (b): retake screenshot 08, the GitHub remote, the demo video and viva preparation, and a check on a real phone (optional).
+
 ### Other checks I ran today
 
 - 300 serial forecasts over HTTPS on a reused connection: p50 7.5 ms, p95 10.7 ms, all 200.
@@ -116,7 +129,7 @@ The full trimmed inspect output and how I built the images (one at a time on a s
 
 ### (b) Things only I can do
 
-1. **Screenshots.** `docs/user_manual.md` has 13 `[SCREENSHOT n]` placeholders and none are filled. `docs/screenshots/` is untracked and holds two files from 2026-10-20. They predate commit `4d39d3a`, so they still show the "Deploy" button, and their names do not match the names the manual asks for (`04_forecast.png`, `08_console_top.png`, ...). Also needed: a narrow-window screenshot (responsiveness, E2E-17), Grafana during a replay, and `PM25DriftHigh` firing in Prometheus.
+1. **Screenshots.** *Done on 2026-11-05, see "Update on 2026-11-05: screenshots and browser check" above.* As of the audit: `docs/user_manual.md` has 13 `[SCREENSHOT n]` placeholders and none are filled. `docs/screenshots/` is untracked and holds two files from 2026-10-20. They predate commit `4d39d3a`, so they still show the "Deploy" button, and their names do not match the names the manual asks for (`04_forecast.png`, `08_console_top.png`, ...). Also needed: a narrow-window screenshot (responsiveness, E2E-17), Grafana during a replay, and `PM25DriftHigh` firing in Prometheus.
 2. **Docker Hub and multi-arch images.** *Done on 2026-11-05 for all five images, see "Update on 2026-11-05" above.* As of the audit: none are pushed. The local images (`aq-backend`, `aq-frontend`, `aq-model-server`, `aq-mlflow`, `aq-pipeline`) are arm64 only. The only buildx builder supports `linux/arm64`, no QEMU binfmt handler is registered, and Docker is not logged in. I need to log in, install QEMU (needs sudo), run `scripts/build_multiarch.sh`, and add the image names to the README.
 3. **GitHub.** The repo has no git remote at all (`git remote` prints nothing). Create the repository and push.
 4. **Demo video and viva preparation.**

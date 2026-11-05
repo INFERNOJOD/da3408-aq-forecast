@@ -1432,3 +1432,21 @@ The serve stack is running and healthy. Registry: champion 4, previous 1. The re
 ### State I left
 
 The serve stack is running and healthy. Registry: champion 4, previous 1. The ops runner is not running. The pipeline container's memory margin is small: 2.39 of 2.5 GiB.
+
+## Part 22: screenshots, browser check, cut-off replay time (2026-11-05)
+
+### What I did
+
+- **Screenshots.** The 11 screenshots are in `docs/screenshots/`, and every image link in the user manual resolves to a PNG. I looked at them: the API key field is masked wherever it shows, and the terminal shot shows only `docker compose ps`.
+- **E2E-17 passed.** `05_forecast_mobile.png` is Firefox's responsive mode at iPhone 14 size (393 x 852): the page fits, the text wraps and the two cards stack. The final audit's three WEAK lines (Responsive, User manual exists, User manual (mandatory doc)) are PASS. The tally is 60 PASS, 0 WEAK, 0 FAIL.
+- **D-5, found by the browser check.** Screenshot 08 shows the console's "Replay time" box cut off as "25 Mar, …". The audit had called this fixed on 2026-11-03, but that evidence came from Streamlit's `AppTest`, which sees values and not widths. The four status boxes are now two rows of two. A new test checks that each box sits in a half-width column, and it fails on the old layout. I rebuilt only the frontend image. Live, the four boxes are at half width and "Replay time" reads "25 Mar, 00:00".
+- **Tests.** 359 of 359 (`test_frontend.py` 24 to 25). The docs that quote the current count say 359.
+
+### What went wrong
+
+- I trusted a structural test for a visual fault on 2026-11-03. Only a real browser showed it.
+
+### Still open
+
+- Screenshot 08 predates the fix and needs to be taken again. I have no browser on the VM.
+- Section (b) of the final audit: the GitHub remote, the demo video and viva preparation, and a check on a real phone (optional).

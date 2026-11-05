@@ -46,11 +46,15 @@ def _status_section(client: BackendClient) -> None:
     health = _public(client, "/health")
     if health is None:
         return
-    cols = st.columns(4)
-    cols[0].metric("Backend", health["status"])
-    cols[1].metric("Model server", health["model_server"])
-    cols[2].metric("Champion version", health.get("model_version") or "none")
-    cols[3].metric("Replay time", short_time(health["sim_time"]))
+    # Two rows of two boxes. In one row of four, each box is a quarter of the
+    # centred page and "25 Mar, 00:00" was still cut off to "25 Mar, ..." in a
+    # real browser (screenshot 08). AppTest cannot see widths, so it missed it.
+    top = st.columns(2)
+    top[0].metric("Backend", health["status"])
+    top[1].metric("Model server", health["model_server"])
+    bottom = st.columns(2)
+    bottom[0].metric("Champion version", health.get("model_version") or "none")
+    bottom[1].metric("Replay time", short_time(health["sim_time"]))
     state = "running" if health["replay_running"] else "stopped"
     st.caption(f"Replay is {state} at {nice_time(health['sim_time'])}.")
 

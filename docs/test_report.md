@@ -1,29 +1,29 @@
 # Test Report
 
-I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2), and ran it once more. The pytest numbers below come from that last run; the other sections say when each check was run.
+I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5), and ran it once more. The pytest numbers below come from that last run; the other sections say when each check was run.
 
 ## 1. Summary
 
 | | Count |
 |---|---:|
-| pytest test cases run | **358** |
-| Passed | **358** |
+| pytest test cases run | **359** |
+| Passed | **359** |
 | Failed | **0** |
 | Errors | 0 |
 | Skipped | 0 |
-| End-to-end checks (E2E-01 to E2E-23) | 22 passed, 1 pending (E2E-17, browser screenshots) |
+| End-to-end checks (E2E-01 to E2E-23) | **23 passed** |
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
-| Defects found | 4, all fixed (section 5) |
+| Defects found | 5, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/final/junit.xml` (`tests="358" failures="0" errors="0" skipped="0"`, 52.3 s), at commit `6e29d9e` with the batch-container run's `dvc.lock` in the workspace. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/final/junit.xml` (`tests="359" failures="0" errors="0" skipped="0"`, 48.7 s), at commit `1341240` with the D-5 console fix in the workspace. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
-== summary (commit 6e29d9e)
+== summary (commit 1341240)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    56s
-dvc-status     PASS     1s
-dvc-remote     PASS     0s
+pytest         PASS    52s
+dvc-status     PASS     0s
+dvc-remote     PASS     1s
 CI PASSED
 ```
 
@@ -56,13 +56,13 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_backend_drift.py` | TC-37 | 9 | 9 | 0 |
 | `test_replay_script.py` | TC-38 | 5 | 5 | 0 |
 | `test_ops_runner.py` | TC-39 | 22 | 22 | 0 |
-| `test_frontend.py` | TC-40 to TC-44 | 24 | 24 | 0 |
+| `test_frontend.py` | TC-40 to TC-44 | 25 | 25 | 0 |
 | `test_monitoring.py`, `test_push_stage_metrics.py` | TC-45 | 9 | 9 | 0 |
 | `test_security.py` | TC-46, TC-47 | 11 | 11 | 0 |
 | `test_ci.py` | TC-48 | 6 | 6 | 0 |
-| **Total** | 48 cases | **358** | **358** | **0** |
+| **Total** | 48 cases | **359** | **359** | **0** |
 
-The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.3 s, `test_validate_all_passes_on_good_data` 2.5 s, `test_validate_all_fails_on_impossible_value` 2.4 s). The suite took 52.3 s inside the 56 s pytest step.
+The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, `test_validate_all_passes_on_good_data` 2.7 s, `test_validate_all_fails_on_impossible_value` 2.3 s). The suite took 48.7 s inside the 52 s pytest step.
 
 ## 3. End-to-end checks
 
@@ -86,7 +86,7 @@ The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.3 s, 
 | E2E-14 CI with `--repro` | Pass | Stage 16 | every step PASS, `reports/ci/last_run.log` |
 | E2E-15 Reproduce the champion | Pass | Today | section 4, AC-6 |
 | E2E-16 Pre-commit hook | Pass | Stage 16 | commit refused with ruff D100 and F401; guard failed on `certs/ca.crt` and `.env` (PROGRESS Part 16) |
-| E2E-17 Pages in a browser | **Pending** | | needs a desktop browser; screenshots go into `docs/screenshots/` and `docs/user_manual.md` |
+| E2E-17 Pages in a browser | Pass | 2026-11-05 | 11 screenshots in Firefox on the VM's desktop, in `docs/screenshots/` and linked from the user manual. Responsive: `05_forecast_mobile.png` uses Firefox's responsive mode at iPhone 14 size (393 x 852). The page fits the width, the text wraps and the two colour cards stack in one column. The console screenshot `08_console_top.png` showed the replay time cut off, defect D-5 |
 | E2E-18 Pushgateway survives a restart | Pass | 2026-10-27 | probe metric still served after `down`/`up` (metrics.md, "Final audit fixes") |
 | E2E-19 Runner pauses containers | Pass | 2026-10-27 | frontend and Grafana stopped and started again within 2.3 s, request `failed` with `paused`, proxy 503 page (metrics.md) |
 | E2E-20 Fresh clone | Pass | 2026-11-03 | `scripts/bootstrap.sh` exit 0 in 7 min 20 s, v1 champion, stack healthy in about 25 s, forecast 200, 9/9 targets up (metrics.md) |
@@ -180,7 +180,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `6e29d9e`): ruff and format pass, 358 of 358 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
+`scripts/ci.sh` (2026-11-05, at `1341240` plus the D-5 fix): ruff and format pass, 359 of 359 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
 
 ## 5. Defects found in this run
 
@@ -190,13 +190,15 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 **Still weak after D-2, fixed on 2026-11-05.** With MLflow down, the rollback error said "No previous version to roll back to", because the lookup of `previous` swallowed the connection error and returned nothing. The answer was safe (nothing changed) but the message was wrong. **Fix:** the registry now treats only MLflow's "not found" codes (`RESOURCE_DOES_NOT_EXIST`, `INVALID_PARAMETER_VALUE`) as "not there". Any other error during a rollback raises `RegistryUnavailableError`, and the backend answers 503 `REGISTRY_UNAVAILABLE` (LLD section 1). Lookups for serving stay lenient, so forecasts keep working. Live check on the rebuilt backend, with the `mlflow` container stopped: `POST /ops/rollback` with `{}` gave 503 `REGISTRY_UNAVAILABLE` in 4.4 s, and with `{"version": "1"}` the same in 4.9 s. A forecast still answered 200 in 4.6 s. 35 s after MLflow was back, `champion` was still 4 and `previous` 1. The 4.5 s forecast with MLflow down is unchanged: the client still retries before it gives up.
 
+**D-5. The console's replay time was cut off in a real browser** (2026-11-05, E2E-17). Screenshot `08_console_top.png`, in Firefox at 90% zoom, shows the "Replay time" status box as "25 Mar, …". The final audit had marked this fixed, because Streamlit's `AppTest` showed the short value "25 Mar, 00:00". `AppTest` checks values, not widths. The four status boxes shared one row of the centred page, so each was about a quarter of its width. **Fix:** the console shows them as two rows of two. A new test, `test_console_status_boxes_are_two_per_row`, checks that each box sits in a half-width column. It fails on the old layout. On the rebuilt frontend, the live console has all four boxes at half width, with "Replay time" at "25 Mar, 00:00". I have no browser on the VM, so screenshot 08 still shows the old row and needs to be taken again.
+
 **D-4. The batch container could not run the pipeline** (2026-11-05, E2E-23). Compose runs it as my host uid (1000), so the files it writes stay mine. The image only knows its own user (10001). DVC failed at once with `getpwuid(): uid not found: 1000` (from `getpass.getuser()`). With `USER` set, Spark failed next, in Hadoop's login: `invalid null input: name`. That code reads the user database directly and ignores the variable. **Fix:** compose mounts the host's `/etc/passwd` and `/etc/group` read-only into the pipeline container. The container already runs as my uid and mounts the whole project, so this adds little exposure, and the published image did not need a rebuild. Checked through plain `docker compose run`: `id -un` gives my user, `dvc status` works and a Spark session starts as `krish-yadav`. The Spark attempt left one real `ingest failed` record (`container-20261105-214205`) in `runs.jsonl`.
 
 **D-3. `mlflow run` crashed when it logged the run** (2026-11-03, E2E-21). It trained both horizons and then failed with "Cannot start run with ID ... because active experiment ID does not match environment run ID". `mlflow run` creates its run in the Default experiment, and `train.py` sets the experiment `aq-pm25`. On 2026-10-27 the fresh-environment run never got as far as training, so this was the first time I saw the error. **Fix:** the documented command is now `mlflow run . -e main --env-manager uv --experiment-name aq-pm25` (README, test plan). With it the run succeeds. I did not change `train.py`: the pipeline and the MLproject run should log to the same experiment.
 
 ## 6. What this report does not show
 
-- **No browser test.** The pages are tested through Streamlit's `AppTest` and the HTTP layer through `curl`. Nobody has clicked through them in a browser on this VM (E2E-17).
+- **One browser, no real phone.** The pages were checked in Firefox on the VM, and the narrow layout in Firefox's responsive mode at iPhone 14 size (E2E-17). Not on a real phone or in another browser. Screenshot 08 predates the D-5 fix.
 - **Auto-rollback after a failed smoke check** is tested with fakes only (`test_failed_smoke_check_rolls_back`). I have not made a real model fail.
 - **The hot swap** with 0 failed requests was measured outside Docker (Stage 9), not in the compose stack.
 - **Latency is serial.** I did not load-test with concurrent users.
