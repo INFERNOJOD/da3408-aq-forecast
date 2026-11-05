@@ -699,3 +699,21 @@ byte-identical `h1.txt`, `h24.txt`, `meta.json`, `requirements.txt` and `python_
 MLflow's Default experiment as FAILED. Its failed `train` record went to the Pushgateway too, and
 the successful retry replaced it with `1`. Afterwards I restored the committed `models/candidate`
 and `reports/train_metrics.json` with `dvc checkout` and `git checkout`.
+
+## Pipeline in the batch container (2026-11-05)
+
+Run `container-20261105-214229` at commit `6e29d9e`, with `docker compose --profile batch run --rm pipeline dvc repro -f`. The serve stack was stopped and only the Pushgateway was up. `docker stats` was sampled every 5 s.
+
+| Stage | Time | Rows/s |
+|------|-----:|------:|
+| ingest | 7.7 s | 444,111 |
+| validate | 26.3 s | 130,764 |
+| features | 10.7 s | 28,287 |
+| train | 20.8 s | 24,521 |
+| evaluate | 0.8 s | 1,071 |
+| test | 0.0 s | none |
+| register | 0.3 s | 3.2 |
+| whole `docker compose run` | 74.4 s | |
+
+The container's peak memory was 2.39 GiB against its `mem_limit` of 2560 MiB. That is close: the Spark driver has 2 GB, and the JVM and Python come on top. The same run on the host earlier that day took 75.8 s (`manual-20261105-174821`), so the container adds no measurable time. The candidate tied champion v4 at a mean MAE of 6.467 and was rejected.
+

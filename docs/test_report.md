@@ -1,35 +1,35 @@
 # Test Report
 
-I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note and ran it once more. The pytest numbers below come from that last run; the other sections say when each check was run.
+I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2), and ran it once more. The pytest numbers below come from that last run; the other sections say when each check was run.
 
 ## 1. Summary
 
 | | Count |
 |---|---:|
-| pytest test cases run | **353** |
-| Passed | **353** |
+| pytest test cases run | **358** |
+| Passed | **358** |
 | Failed | **0** |
 | Errors | 0 |
 | Skipped | 0 |
-| End-to-end checks (E2E-01 to E2E-22) | 21 passed, 1 pending (E2E-17, browser screenshots) |
+| End-to-end checks (E2E-01 to E2E-23) | 22 passed, 1 pending (E2E-17, browser screenshots) |
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
-| Defects found | 3, all fixed (section 5) |
+| Defects found | 4, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/final/junit.xml` (`tests="353" failures="0" errors="0" skipped="0"`, 54.3 s), at commit `76de3f9`. The full CI output is in `reports/ci/final/last_run.log`. The 2026-11-03 run (350 of 350 at `e10bbaf`) is in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/final/junit.xml` (`tests="358" failures="0" errors="0" skipped="0"`, 52.3 s), at commit `6e29d9e` with the batch-container run's `dvc.lock` in the workspace. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
-== summary (commit 76de3f9)
+== summary (commit 6e29d9e)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    59s
-dvc-status     PASS     0s
+pytest         PASS    56s
+dvc-status     PASS     1s
 dvc-remote     PASS     0s
 CI PASSED
 ```
 
 ## 2. pytest results by file
 
-Each row lists the test cases from the plan that the file covers. The counts include parametrized cases, which is why `test_backend.py` has 95 results from 41 functions (`test_ops_requires_key` alone has 30).
+Each row lists the test cases from the plan that the file covers. The counts include parametrized cases, which is why `test_backend.py` has 97 results from 43 functions (`test_ops_requires_key` alone has 30).
 
 | File | Plan cases | Run | Passed | Failed |
 |------|-----------|----:|-------:|-------:|
@@ -47,11 +47,11 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_train.py`, `test_train_plots.py` | TC-18, TC-19 | 10 | 10 | 0 |
 | `test_aq_model.py` | TC-20 | 8 | 8 | 0 |
 | `test_gate.py` | TC-21 | 6 | 6 | 0 |
-| `test_registry.py` | TC-22 | 6 | 6 | 0 |
+| `test_registry.py` | TC-22 | 9 | 9 | 0 |
 | `test_promotion_flow.py` | TC-23 | 6 | 6 | 0 |
 | `test_rollback_script.py` | TC-24 | 3 | 3 | 0 |
 | `test_model_server.py` | TC-25, TC-26 | 12 | 12 | 0 |
-| `test_backend.py` | TC-27 to TC-35 | 95 | 95 | 0 |
+| `test_backend.py` | TC-27 to TC-35 | 97 | 97 | 0 |
 | `test_drift.py` | TC-36 | 13 | 13 | 0 |
 | `test_backend_drift.py` | TC-37 | 9 | 9 | 0 |
 | `test_replay_script.py` | TC-38 | 5 | 5 | 0 |
@@ -60,9 +60,9 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_monitoring.py`, `test_push_stage_metrics.py` | TC-45 | 9 | 9 | 0 |
 | `test_security.py` | TC-46, TC-47 | 11 | 11 | 0 |
 | `test_ci.py` | TC-48 | 6 | 6 | 0 |
-| **Total** | 48 cases | **353** | **353** | **0** |
+| **Total** | 48 cases | **358** | **358** | **0** |
 
-The slowest single tests are the promotion-flow test (`test_first_model_is_promoted_then_an_equal_candidate_is_rejected` 5.3 s) and the Spark ones (`test_missing_by_city_year` 4.7 s, `test_validate_all_fails_on_impossible_value` 2.9 s). The suite took 54.3 s inside the 59 s pytest step.
+The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.3 s, `test_validate_all_passes_on_good_data` 2.5 s, `test_validate_all_fails_on_impossible_value` 2.4 s). The suite took 52.3 s inside the 56 s pytest step.
 
 ## 3. End-to-end checks
 
@@ -92,6 +92,7 @@ The slowest single tests are the promotion-flow test (`test_first_model_is_promo
 | E2E-20 Fresh clone | Pass | 2026-11-03 | `scripts/bootstrap.sh` exit 0 in 7 min 20 s, v1 champion, stack healthy in about 25 s, forecast 200, 9/9 targets up (metrics.md) |
 | E2E-21 MLproject, fresh environment | Pass after fix | 2026-11-03 | the first run crashed (defect D-3); with `--experiment-name aq-pm25`: same MAE and byte-identical LightGBM files as the pipeline (metrics.md) |
 | E2E-22 Failed run in the console | Pass | 2026-10-27, checked again 2026-11-03 | `demo-failure-20261027` failed in `validate` with "4 hard check(s) failed"; on 2026-11-03 `/pipeline/runs?limit=20`, the call the console makes, listed it as failed with that error |
+| E2E-23 Pipeline in the batch container | Pass | 2026-11-05 | `container-20261105-214229`: all 7 stages succeeded in 74.4 s (ingest 7.7 s at 444,111 rows/s, validate 26.3 s, features 10.7 s, train 20.8 s), peak memory 2.39 GiB of the 2.5 GiB limit. Files owned by uid 1000, MLflow run `4c6ef2ee` in the host's `mlruns/`. The candidate tied v4 (6.467) and was rejected. Found D-4 first |
 
 ## 4. Acceptance criteria
 
@@ -179,7 +180,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `76de3f9`): ruff and format pass, 353 of 353 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
+`scripts/ci.sh` (2026-11-05, at `6e29d9e`): ruff and format pass, 358 of 358 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
 
 ## 5. Defects found in this run
 
@@ -188,6 +189,8 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 **D-2. A rollback the caller gave up on was applied 4 minutes later.** I killed the hung `curl` from D-1, but the backend kept retrying the MLflow call with MLflow's default back-off. After I fixed D-1, that old request went through at 07:46:35 and moved `champion` from 4 to 1 while I was running the clean drill. That explains a confusing first attempt, where "already champion" seemed to pass. **Fix:** the backend now sets `MLFLOW_HTTP_REQUEST_MAX_RETRIES=2` and `MLFLOW_HTTP_REQUEST_TIMEOUT=10`. With MLflow stopped, a rollback now fails after 5.0 s, and the aliases did not change afterwards (E2E-12).
 
 **Still weak after D-2, fixed on 2026-11-05.** With MLflow down, the rollback error said "No previous version to roll back to", because the lookup of `previous` swallowed the connection error and returned nothing. The answer was safe (nothing changed) but the message was wrong. **Fix:** the registry now treats only MLflow's "not found" codes (`RESOURCE_DOES_NOT_EXIST`, `INVALID_PARAMETER_VALUE`) as "not there". Any other error during a rollback raises `RegistryUnavailableError`, and the backend answers 503 `REGISTRY_UNAVAILABLE` (LLD section 1). Lookups for serving stay lenient, so forecasts keep working. Live check on the rebuilt backend, with the `mlflow` container stopped: `POST /ops/rollback` with `{}` gave 503 `REGISTRY_UNAVAILABLE` in 4.4 s, and with `{"version": "1"}` the same in 4.9 s. A forecast still answered 200 in 4.6 s. 35 s after MLflow was back, `champion` was still 4 and `previous` 1. The 4.5 s forecast with MLflow down is unchanged: the client still retries before it gives up.
+
+**D-4. The batch container could not run the pipeline** (2026-11-05, E2E-23). Compose runs it as my host uid (1000), so the files it writes stay mine. The image only knows its own user (10001). DVC failed at once with `getpwuid(): uid not found: 1000` (from `getpass.getuser()`). With `USER` set, Spark failed next, in Hadoop's login: `invalid null input: name`. That code reads the user database directly and ignores the variable. **Fix:** compose mounts the host's `/etc/passwd` and `/etc/group` read-only into the pipeline container. The container already runs as my uid and mounts the whole project, so this adds little exposure, and the published image did not need a rebuild. Checked through plain `docker compose run`: `id -un` gives my user, `dvc status` works and a Spark session starts as `krish-yadav`. The Spark attempt left one real `ingest failed` record (`container-20261105-214205`) in `runs.jsonl`.
 
 **D-3. `mlflow run` crashed when it logged the run** (2026-11-03, E2E-21). It trained both horizons and then failed with "Cannot start run with ID ... because active experiment ID does not match environment run ID". `mlflow run` creates its run in the Default experiment, and `train.py` sets the experiment `aq-pm25`. On 2026-10-27 the fresh-environment run never got as far as training, so this was the first time I saw the error. **Fix:** the documented command is now `mlflow run . -e main --env-manager uv --experiment-name aq-pm25` (README, test plan). With it the run succeeds. I did not change `train.py`: the pipeline and the MLproject run should log to the same experiment.
 

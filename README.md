@@ -25,7 +25,7 @@ flowchart LR
     graf[Grafana] --> prom
 ```
 
-The frontend knows one thing about the rest of the system: `BACKEND_URL`. Everything it shows comes from the REST API in `docs/LLD.md`. The backend does the work: it builds the feature row for the simulated "now", asks the model server for both horizons in one call, turns PM2.5 into a category, computes drift, and handles the operator actions behind an API key. Training is too heavy for the backend container, so the backend only writes a request file. A small runner on the host picks it up and runs `dvc repro` there. That way no container needs access to the Docker socket. The same pipeline is packaged as the `batch` compose profile (`docker compose --profile batch run --rm pipeline dvc repro`). I built that image and checked its packages, but the runner does not use it, and I have not run a full pipeline inside it.
+The frontend knows one thing about the rest of the system: `BACKEND_URL`. Everything it shows comes from the REST API in `docs/LLD.md`. The backend does the work: it builds the feature row for the simulated "now", asks the model server for both horizons in one call, turns PM2.5 into a category, computes drift, and handles the operator actions behind an API key. Training is too heavy for the backend container, so the backend only writes a request file. A small runner on the host picks it up and runs `dvc repro` there. That way no container needs access to the Docker socket. The same pipeline is packaged as the `batch` compose profile (`docker compose --profile batch run --rm pipeline dvc repro`). The runner does not use that image, but I ran the full pipeline in it once on 2026-11-05: all 7 stages in 74 s, with the same result as on the host. The first attempt failed because the container runs as my uid, which the image does not know. The fix is in compose, `docs/test_report.md` D-4.
 
 I split compose into two profiles because of the 8 GB limit. `serve` is always on (10 small containers, about 1.3 GiB at idle). `batch` holds Spark and training, and never runs next to the full serve stack.
 
@@ -57,7 +57,7 @@ Open **https://localhost**. The browser warns about the certificate the first ti
 Other commands I use:
 
 ```
-scripts/ci.sh                         # lint, 353 tests, dvc status, dvc status -c (about 1 min)
+scripts/ci.sh                         # lint, 358 tests, dvc status, dvc status -c (about 1 min)
 docker compose --profile serve stop
 scripts/ci.sh --repro                 # + the full DVC pipeline and dvc push (about 2.5 min)
 python -m scripts.replay              # drift acceptance test over 2016-2020
@@ -87,7 +87,7 @@ v1 was trained up to 24 March 2020. v4 is the model the system trained by itself
 
 **Drift and retraining.** Replaying 25 March to 30 June of every year, the drift rule fires for 661 of 2,185 hours in 2020 and for 0 hours in 2016-2019. In the live loop it took 2 min 47 s from "drift is true" to the new model answering forecasts: the alert, the webhook, the retrain request, `dvc repro` with the new cutoff, the gate, the registry and the hot swap. The new model beat the old one on the lockdown window (mean MAE 6.467 against 6.750).
 
-**Tests.** 353 pytest cases, 353 passed, 0 failed. `docs/test_report.md` checks the seven acceptance criteria one by one, and all seven are met.
+**Tests.** 358 pytest cases, 358 passed, 0 failed. `docs/test_report.md` checks the seven acceptance criteria one by one, and all seven are met.
 
 ## Reproduce a result
 

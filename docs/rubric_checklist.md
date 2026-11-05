@@ -26,7 +26,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 4. **The drift margin is one city.** Normal years reach 3 cities above threshold and the rule needs 4. The thresholds and the city count were set on the same 2016-2019 weeks I count false alarms on, so "0 false alarms" is in-sample. Hyderabad almost never votes (1 lockdown hour).
 5. **The evaluation window is short** (497 rows at 1 h, 336 at 24 h), and the model loses to a baseline in Kolkata and Lucknow.
 6. **Auto-rollback after a failed smoke check is tested with fakes only.** The live rollback drill (test report, AC-5) used the manual endpoint.
-7. **The batch container has never run the pipeline.** The ops runner and `scripts/ci.sh --repro` run `dvc repro` on the host. The `aq-pipeline` image is built and its packages checked, nothing more. I corrected `docs/architecture.md`, which had said the runner starts the container. Since the final audit the runner stops the frontend and Grafana around a retrain and starts them again (E2E-19).
+7. **The ops runner and `scripts/ci.sh --repro` run `dvc repro` on the host, not in the batch container.** The batch container itself ran the full pipeline once on 2026-11-05, with the serve stack stopped (E2E-23): all 7 stages in 74 s, peak memory 2.39 GiB under its 2.5 GiB limit. The first try found defect D-4 (the host uid was unknown inside the image), fixed in compose. I corrected `docs/architecture.md`, which had said the runner starts the container. Since the final audit the runner stops the frontend and Grafana around a retrain and starts them again (E2E-19).
 8. **A forecast with MLflow down answers 200 but takes 4.5 s.** The wrong rollback message with MLflow down ("No previous version to roll back to") is fixed since 2026-11-05: it is now 503 `REGISTRY_UNAVAILABLE`, checked live (test report, D-2).
 9. **The MLflow container now mounts the whole project folder** (fix D-1 in the test report). It can read `.env`. The pipeline container already had the same mount.
 10. **Internal traffic is partly plain HTTP** (model server, MLflow, exporters on the compose network). Only the browser-to-proxy and frontend-to-backend hops, which carry the API key, are TLS.
@@ -80,7 +80,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Design document strictly adhered to | The LLD is checked by tests: routes (`test_lld_lists_the_backend_routes`), feature columns (`test_features_match_lld_table_in_order`), metrics (`test_metrics_endpoint_lists_lld_metrics`, `test_every_lld_metric_is_on_a_dashboard`), alert rules (`test_alert_rules_match_lld`), model signature (`test_model_signature_matches_the_lld_columns`). When the design changed (drift rule, Stage 11), HLD, LLD and PLAN changed in the same commit |
 | Inline code comments | Docstrings on every module and function (enforced by ruff `D` rules); comments where a choice needs explaining, e.g. `docker-compose.yml`, `src/frontend/app.py` |
 | APIs follow the design doc interface spec | Same tests as above; `docs/test_report.md` TC-27 to TC-35 |
-| Unit tests implemented | 353 pytest cases in 30 files, one per module (`tests/`), 353 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
+| Unit tests implemented | 358 pytest cases in 30 files, one per module (`tests/`), 358 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
 
 ### Testing [1]
 
@@ -88,7 +88,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 |-------------|-------|
 | Test plan | `docs/test_plan.md` (scope, levels, environment, how to run) |
 | List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-17 |
-| Test report with passed and failed counts | `docs/test_report.md`: 353 run, 353 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
+| Test report with passed and failed counts | `docs/test_report.md`: 358 run, 358 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
 | Acceptance criteria defined and met | `docs/test_plan.md` section 5 (AC-1 to AC-7); `docs/test_report.md` section 4, all 7 met with evidence |
 
 ## AIOps Implementation [10]

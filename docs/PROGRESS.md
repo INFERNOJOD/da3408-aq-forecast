@@ -1415,3 +1415,20 @@ PIPELINE_TRIGGER=manual PIPELINE_RUN_ID="manual-$(date +%Y%m%d-%H%M%S)" \
 ### State I left
 
 The serve stack is running and healthy. Registry: champion 4, previous 1. The replay is stopped at 25 Mar 2020, 00:00. The ops runner is not running. Bringing the stack up after the pipeline run moved MLflow and the model server to the `aq-mlflow` and `aq-model-server` images I rebuilt today by accident. Those images come from the same Dockerfiles, and both services are healthy. About 1.5 GB of disk was free right after the frontend rebuild and 6.6 GB later in the day. A full `up -d --build` rebuilds four images of 0.8 to 1.3 GB, so I check `df -h /` first.
+
+## Part 21: rollback message with MLflow down, pipeline in the batch container (2026-11-05)
+
+### What I did
+
+- **Rollback with MLflow down** (`6e29d9e`, rubric checklist item 8). The registry used to read any MLflow error as "alias not set", so with MLflow down a rollback said "No previous version to roll back to". Now only MLflow's not-found codes mean "not there". Any other error during a rollback raises `RegistryUnavailableError`, and the backend answers 503 `REGISTRY_UNAVAILABLE`, which is a new code in the LLD. Serving lookups stay lenient, so forecasts still work without MLflow. 5 new tests. Live, after rebuilding only the backend image, with the `mlflow` container stopped: 503 in 4.4 s and 4.9 s. The aliases were unchanged after MLflow came back.
+- **Pipeline in the batch container** (item 7, E2E-23). With the serve stack stopped and only the Pushgateway up, `docker compose --profile batch run --rm pipeline dvc repro -f` failed twice before it worked (defect D-4). The container runs as my uid, which the image's `/etc/passwd` does not have. DVC failed in `getpass.getuser()`. With `USER` set, Spark's Hadoop login failed next, because it reads the user database directly. Compose now mounts the host's `/etc/passwd` and `/etc/group` read-only. That needs no image rebuild, so the Docker Hub image is still current. Run `container-20261105-214229`: all 7 stages in 74.4 s, peak memory 2.39 GiB of the 2.5 GiB limit. The candidate tied v4 at 6.467 and was rejected, so v4 is still champion and v1 previous. `dvc push` sent 18 files. The serve stack is back up and healthy, and the console shows this run with all 7 stages green.
+- **Counts.** 358 tests now (`test_registry.py` 6 to 9, `test_backend.py` 95 to 97). The docs that quote the current count say 358.
+
+### What went wrong
+
+- My first CI run after the rollback fix failed `dvc status`. `src/common` and `registry.py` are stage dependencies, so `dvc.lock` stayed stale until the pipeline ran again. I committed the fix first, so the container run would record a clean commit, and I committed the run separately.
+- The Spark attempt for D-4 left a real `ingest failed` record in `runs.jsonl`, and pushed `ingest 0` to the Pushgateway. The successful run replaced it with 1.
+
+### State I left
+
+The serve stack is running and healthy. Registry: champion 4, previous 1. The ops runner is not running. The pipeline container's memory margin is small: 2.39 of 2.5 GiB.

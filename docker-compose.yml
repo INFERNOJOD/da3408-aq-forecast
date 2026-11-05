@@ -239,6 +239,13 @@ services:
       HOME: /tmp
     volumes:
       - ${HOST_PROJECT}:${HOST_PROJECT}
+      # The container runs as the host uid, which has no entry in the image's
+      # /etc/passwd. DVC (getpass.getuser) and Spark's Hadoop login both look
+      # the user up and failed: "getpwuid(): uid not found: 1000", then
+      # "invalid null input: name". The host's user database, read-only, fixes
+      # both without baking a uid into the published image.
+      - /etc/passwd:/etc/passwd:ro
+      - /etc/group:/etc/group:ro
     depends_on: [pushgateway]
 
 volumes:
