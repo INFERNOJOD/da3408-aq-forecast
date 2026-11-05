@@ -151,8 +151,11 @@ def test_count_runs():
 class FakeBackend:
     """Stands in for BackendClient inside the page functions."""
 
-    def __init__(self, down=False, model_down=False):
+    def __init__(
+        self, down=False, model_down=False, replay_running=False, health_down=False
+    ):
         self.down, self.model_down, self.posts = down, model_down, []
+        self.replay_running, self.health_down = replay_running, health_down
 
     def get(self, path, params=None, api_key=None):
         if self.down:
@@ -168,9 +171,11 @@ class FakeBackend:
                                     "color": "#00B050", "advice": "ok"}],
                     "note": "Indicative."}  # fmt: skip
         if path == "/health":
+            if self.health_down:
+                raise BackendError("UNREACHABLE", "The backend does not answer.")
             return {"status": "ok", "model_server": "up", "model_version": "4",
                     "sim_time": "2020-04-01T00:00:00",
-                    "replay_running": False}  # fmt: skip
+                    "replay_running": self.replay_running}  # fmt: skip
         if path == "/pipeline/stages":
             return {"run_id": "r1", "stages": [
                 {"name": "ingest", "deps": [], "status": "success", "duration_s": 1.0,
@@ -230,6 +235,30 @@ def test_forecast_page_shows_cards_for_chosen_city():
 def test_forecast_page_says_it_is_a_2020_demo():
     at = run_forecast(FakeBackend())
     assert "March to June 2020" in at.info[0].value
+
+
+def captions(at):
+    return [c.value for c in at.caption]
+
+
+def test_forecast_page_says_when_the_demo_clock_is_paused():
+    at = run_forecast(FakeBackend(replay_running=False))
+    assert not at.exception
+    assert any("Demo clock is paused" in c for c in captions(at))
+    assert not any("Replay running" in c for c in captions(at))
+
+
+def test_forecast_page_says_when_the_replay_is_running():
+    at = run_forecast(FakeBackend(replay_running=True))
+    assert any("Replay running" in c for c in captions(at))
+    assert not any("paused" in c for c in captions(at))
+
+
+def test_forecast_page_still_shows_cards_when_health_fails():
+    at = run_forecast(FakeBackend(health_down=True))
+    assert not at.exception and not at.error
+    assert not any("paused" in c or "Replay running" in c for c in captions(at))
+    assert any("Forecast made for" in c for c in captions(at))
 
 
 def test_app_serves_forecast_and_console_paths(monkeypatch):

@@ -208,5 +208,8 @@ The system only has a model for seven cities with enough good historical data.
 **The colour changed between two refreshes. Why?**
 The replay clock moves forward, so each refresh can be a later hour. The model may also have been replaced by a better one after a retrain.
 
+**The forecast never changes. Is it stuck?**
+Look under the date on the Forecast page. If it says "Demo clock is paused", nobody has started the replay, so time does not move. Start it in the Pipeline console. When it is moving, the page says "Replay running".
+
 **Can I use it on my phone?**
 The page layout stacks into one column on a narrow screen. Your phone must be on the same network, and you open the computer's address (for example `https://192.168.64.7`). You'll see the certificate warning there too. I have not yet tested it on a real phone.

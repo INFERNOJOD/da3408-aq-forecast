@@ -18,6 +18,11 @@ MODEL_DOWN_MESSAGE = (
     "The forecast model is taking a break, so there is no forecast at the moment. "
     "Please try again in a few minutes."
 )
+PAUSED_NOTE = (
+    "Demo clock is paused. Start the replay in the Pipeline console "
+    "to move time forward."
+)
+RUNNING_NOTE = "Replay running: the demo clock moves forward on its own."
 
 
 @st.cache_data(ttl=15, show_spinner=False)
@@ -30,6 +35,20 @@ def _forecast(_client: BackendClient, city: str) -> dict:
 def _static(_client: BackendClient, path: str) -> dict:
     """Fetch data that hardly changes (cities, AQI categories)."""
     return _client.get(path)
+
+
+def _clock_note(client: BackendClient) -> str | None:
+    """Say whether the replay clock is moving, from GET /health.
+
+    Not cached, so the note changes as soon as the operator starts or stops
+    the replay. Returns None if the backend does not answer; the forecast
+    itself still shows, so a missing note is not worth an error box.
+    """
+    try:
+        health = client.get("/health")
+    except BackendError:
+        return None
+    return RUNNING_NOTE if health.get("replay_running") else PAUSED_NOTE
 
 
 def render_forecast(client: BackendClient) -> None:
@@ -53,6 +72,9 @@ def render_forecast(client: BackendClient) -> None:
         return
 
     st.caption(f"Forecast made for {nice_time(data['issued_at'])}.")
+    note = _clock_note(client)
+    if note:
+        st.caption(note)
     for item in data["forecasts"]:
         st.markdown(card_html(item), unsafe_allow_html=True)
     observed = data.get("latest_observed_pm25")
