@@ -1,9 +1,0 @@
-# captured 2026-11-10 20:32:23 IST on the project VM, commit aeb8f83
-# what this proves: DVC remote is a local folder (no cloud)
-$ uv run --frozen dvc remote list; cat .dvc/config
-localremote     /home/krish-yadav/DA3408/dvc-remote     (default)
-[core]
-    remote = localremote
-    analytics = false
-['remote "localremote"']
-    url = /home/krish-yadav/DA3408/dvc-remote

@@ -11,7 +11,8 @@ no browser is installed on the VM:
 
 Jobs: ``ui``, ``console``, ``design``, ``implementation``, ``testing``,
 ``data``, ``ci``, ``mlflow``, ``monitoring``, ``packaging``, ``guidelines``,
-``terminals`` (renders every ``.txt`` that has no ``.png`` yet) and ``page``
+``terminals`` (renders every ``.txt`` that has no ``.png`` yet), ``terminal-pil``
+(the same with Pillow on the host, no browser, for ``--only <path part>``) and ``page``
 (one screenshot, used by the live story in
 ``scripts/capture_evidence_host.sh``).
 
@@ -369,6 +370,60 @@ def parse_transcript(raw: str) -> tuple[str, str]:
         elif line.startswith("$ ") and not command:
             command = line[2:]
     return command, proves
+
+
+def terminal_image(raw: str, width: int = WIDTH) -> bytes:
+    """Draw a transcript as a dark terminal block with Pillow (no browser).
+
+    The fallback when the Playwright container is not available. It looks
+    like the browser rendering: comments green, commands blue, output grey.
+    """
+    font = _font(FONT_MONO, 13)
+    chars = (width - 132) // 8
+    lines: list[tuple[str, str]] = []
+    for ln in raw.splitlines():
+        color = (
+            "#6a9955"
+            if ln.startswith("# ")
+            else "#4fc1ff"
+            if ln.startswith("$ ")
+            else "#d4d4d4"
+        )
+        for part in textwrap.wrap(
+            ln, chars, replace_whitespace=False, drop_whitespace=False
+        ) or [""]:
+            lines.append((part, color))
+    height = 2 * 50 + 19 * len(lines)
+    img = Image.new("RGB", (width, height), "#ffffff")
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([50, 24, width - 50, height - 24], 8, fill="#1e1e1e")
+    y = 40
+    for text, color in lines:
+        draw.text((66, y), text, font=font, fill=color)
+        y += 19
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def job_terminal_pil(only: str) -> None:
+    """Render matching transcripts to PNG with Pillow (runs on the host)."""
+    key = os.environ.get("OPS_API_KEY", "")
+    for txt in sorted(EVIDENCE.glob("*/*.txt")):
+        if only not in str(txt):
+            continue
+        raw = txt.read_text(encoding="utf-8", errors="replace")
+        if key and key in raw:
+            raise SecretOnPageError(f"API key found in {txt}")
+        command, proves = parse_transcript(raw)
+        captured = re.search(r"^# captured (\S+ \S+ \S+)", raw, re.M)
+        img = add_caption(
+            terminal_image(raw),
+            f"$ {command}",
+            proves,
+            captured.group(1) if captured else None,
+        )
+        save_png(img, txt.with_suffix(".png"))
 
 
 def render_terminal(page: Page, txt: Path) -> tuple[str, str]:
@@ -1297,6 +1352,11 @@ def main() -> int:
         "mlflow": job_mlflow,
         "monitoring": job_monitoring,
     }
+    if args.job == "terminal-pil":  # no browser needed
+        if not args.only:
+            parser.error("terminal-pil needs --only <part of the path>")
+        job_terminal_pil(args.only)
+        return 0
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:

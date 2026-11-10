@@ -1,8 +1,0 @@
-# captured 2026-11-10 20:25:00 IST on the project VM, commit aeb8f83
-# what this proves: step 17: the model server hot-swapped to version 1: the forecast now comes from v1
-$ curl -s --cacert certs/ca.crt 'https://localhost:8000/forecast?city=Delhi' | jq -c '.model'; docker compose exec -T model-server curl -s localhost:8001/metrics | grep '^aq_model_loaded_version'; curl -s --cacert certs/ca.crt https://localhost:8000/health | jq -c .; MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -m scripts.rollback --list 2>&1 | grep -v INFO
-{"name":"aq-pm25","version":"1","mlflow_run_id":"0b70053677db487d8a4c5ff4763d4001","git_commit":"feab67a"}
-aq_model_loaded_version 1.0
-{"status":"ok","model_server":"up","model_version":"1","sim_time":"2020-03-25T00:00:00","replay_running":false}
-4 previous 498b149f78e2418695c3bf7e01b91615
-1 champion 0b70053677db487d8a4c5ff4763d4001

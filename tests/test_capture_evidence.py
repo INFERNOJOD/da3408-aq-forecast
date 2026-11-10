@@ -53,3 +53,11 @@ def test_parse_transcript_reads_command_and_claim():
 
 def test_parse_transcript_without_header_gives_empty_strings():
     assert ce.parse_transcript("plain output\n") == ("", "")
+
+
+def test_terminal_image_draws_every_line_without_a_browser():
+    raw = "# what this proves: x\n$ echo hi\nhi\n" + "long " * 100
+    png = ce.terminal_image(raw, width=800)
+    img = Image.open(io.BytesIO(png))
+    assert img.width == 800
+    assert img.height > 5 * 19  # the long line wrapped onto several rows

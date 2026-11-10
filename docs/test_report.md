@@ -1,21 +1,21 @@
 # Test Report
 
-I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5) (359 of 359). Last, I added 3 tests for the console's ops messages and drift table, which now show plain sentences and "–" instead of the raw response and "None", and ran the suite once more. On 2026-11-10 I added `scripts/capture_evidence.py`, which takes the screenshots in `docs/evidence/`, and 5 tests for its helpers (TC-49), and ran `scripts/ci.sh` again: 367 of 367. The pytest numbers below come from that last run; the other sections say when each check was run. I retook screenshots 10 and 11 on the new console on 2026-11-06. The drift table shows "–" and yes/no with no "None" cells, and 11 shows the rollback result as the sentence "Rolled back from version 4 to version 1." After taking 11 I rolled back again, so v4 is champion and v1 previous, and no retrain request was left in `ops/requests/`.
+I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5) (359 of 359). Last, I added 3 tests for the console's ops messages and drift table, which now show plain sentences and "–" instead of the raw response and "None", and ran the suite once more. On 2026-11-10 I added `scripts/capture_evidence.py`, which takes the screenshots in `docs/evidence/`, and 5 tests for its helpers (TC-49), and ran `scripts/ci.sh` again: 367 of 367. The same day I fixed D-6, a gauge that kept its value after a replay reset, with 2 more tests, and added a Pillow renderer to the capture script with 1 test: 370 of 370. The pytest numbers below come from that last run; the other sections say when each check was run. I retook screenshots 10 and 11 on the new console on 2026-11-06. The drift table shows "–" and yes/no with no "None" cells, and 11 shows the rollback result as the sentence "Rolled back from version 4 to version 1." After taking 11 I rolled back again, so v4 is champion and v1 previous, and no retrain request was left in `ops/requests/`.
 
 ## 1. Summary
 
 | | Count |
 |---|---:|
-| pytest test cases run | **367** |
-| Passed | **367** |
+| pytest test cases run | **370** |
+| Passed | **370** |
 | Failed | **0** |
 | Errors | 0 |
 | Skipped | 0 |
 | End-to-end checks (E2E-01 to E2E-23) | **23 passed** |
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
-| Defects found | 5, all fixed (section 5) |
+| Defects found | 6, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/junit.xml` (`tests="367" failures="0" errors="0" skipped="0"`, 44.2 s, 2026-11-10), at commit `aeb8f83` with the evidence script and its tests in the workspace. The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/junit.xml` (`tests="370" failures="0" errors="0" skipped="0"`, 2026-11-10), at commit `cc39d92` with the D-6 fix in the workspace. The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
 == summary (commit 5092d56)
@@ -53,15 +53,15 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_model_server.py` | TC-25, TC-26 | 12 | 12 | 0 |
 | `test_backend.py` | TC-27 to TC-35 | 97 | 97 | 0 |
 | `test_drift.py` | TC-36 | 13 | 13 | 0 |
-| `test_backend_drift.py` | TC-37 | 9 | 9 | 0 |
+| `test_backend_drift.py` | TC-37 | 11 | 11 | 0 |
 | `test_replay_script.py` | TC-38 | 5 | 5 | 0 |
 | `test_ops_runner.py` | TC-39 | 22 | 22 | 0 |
 | `test_frontend.py` | TC-40 to TC-44 | 28 | 28 | 0 |
 | `test_monitoring.py`, `test_push_stage_metrics.py` | TC-45 | 9 | 9 | 0 |
 | `test_security.py` | TC-46, TC-47 | 11 | 11 | 0 |
 | `test_ci.py` | TC-48 | 6 | 6 | 0 |
-| `test_capture_evidence.py` | TC-49 | 5 | 5 | 0 |
-| **Total** | 49 cases | **367** | **367** | **0** |
+| `test_capture_evidence.py` | TC-49 | 6 | 6 | 0 |
+| **Total** | 49 cases | **370** | **370** | **0** |
 
 The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, `test_validate_all_passes_on_good_data` 2.7 s, `test_validate_all_fails_on_impossible_value` 2.3 s). The suite took 50.2 s inside the 54 s pytest step.
 
@@ -181,7 +181,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `aeb8f83` with the evidence script added: all five checks pass, 367 of 367 tests (`docs/evidence/07_source_control_ci/20_ci_run.txt`).
+`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `aeb8f83` with the evidence script added: all five checks pass, 367 of 367 tests (`docs/evidence/07_source_control_ci/03_ci_run.txt`), and after the D-6 fix 370 of 370.
 
 ## 5. Defects found in this run
 
@@ -196,6 +196,8 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 **D-4. The batch container could not run the pipeline** (2026-11-05, E2E-23). Compose runs it as my host uid (1000), so the files it writes stay mine. The image only knows its own user (10001). DVC failed at once with `getpwuid(): uid not found: 1000` (from `getpass.getuser()`). With `USER` set, Spark failed next, in Hadoop's login: `invalid null input: name`. That code reads the user database directly and ignores the variable. **Fix:** compose mounts the host's `/etc/passwd` and `/etc/group` read-only into the pipeline container. The container already runs as my uid and mounts the whole project, so this adds little exposure, and the published image did not need a rebuild. Checked through plain `docker compose run`: `id -un` gives my user, `dvc status` works and a Spark session starts as `krish-yadav`. The Spark attempt left one real `ingest failed` record (`container-20261105-214205`) in `runs.jsonl`.
 
 **D-3. `mlflow run` crashed when it logged the run** (2026-11-03, E2E-21). It trained both horizons and then failed with "Cannot start run with ID ... because active experiment ID does not match environment run ID". `mlflow run` creates its run in the Default experiment, and `train.py` sets the experiment `aq-pm25`. On 2026-10-27 the fresh-environment run never got as far as training, so this was the first time I saw the error. **Fix:** the documented command is now `mlflow run . -e main --env-manager uv --experiment-name aq-pm25` (README, test plan). With it the run succeeds. I did not change `train.py`: the pipeline and the MLproject run should log to the same experiment.
+
+**D-6. After a replay reset, `ForecastErrorHigh` kept firing** (2026-11-10, found during the evidence run). The backend copied the drift report into its gauges but skipped unknown values. After a reset the 72 h window is empty, the pooled MAE ratio is unknown, and the gauge kept its last replay value (1.70), so the warning stayed on until I restarted the backend. The per-city PSI and MAE-ratio series had the same problem. It could not start a retrain (only `PM25DriftHigh` can), but it was a false warning. **Fix:** an unknown per-city value now removes that city's series, and the unlabelled pooled gauge is set to NaN, because `NaN > 1.5` is false in Prometheus (`src/backend/metrics.py`, LLD section 5). Two new tests in `test_backend_drift.py` check that the gauges clear after a report with unknown values and that clearing a series that never existed is fine. **Verified live** on the rebuilt backend: replay at 20 h/s until the pooled ratio was 1.547, stopped there, `ForecastErrorHigh` firing after 310 s (value 1.566), then `POST /ops/replay` reset at 21:11:35. The alert was gone 15 s later, `aq_rolling_mae_ratio_pooled` read NaN in the backend and in Prometheus, and the per-city series were gone.
 
 ## 6. What this report does not show
 

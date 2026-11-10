@@ -1,9 +1,0 @@
-# captured 2026-11-10 20:33:17 IST on the project VM, commit aeb8f83
-# what this proves: the project images
-$ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}' | grep -E 'REPOSITORY|aq-|infernogod'
-REPOSITORY                            TAG             SIZE      CREATED
-aq-frontend                           latest          831MB     4 days ago
-aq-mlflow                             latest          1.33GB    4 days ago
-aq-model-server                       latest          1.33GB    4 days ago
-aq-backend                            latest          1.33GB    4 days ago
-aq-pipeline                           latest          2.57GB    3 weeks ago

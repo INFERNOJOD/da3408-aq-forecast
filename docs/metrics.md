@@ -719,7 +719,7 @@ The container's peak memory was 2.39 GiB against its `mem_limit` of 2560 MiB. Th
 
 ## Evidence run: drift to retrain, live (2026-11-10)
 
-I ran the whole loop once more while `scripts/capture_evidence_host.sh story` took the screenshots in `docs/evidence/11_guidelines/30_story_*`. Commit `aeb8f83`, replay at 1 simulated hour per second, ops runner on the host, serve stack up. Times are wall-clock IST.
+I ran the whole loop once more while `scripts/capture_evidence_host.sh story` took the screenshots now in `docs/evidence/11_guidelines/` (05 to 12). Commit `aeb8f83`, replay at 1 simulated hour per second, ops runner on the host, serve stack up. Times are wall-clock IST.
 
 | Step | Time | Note |
 |------|------|------|
@@ -736,4 +736,6 @@ I ran the whole loop once more while `scripts/capture_evidence_host.sh story` to
 
 The gate rejected the candidate: mean MAE 6.007 against 5.948 for champion v4 on the same window, so v4 kept serving. In October the same loop promoted v4 with a cutoff of 2 April. This time the request came at 4 April 04:00, 33 simulated hours of lockdown data later, and the new model was slightly worse on its 3-day window. I read that as the noise of a short window, not as proof that more lockdown data hurts.
 
-Rollback from the console, to v1 and back to v4, worked in each of the three rounds I ran while I fixed the capture script. In the first try the script typed a wrong value into the version box and the backend refused it, so nothing moved. In the last round the model server answered with v4 again 24 s after the click (it polls the alias every 30 s). After the replay reset, the pooled 72 h MAE ratio gauge kept its last replay value (1.70), because the backend only sets it when the window has forecasts. That kept the warning `ForecastErrorHigh` firing until I restarted the backend. It cannot start a retrain, but it is a stale gauge, and I have not fixed it.
+Rollback from the console, to v1 and back to v4, worked in each of the three rounds I ran while I fixed the capture script. In the first try the script typed a wrong value into the version box and the backend refused it, so nothing moved. In the last round the model server answered with v4 again 24 s after the click (it polls the alias every 30 s). After the replay reset, the pooled 72 h MAE ratio gauge kept its last replay value (1.70), because the backend only sets it when the window has forecasts. That kept the warning `ForecastErrorHigh` firing until I restarted the backend. It cannot start a retrain, but it was a stale gauge.
+
+**Fixed the same evening (D-6 in `docs/test_report.md`).** An unknown value now clears its gauge: the pooled ratio becomes NaN and the per-city series are removed. Live check on the rebuilt backend: replay at 20 h/s for 29 s, stopped at 18 Apr 07:00 with the pooled ratio at 1.547; `ForecastErrorHigh` was firing 310 s later (1.566). I reset the replay at 21:11:35. The alert was gone after 15 s, and Prometheus read `aq_rolling_mae_ratio_pooled` as NaN. Rebuilding the backend image took 14.6 min, almost all of it pip downloading packages again.

@@ -1,0 +1,24 @@
+# captured 2026-11-10 21:14:28 IST on the project VM, commit cc39d92
+# what this proves: no cloud service is used: the one cloud SDK in uv.lock, databricks-sdk, comes in with MLflow itself and my code never imports it; the DVC remote and the MLflow store are local folders
+$ echo 'cloud SDK packages in uv.lock:'; grep -iE '^name = "(boto3|botocore|google-cloud[a-z-]*|azure[a-z-]*|sagemaker|databricks[a-z-]*)"' uv.lock; echo; echo 'why it is there:'; uv tree --frozen --invert --package databricks-sdk; echo; echo 'lines in src/ that mention databricks:'; grep -rn databricks src --include='*.py' | wc -l; echo; uv run --frozen dvc remote list; grep -n 'MLFLOW_TRACKING_URI\|backend-store-uri\|default-artifact-root' docker-compose.yml
+cloud SDK packages in uv.lock:
+name = "databricks-sdk"
+
+why it is there:
+databricks-sdk v0.154.0
+├── mlflow-skinny v3.17.1
+│   └── mlflow v3.17.1
+│       └── aq-forecast v0.1.0
+└── mlflow-tracing v3.17.1
+    └── mlflow v3.17.1 (*)
+(*) Package tree already displayed
+
+lines in src/ that mention databricks:
+0
+
+localremote     /home/krish-yadav/DA3408/dvc-remote     (default)
+77:      MLFLOW_TRACKING_URI: http://mlflow:5000
+107:      MLFLOW_TRACKING_URI: http://mlflow:5000
+128:      --backend-store-uri sqlite:///${HOST_PROJECT}/mlflow.db
+129:      --default-artifact-root ${HOST_PROJECT}/mlruns
+237:      MLFLOW_TRACKING_URI: sqlite:///${HOST_PROJECT}/mlflow.db

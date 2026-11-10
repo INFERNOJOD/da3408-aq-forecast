@@ -1,4 +1,0 @@
-# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
-# what this proves: dvc.lock matches the code, params and data in the workspace
-$ uv run --frozen dvc status
-Data and pipelines are up to date.

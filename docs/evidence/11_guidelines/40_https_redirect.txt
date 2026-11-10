@@ -1,9 +1,0 @@
-# captured 2026-11-10 20:33:31 IST on the project VM, commit aeb8f83
-# what this proves: http and the old :8501 address redirect to https
-$ curl -sI http://localhost/forecast | head -3; curl -sI http://localhost:8501/ | head -3
-
-
-
-
-
-

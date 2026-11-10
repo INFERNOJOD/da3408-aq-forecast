@@ -1,4 +1,0 @@
-# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
-# what this proves: every output in dvc.lock is in the DVC remote
-$ uv run --frozen dvc status -c
-Cache and remote 'localremote' are in sync.

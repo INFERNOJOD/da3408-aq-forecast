@@ -3,6 +3,8 @@
 Each app gets its own registry, so tests can create several apps in one process.
 """
 
+import math
+
 from prometheus_client import (
     CollectorRegistry,
     Counter,
@@ -71,15 +73,32 @@ class Metrics:
         )
 
     def set_drift(self, report: dict) -> None:
-        """Copy a drift report into the gauges. Unknown (None) values are skipped."""
+        """Copy a drift report into the gauges.
+
+        An unknown (None) value clears its series instead of being skipped.
+        Skipping it kept the last replay value after a replay reset, when the
+        windows are empty again: the pooled MAE ratio stayed at 1.70 and
+        ``ForecastErrorHigh`` kept firing (docs/metrics.md, 2026-11-10).
+        """
         for row in report["cities"]:
-            if row["psi"] is not None:
-                self.drift_psi.labels(row["city"]).set(row["psi"])
-            if row["psi_threshold"] is not None:
-                self.drift_threshold.labels(row["city"]).set(row["psi_threshold"])
-            if row["mae_ratio_1h"] is not None:
-                self.mae_ratio.labels(row["city"]).set(row["mae_ratio_1h"])
+            city = row["city"]
+            _set_or_clear(self.drift_psi, city, row["psi"])
+            _set_or_clear(self.drift_threshold, city, row["psi_threshold"])
+            _set_or_clear(self.mae_ratio, city, row["mae_ratio_1h"])
         self.cities_exceeding.set(report["cities_exceeding"])
-        if report["mae_ratio_pooled"] is not None:
-            self.mae_ratio_pooled.set(report["mae_ratio_pooled"])
+        pooled = report["mae_ratio_pooled"]
+        # An unlabelled gauge cannot be removed, so "no value" is NaN. In
+        # Prometheus NaN > 1.5 is false, so the alert does not fire on it.
+        self.mae_ratio_pooled.set(math.nan if pooled is None else pooled)
         self.drift_detected.set(1 if report["any_drift"] else 0)
+
+
+def _set_or_clear(gauge: Gauge, city: str, value: float | None) -> None:
+    """Set the city's series, or remove it when the value is unknown."""
+    if value is not None:
+        gauge.labels(city).set(value)
+        return
+    try:
+        gauge.remove(city)
+    except KeyError:  # the series did not exist yet
+        pass

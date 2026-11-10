@@ -172,3 +172,40 @@ def test_store_window_has_full_length(make, tmp_path):
     )
     assert len(rows) == 4 and rows["pm25_lag_1"].isna().sum() == 2
     assert store.window("Nowhere", rows.index[0], rows.index[-1]).shape[0] == 4
+
+
+def _report(psi, ratio, pooled):
+    """A drift report for two cities with the given values (None = unknown)."""
+    return {
+        "cities": [
+            {"city": c, "psi": psi, "psi_threshold": 2.0, "mae_ratio_1h": ratio}
+            for c in ("A", "B")
+        ],
+        "cities_exceeding": 0,
+        "mae_ratio_pooled": pooled,
+        "any_drift": False,
+    }
+
+
+def test_unknown_drift_values_clear_the_gauges_after_a_reset():
+    """After a replay reset the windows are empty; old values must not stay."""
+    from src.backend.metrics import Metrics
+
+    m = Metrics()
+    m.set_drift(_report(3.0, 1.8, 1.7))
+    assert m.registry.get_sample_value("aq_rolling_mae_ratio_pooled") == 1.7
+    assert m.registry.get_sample_value("aq_drift_psi", {"city": "A"}) == 3.0
+    m.set_drift(_report(None, None, None))
+    pooled = m.registry.get_sample_value("aq_rolling_mae_ratio_pooled")
+    assert pooled != pooled  # NaN: "no value", and NaN > 1.5 is false
+    assert m.registry.get_sample_value("aq_drift_psi", {"city": "A"}) is None
+    assert m.registry.get_sample_value("aq_rolling_mae_ratio", {"city": "B"}) is None
+    assert m.registry.get_sample_value("aq_drift_threshold", {"city": "A"}) == 2.0
+
+
+def test_clearing_a_series_that_never_existed_is_fine():
+    from src.backend.metrics import Metrics
+
+    m = Metrics()
+    m.set_drift(_report(None, None, None))
+    assert m.registry.get_sample_value("aq_drift_psi", {"city": "A"}) is None

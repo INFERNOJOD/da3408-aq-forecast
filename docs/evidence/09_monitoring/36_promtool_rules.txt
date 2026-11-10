@@ -1,8 +1,0 @@
-# captured 2026-11-10 20:33:14 IST on the project VM, commit aeb8f83
-# what this proves: alert rules are valid and unit-tested with promtool
-$ docker run --rm -v $PWD/monitoring:/m:ro --entrypoint promtool prom/prometheus:v3.5.0 check rules /m/alerts.yml; docker run --rm -v $PWD/monitoring:/m:ro -w /m --entrypoint promtool prom/prometheus:v3.5.0 test rules alerts_test.yml
-Checking /m/alerts.yml
-  SUCCESS: 6 rules found
-
-  SUCCESS
-

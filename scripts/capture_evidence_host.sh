@@ -48,6 +48,12 @@ shoot() {
     docker exec -e OPS_API_KEY "$CONTAINER" python scripts/capture_evidence.py "$@"
 }
 
+# no_cloud_cap SECTION NAME: the no-cloud transcript (also used by "nocloud").
+no_cloud_cap() {
+    cap "$1" "$2" "no cloud service is used: the one cloud SDK in uv.lock, databricks-sdk, comes in with MLflow itself and my code never imports it; the DVC remote and the MLflow store are local folders" \
+        "echo 'cloud SDK packages in uv.lock:'; grep -iE '^name = \"(boto3|botocore|google-cloud[a-z-]*|azure[a-z-]*|sagemaker|databricks[a-z-]*)\"' uv.lock; echo; echo 'why it is there:'; uv tree --frozen --invert --package databricks-sdk; echo; echo 'lines in src/ that mention databricks:'; grep -rn databricks src --include='*.py' | wc -l; echo; uv run --frozen dvc remote list; grep -n 'MLFLOW_TRACKING_URI\|backend-store-uri\|default-artifact-root' docker-compose.yml"
+}
+
 terminals() {
     local s
 
@@ -176,8 +182,7 @@ for r in c.search_runs(['1'], max_results=100, order_by=['attributes.start_time 
         "for c in \$(docker compose --profile serve ps --format '{{.Service}}'); do printf '%-15s ' \$c; docker compose exec -T \$c id 2>/dev/null | cut -c1-60 || echo '(no id binary)'; done; echo; grep -n 'docker.sock' docker-compose.yml || echo 'docker.sock is not mounted anywhere'"
     cap $s 45_hmac_check "the key is compared in constant time (hmac.compare_digest)" \
         "grep -n -B4 -A8 'compare_digest' src/backend/app.py"
-    cap $s 50_no_cloud "no cloud SDK or service in the dependencies; DVC remote and MLflow are local" \
-        "echo 'cloud SDK packages in uv.lock:'; grep -ciE '^name = \"(boto3|botocore|google-cloud[a-z-]*|azure[a-z-]*|sagemaker|databricks[a-z-]*)\"' uv.lock; uv run --frozen dvc remote list; grep -n 'MLFLOW_TRACKING_URI\|backend-store-uri\|default-artifact-root' docker-compose.yml"
+    no_cloud_cap $s 50_no_cloud
     cap $s 52_dockerhub_api "Docker Hub's own API lists every tag of the 5 images with linux/amd64 and linux/arm64 (the website blocks headless browsers with a Cloudflare check)" \
         "for i in aq-frontend aq-backend aq-model-server aq-mlflow aq-pipeline; do echo \"== infernogod/\$i\"; curl -s https://hub.docker.com/v2/namespaces/infernogod/repositories/\$i/tags | jq -c '.results[] | {tag: .name, platforms: [.images[] | select(.architecture != \"unknown\") | .os + \"/\" + .architecture], pushed: .tag_last_pushed}'; done"
     cap $s 51_dockerhub_tags "Docker Hub: the latest and 0.1.0 tags of every image point to the same multi-arch index" \
@@ -381,6 +386,7 @@ final_state() {
 case "${1:-}" in
     terminals) terminals ;;
     final) final_state ;;
+    nocloud) no_cloud_cap 11_guidelines 16_no_cloud ;;
     shoot) shift; shoot "$@" ;;
     static) static_files ;;
     story) story ;;
