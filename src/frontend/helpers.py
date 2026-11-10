@@ -131,12 +131,13 @@ def ops_message(label: str, path: str, result: dict) -> str:
     return f"{label}."
 
 
-def drift_rows(cities: list[dict]) -> list[dict]:
-    """Return the drift table rows as text, with "–" where a value is null.
+def table_rows(rows: list[dict]) -> list[dict]:
+    """Return table rows as text, with "–" where a value is null.
 
-    Streamlit printed JSON nulls as "None" (Kolkata has no threshold, and every
-    city has no PSI before 168 replayed hours). Turning every cell into text
-    also keeps each column one type, which Streamlit's table needs.
+    Streamlit printed JSON nulls as "None" (Kolkata has no threshold, a run
+    that did not fail has no failed stage, the test stage has no rows/sec).
+    Turning every cell into text also keeps each column one type, which
+    Streamlit's table needs. Every table in the console goes through this.
     """
 
     def cell(value) -> str:
@@ -144,6 +145,13 @@ def drift_rows(cities: list[dict]) -> list[dict]:
             return NO_VALUE
         if isinstance(value, bool):
             return "yes" if value else "no"
+        if isinstance(value, list | tuple):  # e.g. the aliases of a version
+            return ", ".join(str(v) for v in value) or NO_VALUE
         return str(value)
 
-    return [{key: cell(value) for key, value in row.items()} for row in cities]
+    return [{key: cell(value) for key, value in row.items()} for row in rows]
+
+
+def drift_rows(cities: list[dict]) -> list[dict]:
+    """Return the drift table rows as text (see ``table_rows``)."""
+    return table_rows(cities)

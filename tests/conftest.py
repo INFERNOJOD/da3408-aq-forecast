@@ -1,5 +1,7 @@
 """Shared test fixtures."""
 
+import logging
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -19,6 +21,14 @@ def spark():
     )
     yield session
     session.stop()
+    # py4j logs "Closing down clientserver connection" at INFO from __del__
+    # when Python exits. If that runs after pytest has closed the stderr the
+    # root handler writes to, logging prints "--- Logging error ---
+    # ValueError: I/O operation on closed file" (it depends on when the
+    # garbage collector runs, so only some runs show it, e.g.
+    # docs/evidence/07_source_control_ci/03_ci_run.txt of 2026-11-10).
+    # Nothing is lost by dropping py4j's INFO messages once Spark is stopped.
+    logging.getLogger("py4j").setLevel(logging.WARNING)
 
 
 def synthetic_features(tmp_path):

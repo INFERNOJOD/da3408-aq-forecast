@@ -2,7 +2,9 @@
 
 This folder holds screenshots and terminal captures for every line of the rubric and the guidelines (`docs/rubric.md`). I captured them on 2026-11-10 on the project VM, at commit `aeb8f83`, with the serve stack running. Each PNG has a dark strip on top with the time, the URL or command, and one line saying what it proves. A terminal capture is also kept as a `.txt` next to its PNG, with the exact command on its `$` line.
 
-The first capture run made 222 images. I kept the one or two clearest per rubric line and deleted the rest (other cities, every Swagger endpoint, single Grafana panels already visible on a full dashboard, retakes and terminal outputs that repeated another file), so this set has 79 images and 26 transcripts.
+The first capture run made 222 images. I kept the one or two clearest per rubric line and deleted the rest (other cities, every Swagger endpoint, single Grafana panels already visible on a full dashboard, retakes and terminal outputs that repeated another file), so this set has 79 images and 27 transcripts.
+
+**Retaken on 2026-11-11.** Three images showed an old test count, so I retook them on the host with the Pillow renderer (`python scripts/capture_evidence.py terminal-pil --only <path>`), at `acd9531` with the console table change in the workspace: `05_testing/03` (now a transcript of the report's summary section, not the rendered page), `05_testing/05` and `07_source_control_ci/03`. All three show 371 of 371.
 
 **How it was made.** `docs/evidence/` was captured automatically by `scripts/capture_evidence.py` (Playwright in Docker, image `mcr.microsoft.com/playwright/python:v1.49.1-noble`, arm64), written by Claude Code under my direction. `scripts/capture_evidence_host.sh` runs the terminal commands on the host and drives the live story. Run again, the scripts make the full uncurated set under the original file names. The 11 user-manual screenshots in `docs/screenshots/` were taken by me by hand. No browser was installed on the VM, and the Playwright image was removed afterwards.
 
@@ -14,14 +16,14 @@ The first capture run made 222 images. I kept the one or two clearest per rubric
 | 02_pipeline_viz | 6 | 0 |
 | 03_design | 9 | 1 |
 | 04_implementation | 5 | 2 |
-| 05_testing | 5 | 1 |
+| 05_testing | 5 | 2 |
 | 06_data_engineering | 5 | 2 |
 | 07_source_control_ci | 5 | 4 |
 | 08_experiment_tracking | 6 | 1 |
 | 09_monitoring | 7 | 2 |
 | 10_packaging | 7 | 4 |
 | 11_guidelines | 17 | 9 |
-| **Total** | **79** | **26** |
+| **Total** | **79** | **27** |
 
 ## The live story (11_guidelines/05 to 12)
 
@@ -62,7 +64,7 @@ Paths are relative to this folder.
 | Design document | [03_design/02_hld.png](03_design/02_hld.png) | `docs/HLD.md` rendered: design choices with reasons |
 | OO or functional paradigm stated | [03_design/02_hld.png](03_design/02_hld.png) (section 3, "Programming paradigm") | Functional pipeline stages, object-oriented services |
 | LLD with API endpoints and I/O specs | [03_design/04_lld.png](03_design/04_lld.png) | `docs/LLD.md` rendered: every endpoint, its input, output, status codes and the error body |
-| Architecture diagram | [03_design/01_architecture.png](03_design/01_architecture.png) | `docs/architecture.md` with the Mermaid diagram drawn and one paragraph per block |
+| Architecture diagram | [03_design/01_architecture.png](03_design/01_architecture.png) | `docs/architecture.md` with one paragraph per block. The diagram in this capture is Mermaid's "Syntax error in text": see "What I could not capture" |
 | HLD diagram | [03_design/03_hld_diagram.png](03_design/03_hld_diagram.png) | The lifecycle diagram |
 | Loose coupling via configurable REST | [03_design/09_frontend_never_imports_backend.png](03_design/09_frontend_never_imports_backend.png), [01_ui/06_backend_down_message.png](01_ui/06_backend_down_message.png) | No frontend module imports backend code, the URL comes from `BACKEND_URL`, and the same image ran against another URL |
 | API endpoints as designed | [03_design/05_fastapi_docs.png](03_design/05_fastapi_docs.png), [03_design/06_endpoint_get_forecast.png](03_design/06_endpoint_get_forecast.png), [03_design/07_endpoint_post_ops_rollback.png](03_design/07_endpoint_post_ops_rollback.png), [03_design/08_lld_vs_openapi.png](03_design/08_lld_vs_openapi.png) | Swagger UI, two key endpoints expanded, and the LLD's 14 endpoints next to the live `/openapi.json`: all match |
@@ -77,7 +79,7 @@ Paths are relative to this folder.
 | Inline comments and docstrings | [04_implementation/05_backend_app.png](04_implementation/05_backend_app.png), [04_implementation/03_backend_errors.png](04_implementation/03_backend_errors.png) | Docstrings on every function, comments where a choice needs a reason |
 | Design document adhered to / APIs follow the spec | [03_design/08_lld_vs_openapi.png](03_design/08_lld_vs_openapi.png) | Every LLD endpoint is live and every live endpoint is in the LLD |
 | API-key check | [04_implementation/05_backend_app.png](04_implementation/05_backend_app.png) | `require_key`: Bearer token, `hmac.compare_digest`, 401 otherwise |
-| Unit tests implemented | [05_testing/05_pytest_full.png](05_testing/05_pytest_full.png) | The whole suite passes |
+| Unit tests implemented | [05_testing/05_pytest_full.png](05_testing/05_pytest_full.png) | The whole suite passes: 371 passed (2026-11-11) |
 
 ### Software Engineering: Testing [1]
 
@@ -85,7 +87,7 @@ Paths are relative to this folder.
 |---|---|---|
 | Test plan | [05_testing/01_test_plan.png](05_testing/01_test_plan.png) | `docs/test_plan.md`: scope, levels, environment, how to run, acceptance criteria |
 | List of test cases | [05_testing/02_test_case_list.png](05_testing/02_test_case_list.png) | TC-01 to TC-49 and E2E-01 to E2E-23 |
-| Test report with passed and failed counts | [05_testing/03_test_report_summary.png](05_testing/03_test_report_summary.png), [05_testing/05_pytest_full.png](05_testing/05_pytest_full.png) | Cases run, passed and failed: 367 of 367 when captured; after the D-6 fix and one more capture-script test later that day the suite has 370, all passing (`docs/test_report.md`) |
+| Test report with passed and failed counts | [05_testing/03_test_report_summary.png](05_testing/03_test_report_summary.png), [05_testing/05_pytest_full.png](05_testing/05_pytest_full.png) | Cases run, passed and failed: 371 run, 371 passed, 0 failed (the summary section of `docs/test_report.md` and the pytest run, both 2026-11-11) |
 | Acceptance criteria defined and met | [05_testing/01_test_plan.png](05_testing/01_test_plan.png) (section 5), [05_testing/04_acceptance_criteria_met.png](05_testing/04_acceptance_criteria_met.png) | AC-1 to AC-7 defined in the plan, each met in the report |
 
 ### AIOps: Data Engineering [2]
@@ -100,7 +102,7 @@ Paths are relative to this folder.
 
 | Rubric line | Evidence | Caption |
 |---|---|---|
-| CI implemented using DVC | [07_source_control_ci/03_ci_run.png](07_source_control_ci/03_ci_run.png) | A full passing `scripts/ci.sh` run: ruff, format, pytest, `dvc status`, `dvc status -c` |
+| CI implemented using DVC | [07_source_control_ci/03_ci_run.png](07_source_control_ci/03_ci_run.png) | A full passing `scripts/ci.sh` run on 2026-11-11: ruff, format, pytest (371 passed), `dvc status`, `dvc status -c` |
 | DVC DAG representing the CI pipeline | [07_source_control_ci/01_dvc_dag.png](07_source_control_ci/01_dvc_dag.png), [07_source_control_ci/02_dvc_yaml.png](07_source_control_ci/02_dvc_yaml.png) | `dvc dag` and `dvc.yaml`: the 7 stages with deps, params and outputs |
 | Git and DVC for source, data and model versioning | [07_source_control_ci/04_git_log.png](07_source_control_ci/04_git_log.png), [07_source_control_ci/05_data_versioned_by_dvc.png](07_source_control_ci/05_data_versioned_by_dvc.png) | Git history; the data only as a `.dvc` pointer; data and model hashes in `dvc.lock` |
 
@@ -157,6 +159,8 @@ Paths are relative to this folder.
 | No cloud platforms | [11_guidelines/16_no_cloud.png](11_guidelines/16_no_cloud.png) | No cloud service is used. The one cloud SDK in `uv.lock`, `databricks-sdk`, is a dependency of MLflow itself, and my code never imports it; the DVC remote and the MLflow store are local folders. (The first capture said "no cloud SDK", which was wrong; I retook it on the host with the Pillow renderer.) |
 
 ## What I could not capture, and why
+
+- **The architecture diagram.** `03_design/01_architecture` shows "Syntax error in text" where the diagram should be. The error was real: the last arrow was dotted with its label written inside the arrow (`serve -. images, scripts/build_multiarch.sh .-> hub`), and Mermaid's lexer does not accept a `.` in that kind of label, so it stopped at `.sh`. The HLD diagram has no dotted labels, which is why it rendered. I moved the label into the pipe form (`serve -.->|images, scripts/build_multiarch.sh| hub`). No browser is installed on the VM and I could not download one, so the drawn diagram still has to be retaken by hand.
 
 - **The browser padlock.** Headless Chromium screenshots show only the page, not the address bar. The TLS proof is the terminal capture `11_guidelines/13_tls_certificate` (subject, issuer, protocol and `Verify return code: 0` against my CA). My hand-taken `docs/screenshots/01_start.png` shows the browser side.
 - **The Docker Hub website.** hub.docker.com answers a headless browser with a Cloudflare "verify you are human" page, so I did not take those screenshots. Docker Hub's own API (`11_guidelines/17_dockerhub_api`) shows the same tags and platforms.

@@ -20,6 +20,7 @@ from src.frontend.helpers import (
     nice_time,
     ops_message,
     short_time,
+    table_rows,
 )
 
 LINKS = {
@@ -73,7 +74,7 @@ def _pipeline_section(client: BackendClient) -> None:
     if stages:
         st.caption(f"Last run: {stages.get('run_id') or 'none yet'}")
         st.graphviz_chart(dag_dot(stages["stages"]))
-        frame = pd.DataFrame(stages["stages"])[
+        frame = pd.DataFrame(table_rows(stages["stages"]))[
             ["name", "status", "duration_s", "rows_out", "rows_per_sec"]
         ]
         st.dataframe(frame, hide_index=True, width="stretch")
@@ -85,7 +86,8 @@ def _pipeline_section(client: BackendClient) -> None:
             # Errors first, in their own short table, so they are not lost in
             # the wide run table.
             st.markdown("**Failed runs**")
-            frame = pd.DataFrame([r for r in runs["runs"] if r["status"] == "failed"])
+            failed_runs = [r for r in runs["runs"] if r["status"] == "failed"]
+            frame = pd.DataFrame(table_rows(failed_runs))
             st.dataframe(
                 frame[["run_id", "started_at", "failed_stage", "error"]],
                 hide_index=True,
@@ -93,12 +95,13 @@ def _pipeline_section(client: BackendClient) -> None:
             )
         if runs["runs"]:
             st.markdown("**All runs**")
-            frame = pd.DataFrame(runs["runs"])
+            frame = pd.DataFrame(table_rows(runs["runs"]))
             st.dataframe(frame, hide_index=True, width="stretch")
     models = _public(client, "/pipeline/models")
     if models:
         st.markdown("**Model versions**")
-        st.dataframe(pd.DataFrame(models["models"]), hide_index=True, width="stretch")
+        frame = pd.DataFrame(table_rows(models["models"]))
+        st.dataframe(frame, hide_index=True, width="stretch")
 
 
 def _drift_section(client: BackendClient, key: str) -> bool:

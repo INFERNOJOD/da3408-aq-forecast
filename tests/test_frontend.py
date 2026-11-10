@@ -223,7 +223,9 @@ class FakeBackend:
         if path == "/pipeline/stages":
             return {"run_id": "r1", "stages": [
                 {"name": "ingest", "deps": [], "status": "success", "duration_s": 1.0,
-                 "rows_out": 10, "rows_per_sec": 10}]}  # fmt: skip
+                 "rows_out": 10, "rows_per_sec": 10},
+                {"name": "test", "deps": ["ingest"], "status": "success",
+                 "duration_s": 0.0, "rows_out": 1, "rows_per_sec": None}]}  # fmt: skip
         if path == "/pipeline/runs":
             return {"runs": [
                 {"run_id": "r2", "status": "success", "started_at": "t2",
@@ -372,6 +374,23 @@ def test_console_lists_failed_runs_with_their_error_and_a_short_replay_time():
         m.label == "Replay time" and m.value == "01 Apr, 00:00" for m in at.metric
     )
     assert any("01 Apr 2020, 00:00" in c.value for c in at.caption)
+
+
+def test_console_tables_show_a_dash_instead_of_none():
+    # Streamlit printed JSON nulls as "None" in the stage, run and model tables
+    # (the test stage has no rows/sec, a successful run no failed stage).
+    at = AppTest.from_function(console_app, args=(FakeBackend(),)).run()
+    assert not at.exception
+    tables = [t.value for t in at.dataframe]
+    assert len(tables) == 4  # stages, failed runs, all runs, model versions
+    for table in tables:
+        assert "None" not in table.to_string()
+    stages = next(t for t in tables if "rows_per_sec" in t.columns)
+    assert stages["rows_per_sec"].tolist() == ["10", "–"]
+    runs = next(t for t in tables if "run_id" in t.columns and len(t) == 2)
+    assert runs["failed_stage"].tolist() == ["–", "validate"]
+    models = next(t for t in tables if "aliases" in t.columns)
+    assert models["aliases"].tolist() == ["champion"]
 
 
 def test_console_status_boxes_are_two_per_row():

@@ -1,4 +1,4 @@
-CI run 2026-11-10 21:16:42  commit cc39d92  uncommitted changes: yes  mode: check
+CI run 2026-11-11 02:27:37  commit acd9531  uncommitted changes: yes  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
@@ -12,7 +12,7 @@ All checks passed!
 ........................................................................ [ 58%]
 ........................................................................ [ 77%]
 ........................................................................ [ 97%]
-..........                                                               [100%]
+...........                                                              [100%]
 =============================== warnings summary ===============================
 .venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: 1 warning
 tests/test_promotion_flow.py: 25 warnings
@@ -29,7 +29,7 @@ tests/test_promotion_flow.py::test_first_model_is_promoted_then_an_equal_candida
     sqlalchemy.orm.configure_mappers()
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-370 passed, 38 warnings in 44.67s
+371 passed, 38 warnings in 49.47s
 
 == dvc-status: dvc_clean
 Data and pipelines are up to date.
@@ -37,10 +37,10 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit cc39d92)
+== summary (commit acd9531)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    48s
-dvc-status     PASS     1s
+pytest         PASS    54s
+dvc-status     PASS     0s
 dvc-remote     PASS     0s
 CI PASSED

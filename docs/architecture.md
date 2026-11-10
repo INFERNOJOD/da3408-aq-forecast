@@ -51,7 +51,7 @@ flowchart LR
     am -->|webhook /ops/alerts, HTTPS| be
     graf -->|queries| prom
     batchc -. same pipeline .-> pipe
-    serve -. images, scripts/build_multiarch.sh .-> hub
+    serve -.->|images, scripts/build_multiarch.sh| hub
 ```
 
 ## The blocks
