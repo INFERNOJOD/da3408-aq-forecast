@@ -1,0 +1,83 @@
+# captured 2026-11-10 20:11:12 IST on the project VM, commit aeb8f83
+# what this proves: step 11: dvc repro with the new cutoff: Spark stages with time and rows/sec, train, evaluate, gate
+$ grep -vE '^\[Stage|WARN|setLogLevel|log level' ops/logs/rt-20261110-144028.log
+'data/raw.dvc' didn't change, skipping
+Stage 'ingest' didn't change, skipping
+Stage 'validate' didn't change, skipping
+Running stage 'features':
+> python -m src.pipeline.features
+2026-11-10 20:10:30,093 INFO src.common.stage_runner: Stage 'features' started (run 20261110-201028)
+2026-11-10 20:10:31,655 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
+2026-11-10 20:10:38,293 INFO __main__: Wrote 272327 training rows and 30576 serving rows
+2026-11-10 20:10:41,092 INFO src.common.stage_runner: Stage 'features' done in 11.0s (302903 rows, 27606.9 rows/s)
+2026-11-10 20:10:41,093 INFO py4j.clientserver: Closing down clientserver connection
+Updating lock file 'dvc.lock'
+
+Running stage 'train':
+> python -m src.pipeline.train
+2026/11/10 20:10:41 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
+2026-11-10 20:10:42,609 INFO src.common.stage_runner: Stage 'train' started (run 20261110-201028)
+2026-11-10 20:10:52,572 INFO __main__: Horizon 1 h: train 254663 rows (effective 43526), eval 497 rows, MAE {'persistence': 4.17, 'seasonal_naive': 10.1, 'ridge': 4.55, 'lightgbm': 3.73}
+2026-11-10 20:11:02,224 INFO __main__: Horizon 24 h: train 254617 rows (effective 43525), eval 336 rows, MAE {'persistence': 9.56, 'seasonal_naive': 9.56, 'ridge': 10.25, 'lightgbm': 8.28}
+/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: Add type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.
+  color_warning(
+2026/11/10 20:11:02 INFO mlflow.pyfunc: Validating input example against model signature
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1955.39it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 3032.76it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 6668.21it/s]
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Copied uv.lock to model artifacts
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Copied pyproject.toml to model artifacts
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
+/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: Add type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.
+  color_warning(
+2026/11/10 20:11:03 INFO mlflow.pyfunc: Validating input example against model signature
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1935.53it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2526.69it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 11275.01it/s]
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Copied uv.lock to model artifacts
+2026/11/10 20:11:03 INFO mlflow.utils.uv_utils: Copied pyproject.toml to model artifacts
+/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: Add type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.
+  color_warning(
+2026-11-10 20:11:03,341 INFO code_model_98939d2482ef40888065eb6a4be8c521: Loaded AQ model: {1: 'lightgbm', 24: 'lightgbm'}
+2026-11-10 20:11:03,360 INFO __main__: Logged MLflow run b010fbb63f2b470395fff25cd3667b0f
+2026-11-10 20:11:03,363 INFO src.common.stage_runner: Stage 'train' done in 20.8s (509280 rows, 24542.4 rows/s)
+Updating lock file 'dvc.lock'
+
+Running stage 'evaluate':
+> python -m src.pipeline.evaluate
+2026/11/10 20:11:04 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
+2026-11-10 20:11:04,925 INFO src.common.stage_runner: Stage 'evaluate' started (run 20261110-201028)
+/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: Add type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.
+  color_warning(
+2026-11-10 20:11:05,406 INFO code_model_e3a2742a1d484bacb9e6aa95b849a052: Loaded AQ model: {1: 'lightgbm', 24: 'lightgbm'}
+/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: Add type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.
+  color_warning(
+2026-11-10 20:11:05,453 INFO code_model_54cda5fb2c82486fa495ab00851fe8a0: Loaded AQ model: {1: 'lightgbm', 24: 'lightgbm'}
+2026-11-10 20:11:05,465 INFO __main__: Mean MAE on the same window: candidate 6.007, champion v4 5.948
+2026-11-10 20:11:05,468 INFO src.common.stage_runner: Stage 'evaluate' done in 0.5s (833 rows, 1542.6 rows/s)
+Updating lock file 'dvc.lock'
+
+Running stage 'test':
+> python -m src.pipeline.test_gate
+2026-11-10 20:11:05,952 INFO src.common.stage_runner: Stage 'test' started (run 20261110-201028)
+2026-11-10 20:11:05,955 INFO src.common.stage_runner: Stage 'test' done in 0.0s (1 rows, None rows/s)
+Updating lock file 'dvc.lock'
+
+Running stage 'register':
+> python -m src.pipeline.register
+2026/11/10 20:11:06 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
+2026-11-10 20:11:06,578 INFO src.common.stage_runner: Stage 'register' started (run 20261110-201028)
+2026-11-10 20:11:06,921 INFO __main__: Candidate b010fbb6: rejected
+2026-11-10 20:11:06,926 INFO src.common.stage_runner: Stage 'register' done in 0.3s (1 rows, 2.9 rows/s)
+Updating lock file 'dvc.lock'
+
+To track the changes with git, run:
+
+	git add dvc.lock
+
+To enable auto staging, run:
+
+	dvc config core.autostage true
+Use `dvc push` to send your updates to remote storage.

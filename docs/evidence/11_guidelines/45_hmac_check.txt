@@ -1,0 +1,16 @@
+# captured 2026-11-10 20:33:32 IST on the project VM, commit aeb8f83
+# what this proves: the key is compared in constant time (hmac.compare_digest)
+$ grep -n -B4 -A8 'compare_digest' src/backend/app.py
+117-
+118-    def require_key(authorization: str | None = Header(default=None)) -> None:
+119-        """Check ``Authorization: Bearer <key>`` in constant time."""
+120-        scheme, _, token = (authorization or "").partition(" ")
+121:        ok = scheme == "Bearer" and hmac.compare_digest(
+122-            token.encode(), settings.ops_api_key.encode()
+123-        )
+124-        if not ok:
+125-            raise ApiError(401, "UNAUTHORIZED", "Missing or wrong API key.")
+126-
+127-    ops = [Depends(require_key)]
+128-
+129-    # ---- public endpoints -------------------------------------------------

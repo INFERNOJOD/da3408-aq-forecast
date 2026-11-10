@@ -1,0 +1,31 @@
+# captured 2026-11-10 20:33:14 IST on the project VM, commit aeb8f83
+# what this proves: the model server (MLflow serving behind a metrics proxy) exports Prometheus metrics
+$ docker compose exec -T model-server curl -s localhost:8001/metrics | grep -E '^(# HELP|# TYPE)? ?aq_' | head -40
+# HELP aq_model_predictions_total Rows predicted, by horizon.
+# TYPE aq_model_predictions_total counter
+aq_model_predictions_total{horizon_h="1"} 44275.0
+aq_model_predictions_total{horizon_h="24"} 168.0
+# HELP aq_model_predictions_created Rows predicted, by horizon.
+# TYPE aq_model_predictions_created gauge
+aq_model_predictions_created{horizon_h="1"} 1.7943185175775745e+09
+aq_model_predictions_created{horizon_h="24"} 1.7943185175776265e+09
+# HELP aq_model_predict_duration_seconds Time MLflow takes to answer /invocations.
+# TYPE aq_model_predict_duration_seconds histogram
+aq_model_predict_duration_seconds_bucket{le="0.005"} 0.0
+aq_model_predict_duration_seconds_bucket{le="0.01"} 84.0
+aq_model_predict_duration_seconds_bucket{le="0.025"} 253.0
+aq_model_predict_duration_seconds_bucket{le="0.05"} 257.0
+aq_model_predict_duration_seconds_bucket{le="0.1"} 257.0
+aq_model_predict_duration_seconds_bucket{le="0.25"} 260.0
+aq_model_predict_duration_seconds_bucket{le="0.5"} 261.0
+aq_model_predict_duration_seconds_bucket{le="1.0"} 261.0
+aq_model_predict_duration_seconds_bucket{le="2.5"} 261.0
+aq_model_predict_duration_seconds_bucket{le="+Inf"} 261.0
+aq_model_predict_duration_seconds_count 261.0
+aq_model_predict_duration_seconds_sum 3.8559061829993198
+# HELP aq_model_predict_duration_seconds_created Time MLflow takes to answer /invocations.
+# TYPE aq_model_predict_duration_seconds_created gauge
+aq_model_predict_duration_seconds_created 1.7943177124910188e+09
+# HELP aq_model_loaded_version Registry version of the model being served.
+# TYPE aq_model_loaded_version gauge
+aq_model_loaded_version 4.0

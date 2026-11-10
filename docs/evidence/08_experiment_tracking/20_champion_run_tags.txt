@@ -1,0 +1,45 @@
+# captured 2026-11-10 20:33:11 IST on the project VM, commit aeb8f83
+# what this proves: beyond autolog: git commit, dirty flag, data md5, features md5, cutoff, trigger, gate result on the run
+$ MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -c "import mlflow; r=mlflow.MlflowClient('http://localhost:5000').get_run('498b149f78e2418695c3bf7e01b91615'); [print(f'tag    {k} = {v}') for k,v in sorted(r.data.tags.items()) if not k.startswith('mlflow.log')]; [print(f'param  {k} = {v}') for k,v in sorted(r.data.params.items())]"
+tag    chosen_1h = lightgbm
+tag    chosen_24h = lightgbm
+tag    cutoff = 2020-04-02 19:00:00
+tag    dvc_data_md5 = 7921cce1dbe07b5b8c33ffd85e4a34b4.dir
+tag    features_md5 = 2afa18138f64bab9472d0fa2c773f62d
+tag    git_commit = b2eff79051146d487e9792578fc4617b0bb09cf0
+tag    git_dirty = true
+tag    mlflow.runName = train-2020-04-02 19:00:00
+tag    mlflow.source.git.branch = main
+tag    mlflow.source.git.commit = b2eff79051146d487e9792578fc4617b0bb09cf0
+tag    mlflow.source.name = /home/krish-yadav/DA3408/da3408-project-aq-forecast/src/pipeline/train.py
+tag    mlflow.source.type = LOCAL
+tag    mlflow.user = krish-yadav
+tag    pipeline_run_id = 20261020-172022
+tag    promotion = promoted
+tag    registry_version = 4
+tag    stage = train
+tag    trigger = drift_alert
+param  cities = Delhi,Chennai,Lucknow,Hyderabad,Bengaluru,Jaipur,Kolkata
+param  cutoff = 2020-04-02 19:00:00
+param  effective_n_1h = 43525
+param  effective_n_24h = 43524
+param  eval_window_days = 3
+param  features = horizon_h,city_code,hour,dow,month,is_weekend,pm25_lag_1,pm25_lag_2,pm25_lag_3,pm25_lag_24,pm25_lag_168,pm25_roll_mean_6,pm25_roll_mean_24,pm25_roll_std_24,pm10_lag_1,no2_lag_1,co_lag_1,so2_lag_1,o3_lag_1
+param  n_eval_1h = 497
+param  n_eval_24h = 336
+param  n_train_1h = 254432
+param  n_train_24h = 254386
+param  train.experiment = aq-pm25
+param  train.half_life_days = 90
+param  train.high_pm25_threshold = 121
+param  train.lightgbm.colsample_bytree = 0.8
+param  train.lightgbm.learning_rate = 0.05
+param  train.lightgbm.min_child_samples = 20
+param  train.lightgbm.n_estimators = 400
+param  train.lightgbm.n_jobs = 4
+param  train.lightgbm.num_leaves = 31
+param  train.lightgbm.objective = regression_l1
+param  train.lightgbm.subsample = 0.8
+param  train.lightgbm.subsample_freq = 1
+param  train.ridge.alpha = 1.0
+param  train.seed = 42

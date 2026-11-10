@@ -1,0 +1,20 @@
+# captured 2026-11-10 20:33:32 IST on the project VM, commit aeb8f83
+# what this proves: Docker Hub's own API lists every tag of the 5 images with linux/amd64 and linux/arm64 (the website blocks headless browsers with a Cloudflare check)
+$ for i in aq-frontend aq-backend aq-model-server aq-mlflow aq-pipeline; do echo "== infernogod/$i"; curl -s https://hub.docker.com/v2/namespaces/infernogod/repositories/$i/tags | jq -c '.results[] | {tag: .name, platforms: [.images[] | select(.architecture != "unknown") | .os + "/" + .architecture], pushed: .tag_last_pushed}'; done
+== infernogod/aq-frontend
+{"tag":"latest","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T13:06:18.278549Z"}
+{"tag":"0.1.0","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T13:06:26.184061Z"}
+== infernogod/aq-backend
+{"tag":"latest","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T13:46:38.759896Z"}
+{"tag":"0.1.0","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T13:46:45.530366Z"}
+== infernogod/aq-model-server
+{"tag":"latest","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T14:10:21.861031Z"}
+{"tag":"0.1.0","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T14:10:28.779931Z"}
+== infernogod/aq-mlflow
+{"tag":"latest","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T15:36:19.368348Z"}
+{"tag":"0.1.0","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T15:36:25.649669Z"}
+== infernogod/aq-pipeline
+{"tag":"latest","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T15:06:05.435894Z"}
+{"tag":"0.1.0","platforms":["linux/amd64","linux/arm64"],"pushed":"2026-11-05T15:06:07.438076Z"}
+{"tag":"0.1.0-amd64","platforms":["linux/amd64"],"pushed":"2026-11-05T15:05:50.196874Z"}
+{"tag":"0.1.0-arm64","platforms":["linux/arm64"],"pushed":"2026-11-05T14:37:28.271232Z"}

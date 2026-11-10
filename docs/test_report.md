@@ -1,13 +1,13 @@
 # Test Report
 
-I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5) (359 of 359). Last, I added 3 tests for the console's ops messages and drift table, which now show plain sentences and "–" instead of the raw response and "None", and ran the suite once more. The pytest numbers below come from that last run; the other sections say when each check was run. I retook screenshots 10 and 11 on the new console on 2026-11-06. The drift table shows "–" and yes/no with no "None" cells, and 11 shows the rollback result as the sentence "Rolled back from version 4 to version 1." After taking 11 I rolled back again, so v4 is champion and v1 previous, and no retrain request was left in `ops/requests/`.
+I ran the whole suite and every acceptance check again on 2026-10-21, against the live serve stack, with the plan in `docs/test_plan.md`. The rollback drill found two real defects in the compose set-up. I fixed both and ran everything again. After the final audit (`docs/final_audit.md`) I added 9 tests and the checks E2E-18 to E2E-22, and on 2026-11-03 I ran the suite again (350 of 350). On 2026-11-05 I added 3 frontend tests for the forecast page's replay-clock note (353 of 353), then 5 tests for the rollback fix (D-2) and 1 for the console layout (D-5) (359 of 359). Last, I added 3 tests for the console's ops messages and drift table, which now show plain sentences and "–" instead of the raw response and "None", and ran the suite once more. On 2026-11-10 I added `scripts/capture_evidence.py`, which takes the screenshots in `docs/evidence/`, and 5 tests for its helpers (TC-49), and ran `scripts/ci.sh` again: 367 of 367. The pytest numbers below come from that last run; the other sections say when each check was run. I retook screenshots 10 and 11 on the new console on 2026-11-06. The drift table shows "–" and yes/no with no "None" cells, and 11 shows the rollback result as the sentence "Rolled back from version 4 to version 1." After taking 11 I rolled back again, so v4 is champion and v1 previous, and no retrain request was left in `ops/requests/`.
 
 ## 1. Summary
 
 | | Count |
 |---|---:|
-| pytest test cases run | **362** |
-| Passed | **362** |
+| pytest test cases run | **367** |
+| Passed | **367** |
 | Failed | **0** |
 | Errors | 0 |
 | Skipped | 0 |
@@ -15,7 +15,7 @@ I ran the whole suite and every acceptance check again on 2026-10-21, against th
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
 | Defects found | 5, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/final/junit.xml` (`tests="362" failures="0" errors="0" skipped="0"`, 50.2 s), at commit `5092d56` with the console message change in the workspace. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/junit.xml` (`tests="367" failures="0" errors="0" skipped="0"`, 44.2 s, 2026-11-10), at commit `aeb8f83` with the evidence script and its tests in the workspace. The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
 == summary (commit 5092d56)
@@ -60,7 +60,8 @@ Each row lists the test cases from the plan that the file covers. The counts inc
 | `test_monitoring.py`, `test_push_stage_metrics.py` | TC-45 | 9 | 9 | 0 |
 | `test_security.py` | TC-46, TC-47 | 11 | 11 | 0 |
 | `test_ci.py` | TC-48 | 6 | 6 | 0 |
-| **Total** | 48 cases | **362** | **362** | **0** |
+| `test_capture_evidence.py` | TC-49 | 5 | 5 | 0 |
+| **Total** | 49 cases | **367** | **367** | **0** |
 
 The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, `test_validate_all_passes_on_good_data` 2.7 s, `test_validate_all_fails_on_impossible_value` 2.3 s). The suite took 50.2 s inside the 54 s pytest step.
 
@@ -180,7 +181,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync".
+`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `aeb8f83` with the evidence script added: all five checks pass, 367 of 367 tests (`docs/evidence/07_source_control_ci/20_ci_run.txt`).
 
 ## 5. Defects found in this run
 

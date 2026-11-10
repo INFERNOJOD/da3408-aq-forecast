@@ -1,0 +1,6 @@
+# captured 2026-11-10 20:33:31 IST on the project VM, commit aeb8f83
+# what this proves: the ops endpoints need the API key: 401 without it, 401 with a wrong one, 200 with the key
+$ curl -s -w '  -> HTTP %{http_code}\n' --cacert certs/ca.crt https://localhost:8000/ops/drift | cut -c1-200; curl -s -w '  -> HTTP %{http_code}\n' --cacert certs/ca.crt -H 'Authorization: Bearer wrong' https://localhost:8000/ops/replay; curl -s -o /dev/null -w 'with the key -> HTTP %{http_code}\n' --cacert certs/ca.crt -H "Authorization: Bearer $OPS_API_KEY" https://localhost:8000/ops/replay
+{"error":{"code":"UNAUTHORIZED","message":"Missing or wrong API key."}}  -> HTTP 401
+{"error":{"code":"UNAUTHORIZED","message":"Missing or wrong API key."}}  -> HTTP 401
+with the key -> HTTP 200

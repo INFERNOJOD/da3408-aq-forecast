@@ -1,0 +1,14 @@
+# captured 2026-11-10 20:33:15 IST on the project VM, commit aeb8f83
+# what this proves: docker compose: frontend and backend are separate services, all healthy
+$ docker compose --profile serve ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+SERVICE         IMAGE                       STATUS                       PORTS
+alertmanager    prom/alertmanager:v0.28.1   Up About an hour             0.0.0.0:19093->9093/tcp, [::]:19093->9093/tcp
+backend         aq-backend                  Up 2 minutes (healthy)       0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+frontend        aq-frontend                 Up 22 minutes (healthy)      8501-8502/tcp
+grafana         grafana/grafana:12.0.0      Up 22 minutes                0.0.0.0:13000->3000/tcp, [::]:13000->3000/tcp
+mlflow          aq-mlflow                   Up About an hour (healthy)   5001/tcp, 0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp, 8001/tcp
+model-server    aq-model-server             Up About an hour (healthy)   5001/tcp, 8001/tcp
+node-exporter   prom/node-exporter:v1.9.1   Up About an hour             9100/tcp
+prometheus      prom/prometheus:v3.5.0      Up About an hour             0.0.0.0:19090->9090/tcp, [::]:19090->9090/tcp
+pushgateway     prom/pushgateway:v1.11.1    Up About an hour             0.0.0.0:19091->9091/tcp, [::]:19091->9091/tcp
+tls-proxy       caddy:2.9.1-alpine          Up About an hour             80/tcp, 443/tcp, 2019/tcp, 443/udp, 0.0.0.0:80->8080/tcp, 0.0.0.0:8501->8080/tcp, [::]:80->8080/tcp, [::]:8501->8080/tcp, 0.0.0.0:443->8443/tcp, [::]:443->8443/tcp

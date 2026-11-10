@@ -1,0 +1,16 @@
+# captured 2026-11-10 20:10:28 IST on the project VM, commit aeb8f83
+# what this proves: step 7: the webhook wrote a retrain request with the drift numbers and the simulated cutoff
+$ cat $(ls -t ops/requests/*.json | head -1)
+{
+  "request_id": "rt-20261110-144028",
+  "reason": "drift_alert:PM25DriftHigh",
+  "cutoff": "2020-04-04T04:00:00",
+  "created_at": "2026-11-10T14:40:28",
+  "status": "queued",
+  "trigger": "drift_alert",
+  "drift": {
+    "cities_exceeding": 4,
+    "psi_max": 5.9989,
+    "mae_ratio_pooled": 1.0415
+  }
+}

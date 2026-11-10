@@ -1,0 +1,10 @@
+# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# what this proves: the last pipeline run's per-stage records: seconds, rows in/out, rows per second
+$ for f in ingest validate features train evaluate test register; do jq -c '{stage, status, duration_s, rows_in, rows_out, rows_per_sec, run_id}' reports/stage_metrics/$f.json; done
+{"stage":"ingest","status":"success","duration_s":7.734,"rows_in":3434754,"rows_out":3434754,"rows_per_sec":444110.9,"run_id":"container-20261105-214229"}
+{"stage":"validate","status":"success","duration_s":26.265,"rows_in":3434524,"rows_out":3434524,"rows_per_sec":130764.3,"run_id":"container-20261105-214229"}
+{"stage":"features","status":"success","duration_s":10.972,"rows_in":287083,"rows_out":302903,"rows_per_sec":27606.9,"run_id":"20261110-201028"}
+{"stage":"train","status":"success","duration_s":20.751,"rows_in":272327,"rows_out":509280,"rows_per_sec":24542.4,"run_id":"20261110-201028"}
+{"stage":"evaluate","status":"success","duration_s":0.54,"rows_in":833,"rows_out":833,"rows_per_sec":1542.6,"run_id":"20261110-201028"}
+{"stage":"test","status":"success","duration_s":0.0,"rows_in":1,"rows_out":1,"rows_per_sec":null,"run_id":"20261110-201028"}
+{"stage":"register","status":"success","duration_s":0.343,"rows_in":1,"rows_out":1,"rows_per_sec":2.9,"run_id":"20261110-201028"}

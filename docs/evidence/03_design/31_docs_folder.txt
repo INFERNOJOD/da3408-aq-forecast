@@ -1,0 +1,26 @@
+# captured 2026-11-10 20:31:31 IST on the project VM, commit aeb8f83
+# what this proves: the mandatory design documents exist
+$ ls -l docs/*.md docs/img
+-rw-rw-r-- 1 krish-yadav krish-yadav  24768 Nov  5 23:07 docs/HLD.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  33430 Nov  5 21:33 docs/LLD.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  15817 Nov  5 23:08 docs/PLAN.md
+-rw-rw-r-- 1 krish-yadav krish-yadav 143547 Nov  5 23:08 docs/PROGRESS.md
+-rw-rw-r-- 1 krish-yadav krish-yadav   8045 Nov  5 21:47 docs/architecture.md
+-rw-rw-r-- 1 krish-yadav krish-yadav   3476 Oct 20 05:18 docs/data_notes.md
+-rw-rw-r-- 1 krish-yadav krish-yadav   8639 Oct 20 15:15 docs/eda.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  31330 Nov  5 23:03 docs/final_audit.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  40835 Nov  5 23:01 docs/metrics.md
+-rw-rw-r-- 1 krish-yadav krish-yadav   2779 Oct 20 05:22 docs/rubric.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  18302 Nov  5 23:03 docs/rubric_checklist.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  24657 Nov  5 23:03 docs/test_plan.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  20543 Nov  6 01:53 docs/test_report.md
+-rw-rw-r-- 1 krish-yadav krish-yadav  14518 Nov  5 23:01 docs/user_manual.md
+
+docs/img:
+total 688
+-rw-rw-r-- 1 krish-yadav krish-yadav 103314 Oct 20 14:33 eda_coverage.png
+-rw-rw-r-- 1 krish-yadav krish-yadav  57830 Oct 20 14:33 eda_distribution.png
+-rw-rw-r-- 1 krish-yadav krish-yadav 114260 Oct 20 14:33 eda_lockdown.png
+-rw-rw-r-- 1 krish-yadav krish-yadav 190632 Oct 20 14:33 eda_missing_heatmap.png
+-rw-rw-r-- 1 krish-yadav krish-yadav 161922 Oct 20 14:33 eda_seasonality.png
+-rw-rw-r-- 1 krish-yadav krish-yadav  61846 Oct 20 14:33 eda_stations.png

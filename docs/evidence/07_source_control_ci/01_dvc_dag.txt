@@ -1,0 +1,48 @@
+# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# what this proves: the DVC DAG is the CI pipeline: ingest -> validate -> features -> train -> evaluate -> test -> register
+$ uv run --frozen dvc dag
+              +--------------+             
+              | data/raw.dvc |             
+              +--------------+             
+                      *                    
+                      *                    
+                      *                    
+                  +--------+               
+                  | ingest |               
+                  +--------+               
+                 **        **              
+               **            *             
+              *               **           
+      +----------+              *          
+      | validate |            **           
+      +----------+           *             
+                 **        **              
+                   **    **                
+                     *  *                  
+                +----------+               
+                | features |               
+                +----------+               
+             ***           **              
+          ***                *             
+        **                    **           
++-------+                       *          
+| train |**                     *          
++-------+  *****                *          
+    *           *****           *          
+    *                *****      *          
+    *                     ***   *          
+    *                     +----------+     
+    *                     | evaluate |     
+    *                     +----------+     
+    *                       *        **    
+    *                     **           *   
+    *                    *              ** 
+    **              +------+             **
+      ***           | test |          ***  
+         ****       +------+       ***     
+             ***       *       ****        
+                ***    *    ***            
+                   **  *  **               
+                +----------+               
+                | register |               
+                +----------+               

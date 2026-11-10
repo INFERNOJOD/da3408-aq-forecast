@@ -4,7 +4,7 @@ I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROG
 
 I fixed section (a) and re-audited on 2026-11-03; the results are in the next two sections.
 
-Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 362 passed, 0 failed (2026-11-05: 3 frontend tests for the replay-clock note, 5 for the rollback fix, 1 for the console layout and 3 for the console's ops messages and drift table). `docs/test_report.md` has the per-file numbers.
+Test counts in this file are the counts on the day of each check: 341 on 2026-10-27, 350 on 2026-11-03. The current count is 367 passed, 0 failed (2026-11-10: 5 tests for the evidence capture helpers; 362 on 2026-11-05: 3 frontend tests for the replay-clock note, 5 for the rollback fix, 1 for the console layout and 3 for the console's ops messages and drift table). `docs/test_report.md` has the per-file numbers.
 
 PASS means the evidence is there and works. WEAK means it exists but has a gap a grader could point at. FAIL means it is missing or broken.
 

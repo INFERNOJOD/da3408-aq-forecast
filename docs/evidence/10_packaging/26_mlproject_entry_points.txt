@@ -1,0 +1,42 @@
+# captured 2026-11-10 20:33:28 IST on the project VM, commit aeb8f83
+# what this proves: MLproject: entry points run in the pinned python_env, the same versions as dev (uv.lock)
+$ cat MLproject; echo; cat python_env.yaml; echo; uv run --frozen python --version; grep -E '^(name = "(lightgbm|mlflow|pyspark|scikit-learn)")' -A1 uv.lock
+name: aq-forecast
+
+# Same pinned environment for dev, test and the batch container (python_env.yaml).
+python_env: python_env.yaml
+
+entry_points:
+  main:
+    # Trains the candidate model and logs one MLflow run. Reads params.yaml and
+    # data/features/train.parquet (made by the features stage).
+    command: "python -m src.pipeline.train"
+
+# Environment for `mlflow run . -e main`. Versions match uv.lock.
+python: "3.12"
+build_dependencies:
+  - pip
+dependencies:
+  - mlflow==3.17.1
+  - lightgbm==4.7.0
+  - scikit-learn==1.9.1
+  - pandas==3.0.6
+  - pyarrow==25.0.1
+  - matplotlib==3.11.2
+  - numpy==2.5.4
+  - pyyaml==6.0.3
+  - python-dotenv==1.2.4
+  - prometheus-client==0.26.0
+
+Python 3.12.15
+name = "lightgbm"
+version = "4.7.0"
+--
+name = "mlflow"
+version = "3.17.1"
+--
+name = "pyspark"
+version = "3.5.9"
+--
+name = "scikit-learn"
+version = "1.9.1"

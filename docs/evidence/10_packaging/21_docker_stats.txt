@@ -1,0 +1,15 @@
+# captured 2026-11-10 20:33:15 IST on the project VM, commit aeb8f83
+# what this proves: every container runs under its mem_limit
+$ docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.CPUPerc}}'
+NAME                                         MEM USAGE / LIMIT   MEM %     CPU %
+aq-evidence                                  133.4MiB / 1GiB     13.02%    0.00%
+da3408-project-aq-forecast-tls-proxy-1       33.83MiB / 64MiB    52.86%    0.00%
+da3408-project-aq-forecast-frontend-1        110.8MiB / 384MiB   28.87%    0.26%
+da3408-project-aq-forecast-backend-1         179.9MiB / 512MiB   35.13%    0.77%
+da3408-project-aq-forecast-model-server-1    317.4MiB / 768MiB   41.33%    0.11%
+da3408-project-aq-forecast-grafana-1         89.63MiB / 256MiB   35.01%    0.10%
+da3408-project-aq-forecast-mlflow-1          246.9MiB / 768MiB   32.15%    0.10%
+da3408-project-aq-forecast-prometheus-1      129.6MiB / 384MiB   33.75%    0.27%
+da3408-project-aq-forecast-alertmanager-1    20.93MiB / 64MiB    32.71%    0.07%
+da3408-project-aq-forecast-pushgateway-1     12.64MiB / 64MiB    19.74%    0.00%
+da3408-project-aq-forecast-node-exporter-1   8.461MiB / 64MiB    13.22%    0.00%

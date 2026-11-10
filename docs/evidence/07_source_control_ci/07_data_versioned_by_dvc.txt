@@ -1,0 +1,41 @@
+# captured 2026-11-10 20:32:23 IST on the project VM, commit aeb8f83
+# what this proves: raw data is versioned by DVC, not git: git holds only the .dvc pointer and dvc.lock hashes
+$ cat data/raw.dvc; echo; git ls-files data; echo; git check-ignore -v data/raw/city_hour.csv; echo; grep -n -B1 -A4 'path: data/raw\|path: models/candidate' dvc.lock | head -30
+outs:
+- md5: 7921cce1dbe07b5b8c33ffd85e4a34b4.dir
+  size: 296546643
+  nfiles: 5
+  hash: md5
+  path: raw
+
+data/raw.dvc
+
+.gitignore:2:/data/raw/	data/raw/city_hour.csv
+
+5-    deps:
+6:    - path: data/raw
+7-      hash: md5
+8-      md5: 7921cce1dbe07b5b8c33ffd85e4a34b4.dir
+9-      size: 296546643
+10-      nfiles: 5
+--
+265-    outs:
+266:    - path: models/candidate
+267-      hash: md5
+268-      md5: 9850b6dcdfbe2a287e6e65129be887b6.dir
+269-      size: 3080551
+270-      nfiles: 12
+--
+282-      nfiles: 14
+283:    - path: models/candidate
+284-      hash: md5
+285-      md5: 9850b6dcdfbe2a287e6e65129be887b6.dir
+286-      size: 3080551
+287-      nfiles: 12
+--
+359-    deps:
+360:    - path: models/candidate
+361-      hash: md5
+362-      md5: 9850b6dcdfbe2a287e6e65129be887b6.dir
+363-      size: 3080551
+364-      nfiles: 12

@@ -716,3 +716,24 @@ Run `container-20261105-214229` at commit `6e29d9e`, with `docker compose --prof
 
 The container's peak memory was 2.39 GiB against its `mem_limit` of 2560 MiB. That is close: the Spark driver has 2 GB, and the JVM and Python come on top. The same run on the host earlier that day took 75.8 s (`manual-20261105-174821`), so the container adds no measurable time. The candidate tied champion v4 at a mean MAE of 6.467 and was rejected.
 
+
+## Evidence run: drift to retrain, live (2026-11-10)
+
+I ran the whole loop once more while `scripts/capture_evidence_host.sh story` took the screenshots in `docs/evidence/11_guidelines/30_story_*`. Commit `aeb8f83`, replay at 1 simulated hour per second, ops runner on the host, serve stack up. Times are wall-clock IST.
+
+| Step | Time | Note |
+|------|------|------|
+| Replay started from the console | 20:06:26 | clock at 25 Mar 2020 00:00 |
+| Drift rule true | about 20:09:12 | 166 s after the start, 4 of 6 voting cities above their threshold |
+| `PM25DriftHigh` pending | 20:09:21 | |
+| `PM25DriftHigh` firing | 20:10:23 | the rule has `for: 1m` |
+| Retrain request written by the webhook | 20:10:28 | cutoff 2020-04-04 04:00 |
+| Runner stopped frontend and Grafana | 20:10:29 | |
+| `features` | 11.0 s | 302,903 rows, 27,607 rows/s (Spark) |
+| `train` | 20.8 s | 509,280 rows, 24,542 rows/s |
+| `evaluate`, `test`, `register` | 0.5 s, 0.0 s, 0.3 s | ingest and validate skipped by DVC (only the cutoff changed) |
+| Request finished, frontend and Grafana started again | 20:11:09 | 41 s after the request |
+
+The gate rejected the candidate: mean MAE 6.007 against 5.948 for champion v4 on the same window, so v4 kept serving. In October the same loop promoted v4 with a cutoff of 2 April. This time the request came at 4 April 04:00, 33 simulated hours of lockdown data later, and the new model was slightly worse on its 3-day window. I read that as the noise of a short window, not as proof that more lockdown data hurts.
+
+Rollback from the console, to v1 and back to v4, worked in each of the three rounds I ran while I fixed the capture script. In the first try the script typed a wrong value into the version box and the backend refused it, so nothing moved. In the last round the model server answered with v4 again 24 s after the click (it polls the alias every 30 s). After the replay reset, the pooled 72 h MAE ratio gauge kept its last replay value (1.70), because the backend only sets it when the window has forecasts. That kept the warning `ForecastErrorHigh` firing until I restarted the backend. It cannot start a retrain, but it is a stale gauge, and I have not fixed it.

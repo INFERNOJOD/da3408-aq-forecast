@@ -1,0 +1,69 @@
+# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# what this proves: a test file for every module
+$ ls tests/; echo; for f in tests/test_*.py; do printf '%-45s %s\n' $f $(grep -c '^def test_\|^    def test_' $f); done
+__init__.py
+__pycache__
+conftest.py
+test_aq_model.py
+test_backend.py
+test_backend_drift.py
+test_bench_pandas.py
+test_capture_evidence.py
+test_ci.py
+test_common.py
+test_drift.py
+test_dvc_setup.py
+test_eda.py
+test_features.py
+test_frontend.py
+test_gate.py
+test_ingest.py
+test_model_server.py
+test_modeling.py
+test_monitoring.py
+test_ops_runner.py
+test_plot_eda.py
+test_promotion_flow.py
+test_push_stage_metrics.py
+test_registry.py
+test_replay_script.py
+test_rollback_script.py
+test_schema.py
+test_security.py
+test_stage_runner.py
+test_train.py
+test_train_plots.py
+test_validate.py
+test_versioning.py
+
+tests/test_aq_model.py                        8
+tests/test_backend_drift.py                   9
+tests/test_backend.py                         44
+tests/test_bench_pandas.py                    2
+tests/test_capture_evidence.py                5
+tests/test_ci.py                              6
+tests/test_common.py                          10
+tests/test_drift.py                           13
+tests/test_dvc_setup.py                       6
+tests/test_eda.py                             10
+tests/test_features.py                        19
+tests/test_frontend.py                        28
+tests/test_gate.py                            6
+tests/test_ingest.py                          8
+tests/test_modeling.py                        12
+tests/test_model_server.py                    10
+tests/test_monitoring.py                      6
+tests/test_ops_runner.py                      19
+tests/test_plot_eda.py                        1
+tests/test_promotion_flow.py                  6
+tests/test_push_stage_metrics.py              3
+tests/test_registry.py                        9
+tests/test_replay_script.py                   5
+tests/test_rollback_script.py                 3
+tests/test_schema.py                          4
+tests/test_security.py                        11
+tests/test_stage_runner.py                    7
+tests/test_train_plots.py                     1
+tests/test_train.py                           9
+tests/test_validate.py                        17
+tests/test_versioning.py                      9

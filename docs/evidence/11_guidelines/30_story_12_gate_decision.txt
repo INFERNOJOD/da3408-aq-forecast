@@ -1,0 +1,29 @@
+# captured 2026-11-10 20:11:12 IST on the project VM, commit aeb8f83
+# what this proves: step 12: the gate compares the candidate with the champion on the same window
+$ cat reports/gate.json; echo; cat reports/register.json
+{
+  "passed": false,
+  "reasons": [
+    "mean MAE 6.007 is not lower than champion v4 5.948 on the same window"
+  ],
+  "first_model": false,
+  "ratio_to_best_baseline": {
+    "1h": 0.8944054425707461,
+    "24h": 0.8661799578019678
+  },
+  "max_ratio": 1.02,
+  "candidate_mean_mae": 6.006853621730381,
+  "champion_mean_mae": 5.948193117035546,
+  "candidate_run_id": "b010fbb63f2b470395fff25cd3667b0f"
+}
+{
+  "promoted": false,
+  "version": null,
+  "champion_before": "4",
+  "mlflow_run_id": "b010fbb63f2b470395fff25cd3667b0f",
+  "reasons": [
+    "mean MAE 6.007 is not lower than champion v4 5.948 on the same window"
+  ],
+  "cutoff": "2020-04-04 04:00:00",
+  "git_commit": "aeb8f83c73cc9015da169bb1cf87816b1b423780"
+}

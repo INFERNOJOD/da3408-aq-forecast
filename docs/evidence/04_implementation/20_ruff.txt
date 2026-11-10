@@ -1,0 +1,21 @@
+# captured 2026-11-10 20:31:31 IST on the project VM, commit aeb8f83
+# what this proves: standard Python style: ruff lint (pycodestyle, pyflakes, pydocstyle, ...) and format both pass
+$ uv run --frozen ruff check . && uv run --frozen ruff format --check . && grep -n -A12 '\[tool.ruff' pyproject.toml
+All checks passed!
+109 files already formatted
+31:[tool.ruff]
+32-line-length = 88
+33-target-version = "py312"
+34-src = ["src", "tests"]
+35-
+36:[tool.ruff.lint]
+37-# E/W = pycodestyle (PEP 8), F = pyflakes, I = import order, N = naming, D = docstrings
+38-select = ["E", "W", "F", "I", "N", "D", "B"]
+39-ignore = ["D203", "D213"]
+40-
+41:[tool.ruff.lint.per-file-ignores]
+42-"tests/*" = ["D"]
+43-
+44-[tool.pytest.ini_options]
+45-testpaths = ["tests"]
+46-pythonpath = ["."]

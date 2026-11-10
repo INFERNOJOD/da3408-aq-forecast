@@ -1,0 +1,37 @@
+# captured 2026-11-10 20:31:31 IST on the project VM, commit aeb8f83
+# what this proves: every module logs through the logging module (no print)
+$ grep -rln --include='*.py' 'get_logger(__name__)\|logging.getLogger' src | sort; echo; echo 'print( calls in src:'; grep -rn '^\s*print(' src | wc -l
+src/backend/app.py
+src/backend/drift.py
+src/backend/errors.py
+src/backend/forecaster.py
+src/backend/main.py
+src/backend/model_client.py
+src/backend/ops.py
+src/backend/pipeline_view.py
+src/backend/registry_view.py
+src/backend/store.py
+src/common/config.py
+src/common/logging_setup.py
+src/common/spark.py
+src/common/stage_runner.py
+src/common/versioning.py
+src/frontend/client.py
+src/frontend/metrics.py
+src/model_server/proxy.py
+src/model_server/serve.py
+src/model_server/supervisor.py
+src/ops/runner.py
+src/pipeline/aq_model.py
+src/pipeline/eda.py
+src/pipeline/evaluate.py
+src/pipeline/features.py
+src/pipeline/ingest.py
+src/pipeline/register.py
+src/pipeline/registry.py
+src/pipeline/test_gate.py
+src/pipeline/train.py
+src/pipeline/validate.py
+
+print( calls in src:
+0

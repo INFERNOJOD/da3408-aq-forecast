@@ -1,0 +1,17 @@
+# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# what this proves: ingest turns 283 MB of CSV into 65 MB of Parquet
+$ du -sh data/raw data/interim data/features; ls -l data/raw; ls data/interim
+283M	data/raw
+65M	data/interim
+17M	data/features
+total 289604
+-rw-rw-r-- 1 krish-yadav krish-yadav   2574056 Jul 28  2020 city_day.csv
+-rw-rw-r-- 1 krish-yadav krish-yadav  65648581 Jul 28  2020 city_hour.csv
+-rw-rw-r-- 1 krish-yadav krish-yadav   8634105 Jul 28  2020 station_day.csv
+-rw-rw-r-- 1 krish-yadav krish-yadav 219675434 Jul 28  2020 station_hour.csv
+-rw-rw-r-- 1 krish-yadav krish-yadav     14467 Jul 28  2020 stations.csv
+city_day
+city_hour
+station_day
+station_hour
+stations

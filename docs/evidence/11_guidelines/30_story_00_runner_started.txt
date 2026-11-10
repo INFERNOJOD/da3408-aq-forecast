@@ -1,0 +1,7 @@
+# captured 2026-11-10 20:06:12 IST on the project VM, commit aeb8f83
+# what this proves: the ops runner is running on the host and watches ops/requests/
+$ pgrep -af 'src.ops.runner' | grep -v pgrep | cut -c1-120; head -5 docs/evidence/.runner.log | cut -c1-160
+49829 uv run --frozen python -m src.ops.runner
+49843 /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/bin/python -m src.ops.runner
+2026/11/10 20:06:08 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/
+2026-11-10 20:06:08,719 INFO __main__: Ops runner watching /home/krish-yadav/DA3408/da3408-project-aq-forecast/ops/requests

@@ -1,0 +1,30 @@
+# captured 2026-11-10 20:33:14 IST on the project VM, commit aeb8f83
+# what this proves: the pipeline pushes stage metrics through the Pushgateway
+$ curl -s localhost:19091/metrics | grep -E '^aq_' | head -40
+aq_pipeline_last_success_timestamp{instance="evaluate",job="aq_pipeline"} 1.7943216654658055e+09
+aq_pipeline_last_success_timestamp{instance="features",job="aq_pipeline"} 1.7943216410680265e+09
+aq_pipeline_last_success_timestamp{instance="ingest",job="aq_pipeline"} 1.7938951581486917e+09
+aq_pipeline_last_success_timestamp{instance="register",job="aq_pipeline"} 1.7943216669222403e+09
+aq_pipeline_last_success_timestamp{instance="test",job="aq_pipeline"} 1.7943216659528313e+09
+aq_pipeline_last_success_timestamp{instance="train",job="aq_pipeline"} 1.7943216633607564e+09
+aq_pipeline_last_success_timestamp{instance="validate",job="aq_pipeline"} 1.7938951847655861e+09
+aq_stage_duration_seconds{instance="evaluate",job="aq_pipeline",run_id="20261110-201028",stage="evaluate"} 0.54
+aq_stage_duration_seconds{instance="features",job="aq_pipeline",run_id="20261110-201028",stage="features"} 10.972
+aq_stage_duration_seconds{instance="ingest",job="aq_pipeline",run_id="container-20261105-214229",stage="ingest"} 7.734
+aq_stage_duration_seconds{instance="register",job="aq_pipeline",run_id="20261110-201028",stage="register"} 0.343
+aq_stage_duration_seconds{instance="test",job="aq_pipeline",run_id="20261110-201028",stage="test"} 0
+aq_stage_duration_seconds{instance="train",job="aq_pipeline",run_id="20261110-201028",stage="train"} 20.751
+aq_stage_duration_seconds{instance="validate",job="aq_pipeline",run_id="container-20261105-214229",stage="validate"} 26.265
+aq_stage_rows_per_second{instance="evaluate",job="aq_pipeline",stage="evaluate"} 1542.6
+aq_stage_rows_per_second{instance="features",job="aq_pipeline",stage="features"} 27606.9
+aq_stage_rows_per_second{instance="ingest",job="aq_pipeline",stage="ingest"} 444110.9
+aq_stage_rows_per_second{instance="register",job="aq_pipeline",stage="register"} 2.9
+aq_stage_rows_per_second{instance="train",job="aq_pipeline",stage="train"} 24542.4
+aq_stage_rows_per_second{instance="validate",job="aq_pipeline",stage="validate"} 130764.3
+aq_stage_status{instance="evaluate",job="aq_pipeline",stage="evaluate"} 1
+aq_stage_status{instance="features",job="aq_pipeline",stage="features"} 1
+aq_stage_status{instance="ingest",job="aq_pipeline",stage="ingest"} 1
+aq_stage_status{instance="register",job="aq_pipeline",stage="register"} 1
+aq_stage_status{instance="test",job="aq_pipeline",stage="test"} 1
+aq_stage_status{instance="train",job="aq_pipeline",stage="train"} 1
+aq_stage_status{instance="validate",job="aq_pipeline",stage="validate"} 1

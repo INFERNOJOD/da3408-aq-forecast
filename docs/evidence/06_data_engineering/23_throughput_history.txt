@@ -1,0 +1,33 @@
+# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# what this proves: every stage run recorded with throughput (reports/runs.jsonl)
+$ jq -r 'select(.stage=="ingest" or .stage=="validate" or .stage=="features") | [.started_at,.stage,.status,.duration_s,.rows_out,.rows_per_sec] | @tsv' reports/runs.jsonl | column -t | tail -30
+2026-10-20T15:47:07  features  success  13.056  301188   23068.9
+2026-10-20T15:56:39  ingest    success  8.891   3434754  386318.1
+2026-10-20T15:56:48  validate  success  33.931  3434524  101220.8
+2026-10-20T15:57:22  features  success  13.611  301188   22128.3
+2026-10-20T15:58:31  ingest    success  11.332  3434754  303102.2
+2026-10-20T15:58:43  validate  success  37.783  3434524  90901.3
+2026-10-20T15:59:21  features  success  13.886  301188   21690.0
+2026-10-20T16:13:23  ingest    success  9.598   3434754  357861.4
+2026-10-20T16:13:33  validate  success  31.867  3434524  107776.8
+2026-10-20T16:14:05  features  success  13.143  301188   22916.2
+2026-10-20T17:04:30  features  success  12.015  301188   25067.7
+2026-10-20T17:20:23  features  success  12.227  302672   24754.4
+2026-10-21T12:53:38  ingest    success  10.371  3434754  331188.3
+2026-10-21T12:53:49  validate  success  37.015  3434524  92787.4
+2026-10-21T12:54:27  features  success  15.121  302672   20016.7
+2026-10-27T14:58:08  validate  failed   31.871           
+2026-11-03T17:33:43  ingest    success  7.764   3434754  442394.9
+2026-11-03T17:33:51  validate  success  28.326  3434524  121249.9
+2026-11-03T17:34:20  features  success  11.332  302672   26709.5
+2026-11-05T17:46:19  ingest    success  9.641   3434754  356265.3
+2026-11-05T17:46:29  validate  success  35.393  3434524  97039.6
+2026-11-05T17:47:05  features  success  11.493  302672   26335.3
+2026-11-05T17:48:22  ingest    success  8.353   3434754  411200.0
+2026-11-05T17:48:31  validate  success  29.976  3434524  114575.8
+2026-11-05T17:49:01  features  success  10.783  302672   28069.4
+2026-11-05T16:12:06  ingest    failed   1.333            
+2026-11-05T16:12:30  ingest    success  7.734   3434754  444110.9
+2026-11-05T16:12:38  validate  success  26.265  3434524  130764.3
+2026-11-05T16:13:05  features  success  10.7    302672   28287.1
+2026-11-10T20:10:30  features  success  10.972  302903   27606.9

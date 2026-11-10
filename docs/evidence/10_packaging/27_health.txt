@@ -1,0 +1,10 @@
+# captured 2026-11-10 20:33:28 IST on the project VM, commit aeb8f83
+# what this proves: the backend health endpoint reports the model server and the served version
+$ curl -s --cacert certs/ca.crt https://localhost:8000/health | jq .
+{
+  "status": "ok",
+  "model_server": "up",
+  "model_version": "4",
+  "sim_time": "2020-03-25T00:00:00",
+  "replay_running": false
+}

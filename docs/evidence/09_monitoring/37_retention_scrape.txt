@@ -1,0 +1,7 @@
+# captured 2026-11-10 20:33:15 IST on the project VM, commit aeb8f83
+# what this proves: retention 2 days, scrape interval 15 s
+$ grep -n 'retention' docker-compose.yml; grep -n 'interval' monitoring/prometheus.yml
+153:      - --storage.tsdb.retention.time=2d
+2:# Scrape interval 15 s, the lowest the machine limits allow. Retention is 2 days
+5:  scrape_interval: 15s
+6:  evaluation_interval: 15s

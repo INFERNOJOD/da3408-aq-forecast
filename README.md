@@ -6,6 +6,10 @@ The interesting part is what happens around the model. I replay the 2020 COVID l
 
 Everything runs on one 8 GB ARM64 VM with no cloud services: Spark for data, DVC for the pipeline and data versions, MLflow for tracking, the registry and serving, FastAPI and Streamlit for the app, and Prometheus, Alertmanager and Grafana for monitoring.
 
+## For TAs
+
+**Evidence gallery: [`docs/evidence/README.md`](docs/evidence/README.md).** It has one table with every rubric line and guideline, and next to each one the screenshot or terminal capture that shows it, with a caption. Every image has a strip on top with the time, the URL or command, and one line saying what it proves. The 11 screenshots in `docs/screenshots/` are the ones in the user manual.
+
 ## Architecture
 
 ```mermaid
@@ -57,13 +61,14 @@ Open **https://localhost**. The browser warns about the certificate the first ti
 Other commands I use:
 
 ```
-scripts/ci.sh                         # lint, 362 tests, dvc status, dvc status -c (about 1 min)
+scripts/ci.sh                         # lint, 367 tests, dvc status, dvc status -c (about 1 min)
 docker compose --profile serve stop
 scripts/ci.sh --repro                 # + the full DVC pipeline and dvc push (about 2.5 min)
 python -m scripts.replay              # drift acceptance test over 2016-2020
 python -m scripts.rollback --list     # registry versions and aliases
 docker compose --profile serve up -d --build   # after changing service code; plain up -d keeps the old images
 mlflow run . -e main --env-manager uv --experiment-name aq-pm25   # train through MLproject in its own environment
+scripts/capture_evidence_host.sh terminals   # evidence gallery: command outputs (browser part: see scripts/capture_evidence.py)
 ```
 
 ## What I measured
@@ -87,7 +92,7 @@ v1 was trained up to 24 March 2020. v4 is the model the system trained by itself
 
 **Drift and retraining.** Replaying 25 March to 30 June of every year, the drift rule fires for 661 of 2,185 hours in 2020 and for 0 hours in 2016-2019. In the live loop it took 2 min 47 s from "drift is true" to the new model answering forecasts: the alert, the webhook, the retrain request, `dvc repro` with the new cutoff, the gate, the registry and the hot swap. The new model beat the old one on the lockdown window (mean MAE 6.467 against 6.750).
 
-**Tests.** 362 pytest cases, 362 passed, 0 failed. `docs/test_report.md` checks the seven acceptance criteria one by one, and all seven are met.
+**Tests.** 367 pytest cases, 367 passed, 0 failed. `docs/test_report.md` checks the seven acceptance criteria one by one, and all seven are met.
 
 ## Reproduce a result
 
@@ -195,6 +200,7 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 | Measured numbers | `docs/metrics.md` |
 | EDA and data biases | `docs/eda.md` |
 | Rubric checklist | `docs/rubric_checklist.md` |
+| Evidence gallery (screenshots per rubric line) | `docs/evidence/README.md`, made by `scripts/capture_evidence.py` |
 | Pipeline code (Spark stages, training, gate, registry) | `src/pipeline/`, `dvc.yaml`, `params.yaml`, `MLproject` |
 | Backend, frontend, model server | `src/backend/`, `src/frontend/`, `src/model_server/` |
 | Drift, ops runner | `src/monitoring/drift.py`, `src/ops/runner.py`, `scripts/replay.py` |
@@ -205,6 +211,8 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 ## How I built this, and AI use
 
 I used Claude Code, Anthropic's AI coding assistant, throughout this project, under my direction. I chose the problem and made the design decisions. `docs/HLD.md` records them with their reasons, and I can defend each one. Claude Code wrote code, tests and documents from my instructions. I worked one stage at a time and reviewed every stage before it was committed: I read the changes, ran the tests and the live checks, and asked for fixes where something was wrong. The rules I gave it (the fixed stack, the machine limits, the code rules and this writing voice) are in `CLAUDE.md`, and `docs/PROGRESS.md` records each stage as it was built.
+
+The evidence gallery in `docs/evidence/` was captured automatically by `scripts/capture_evidence.py` (Playwright in Docker, with `scripts/capture_evidence_host.sh` for the terminal outputs), written by Claude Code under my direction. The 11 user-manual screenshots in `docs/screenshots/` I took myself, by hand.
 
 Every commit carries a `Co-Authored-By: Claude …` trailer, so the git history shows that this applies to the whole project, not to selected parts.
 

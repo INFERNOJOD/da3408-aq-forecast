@@ -1,18 +1,18 @@
-CI run 2026-11-06 01:53:06  commit 65c14cf  uncommitted changes: yes  mode: check
+CI run 2026-11-10 20:41:33  commit aeb8f83  uncommitted changes: yes  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
 
 == ruff-format: uv run --frozen ruff format --check .
-107 files already formatted
+110 files already formatted
 
 == pytest: uv run --frozen pytest -q -p no:cacheprovider --junitxml=reports/ci/junit.xml
 ........................................................................ [ 19%]
 ........................................................................ [ 39%]
-........................................................................ [ 59%]
-........................................................................ [ 79%]
-........................................................................ [ 99%]
-..                                                                       [100%]
+........................................................................ [ 58%]
+........................................................................ [ 78%]
+........................................................................ [ 98%]
+.......                                                                  [100%]
 =============================== warnings summary ===============================
 .venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: 1 warning
 tests/test_promotion_flow.py: 25 warnings
@@ -29,7 +29,19 @@ tests/test_promotion_flow.py::test_first_model_is_promoted_then_an_equal_candida
     sqlalchemy.orm.configure_mappers()
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-362 passed, 38 warnings in 47.62s
+367 passed, 38 warnings in 46.14s
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/krish-yadav/.local/share/uv/python/cpython-3.12.15-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 673, in __del__
+    self.close()
+  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 570, in close
+    logger.info("Closing down clientserver connection")
+Message: 'Closing down clientserver connection'
+Arguments: ()
 
 == dvc-status: dvc_clean
 Data and pipelines are up to date.
@@ -37,10 +49,10 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit 65c14cf)
+== summary (commit aeb8f83)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    51s
+pytest         PASS    49s
 dvc-status     PASS     1s
 dvc-remote     PASS     0s
 CI PASSED

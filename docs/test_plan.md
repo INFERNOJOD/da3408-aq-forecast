@@ -135,6 +135,7 @@ Entry criterion for a test run: the code is committed or the diff is known, and 
 | TC-46 | TLS | I | `test_security.py`: `test_make_certs_*`, `test_private_keys_*`, `test_client_*` (2), `test_backend_serves_https_*`, `test_backend_falls_back_*`, `test_browser_traffic_*`, `test_backend_and_its_clients_use_https` | the server certificate verifies against the CA; keys are `600`; without the CA the user sees a plain message, not an SSL trace |
 | TC-47 | Secrets and non-root | U | `test_security.py`: `test_certs_and_env_are_gitignored`, `test_every_container_runs_as_non_root`, `test_secrets_come_only_from_env_file` | `.env` and `certs/` are gitignored; no container runs as root; every key and password in compose comes from `.env` |
 | TC-48 | CI script and hooks | I | `test_ci.py` (all) | valid bash; checks run in order; `--repro` refused while the serve stack runs; hooks are local and cover lint, tests and the data guard |
+| TC-49 | Evidence capture helpers | U | `test_capture_evidence.py` (all) | the caption strip goes on top and keeps the screenshot; narrow (phone) shots are widened so the caption fits; PNGs are saved as 256-colour palette files; a transcript's command and claim are read from its header |
 
 ### 6.5 End-to-end checks
 

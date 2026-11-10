@@ -1,5 +1,7 @@
 # Rubric Checklist
 
+The screenshot gallery for every line below is `docs/evidence/README.md` (captured on 2026-11-10).
+
 This maps every line of `docs/rubric.md` (the rubric and the guidelines) to the file, command or screenshot that proves it. I wrote it as an audit at the end of Stage 17, so it starts with what is still missing or weak.
 
 ## Still missing or weak
@@ -80,15 +82,15 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Design document strictly adhered to | The LLD is checked by tests: routes (`test_lld_lists_the_backend_routes`), feature columns (`test_features_match_lld_table_in_order`), metrics (`test_metrics_endpoint_lists_lld_metrics`, `test_every_lld_metric_is_on_a_dashboard`), alert rules (`test_alert_rules_match_lld`), model signature (`test_model_signature_matches_the_lld_columns`). When the design changed (drift rule, Stage 11), HLD, LLD and PLAN changed in the same commit |
 | Inline code comments | Docstrings on every module and function (enforced by ruff `D` rules); comments where a choice needs explaining, e.g. `docker-compose.yml`, `src/frontend/app.py` |
 | APIs follow the design doc interface spec | Same tests as above; `docs/test_report.md` TC-27 to TC-35 |
-| Unit tests implemented | 362 pytest cases in 30 files, one per module (`tests/`), 362 passed, 0 failed (`reports/ci/final/junit.xml`, 2026-11-05) |
+| Unit tests implemented | 367 pytest cases in 31 files, one per module (`tests/`), 367 passed, 0 failed (`reports/ci/junit.xml`, 2026-11-10) |
 
 ### Testing [1]
 
 | Rubric line | Proof |
 |-------------|-------|
 | Test plan | `docs/test_plan.md` (scope, levels, environment, how to run) |
-| List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-48 (pytest) and E2E-01 to E2E-23 |
-| Test report with passed and failed counts | `docs/test_report.md`: 362 run, 362 passed, 0 failed, per file; JUnit XML `reports/ci/final/junit.xml` |
+| List of test cases | `docs/test_plan.md` section 6: TC-01 to TC-49 (pytest) and E2E-01 to E2E-23 |
+| Test report with passed and failed counts | `docs/test_report.md`: 367 run, 367 passed, 0 failed, per file; JUnit XML `reports/ci/junit.xml` |
 | Acceptance criteria defined and met | `docs/test_plan.md` section 5 (AC-1 to AC-7); `docs/test_report.md` section 4, all 7 met with evidence |
 
 ## AIOps Implementation [10]

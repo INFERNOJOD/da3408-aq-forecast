@@ -1,0 +1,8 @@
+# captured 2026-11-10 20:31:31 IST on the project VM, commit aeb8f83
+# what this proves: loose coupling: no frontend module imports backend code; the URL is configurable
+$ grep -rn 'src.backend\|from src import backend' src/frontend/ || echo 'no imports of src.backend in src/frontend'; grep -n BACKEND_URL src/frontend/client.py docker-compose.yml
+no imports of src.backend in src/frontend
+src/frontend/client.py:4:URL comes from ``BACKEND_URL``. Every call is timed, and failures are counted,
+src/frontend/client.py:48:        """Read ``BACKEND_URL`` and ``BACKEND_CA_FILE`` (a self-signed CA) if unset."""
+src/frontend/client.py:49:        url = base_url or os.environ.get("BACKEND_URL", "http://localhost:8000")
+docker-compose.yml:52:      BACKEND_URL: https://backend:8000

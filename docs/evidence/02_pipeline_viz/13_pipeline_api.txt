@@ -1,0 +1,16 @@
+# captured 2026-11-10 20:31:31 IST on the project VM, commit aeb8f83
+# what this proves: the console reads the same public REST endpoints (stages, runs, models)
+$ curl -s --cacert certs/ca.crt https://localhost:8000/pipeline/stages | jq -c '.run_id, (.stages[] | {name,status,duration_s,rows_out,rows_per_sec})'; curl -s --cacert certs/ca.crt 'https://localhost:8000/pipeline/runs?limit=5' | jq -c '.runs[] | {run_id,trigger,status,failed_stage,error: (.error // "" | .[0:110])}'
+"20261110-201028"
+{"name":"ingest","status":"not_run","duration_s":null,"rows_out":null,"rows_per_sec":null}
+{"name":"validate","status":"not_run","duration_s":null,"rows_out":null,"rows_per_sec":null}
+{"name":"features","status":"success","duration_s":10.972,"rows_out":302903,"rows_per_sec":27606.9}
+{"name":"train","status":"success","duration_s":20.751,"rows_out":509280,"rows_per_sec":24542.4}
+{"name":"evaluate","status":"success","duration_s":0.54,"rows_out":833,"rows_per_sec":1542.6}
+{"name":"test","status":"success","duration_s":0.0,"rows_out":1,"rows_per_sec":null}
+{"name":"register","status":"success","duration_s":0.343,"rows_out":1,"rows_per_sec":2.9}
+{"run_id":"20261110-201028","trigger":"drift_alert","status":"success","failed_stage":null,"error":""}
+{"run_id":"container-20261105-214229","trigger":"manual","status":"success","failed_stage":null,"error":""}
+{"run_id":"container-20261105-214205","trigger":"manual","status":"failed","failed_stage":"ingest","error":"Py4JJavaError: An error occurred while calling None.org.apache.spark.api.java.JavaSparkContext.\n: org.apache.h"}
+{"run_id":"manual-20261105-174821","trigger":"manual","status":"success","failed_stage":null,"error":""}
+{"run_id":"20261105-174742","trigger":"manual","status":"success","failed_stage":null,"error":""}

@@ -1,0 +1,61 @@
+# captured 2026-11-10 20:32:23 IST on the project VM, commit aeb8f83
+# what this proves: local CI (cloud CI is not allowed): ruff, format, pytest, dvc status, dvc status -c all pass
+$ scripts/ci.sh
+CI run 2026-11-10 20:32:23  commit aeb8f83  uncommitted changes: yes  mode: check
+
+== ruff: uv run --frozen ruff check .
+All checks passed!
+
+== ruff-format: uv run --frozen ruff format --check .
+109 files already formatted
+
+== pytest: uv run --frozen pytest -q -p no:cacheprovider --junitxml=reports/ci/junit.xml
+........................................................................ [ 19%]
+........................................................................ [ 39%]
+........................................................................ [ 58%]
+........................................................................ [ 78%]
+........................................................................ [ 98%]
+.......                                                                  [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: 1 warning
+tests/test_promotion_flow.py: 25 warnings
+tests/test_train.py: 10 warnings
+  /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: Add type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.
+    color_warning(
+
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_promotion_flow.py::test_first_model_is_promoted_then_an_equal_candidate_is_rejected
+  /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/store/tracking/sqlalchemy_store.py:327: SADeprecationWarning: The ``noload`` loader strategy is deprecated and will be removed in a future release.  This option produces incorrect results by returning ``None`` for related items. (deprecated since: 2.1)
+    sqlalchemy.orm.configure_mappers()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+367 passed, 38 warnings in 44.22s
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/krish-yadav/.local/share/uv/python/cpython-3.12.15-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 673, in __del__
+    self.close()
+  File "/home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/py4j/clientserver.py", line 570, in close
+    logger.info("Closing down clientserver connection")
+Message: 'Closing down clientserver connection'
+Arguments: ()
+
+== dvc-status: dvc_clean
+Data and pipelines are up to date.
+
+== dvc-remote: dvc_clean -c
+Cache and remote 'localremote' are in sync.
+
+== summary (commit aeb8f83)
+ruff           PASS     0s
+ruff-format    PASS     0s
+pytest         PASS    47s
+dvc-status     PASS     1s
+dvc-remote     PASS     0s
+CI PASSED
