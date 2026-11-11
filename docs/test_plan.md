@@ -37,7 +37,7 @@ This plan says what I test, how, on what machine, and what counts as "done". The
 | Main libraries | PySpark 3.5.9 (Java 17 on the host), MLflow 3.17.1, LightGBM 4.7.0, scikit-learn 1.9.1, FastAPI 0.151.0, Streamlit 1.66.0, DVC 3.67.1 |
 | Containers | Docker 29.8.2, Compose v5.6.0, `serve` profile (10 containers) |
 | Data | CPCB 2015-2020, DVC version `7921cce1dbe07b5b8c33ffd85e4a34b4.dir` |
-| Browser | none that works headless on this VM, so I check the pages through `AppTest` and `curl`; the screenshots are taken by hand on my desktop |
+| Browser | Firefox on the VM (a snap) hangs in headless mode, so the automated page checks use `AppTest` and `curl`; the user-manual screenshots are taken by hand in that Firefox, and the evidence gallery with Playwright's Chromium in Docker |
 
 The serve stack and the batch profile never run at the same time (8 GB limit). `scripts/ci.sh --repro` refuses to start while the serve stack is up.
 

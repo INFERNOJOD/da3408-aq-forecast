@@ -15,7 +15,7 @@ I ran the whole suite and every acceptance check again on 2026-10-21, against th
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
 | Defects found | 6, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/junit.xml` (`tests="371" failures="0" errors="0" skipped="0"`, 2026-11-11), at commit `acd9531` with the console table change in the workspace. The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/junit.xml` (`tests="371" failures="0" errors="0" skipped="0"`, 2026-11-11 15:06), at commit `141fb4b` with the final-audit doc fixes in the workspace. The same 371 had passed earlier that day at `acd9531` (`docs/evidence/07_source_control_ci/03_ci_run.txt`). The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
 == summary (commit 5092d56)
@@ -181,7 +181,7 @@ The two LightGBM files are identical byte for byte. So a model can be rebuilt fr
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `aeb8f83` with the evidence script added: all five checks pass, 367 of 367 tests, and on 2026-11-11 at `acd9531` plus the console table change: all five checks pass, 371 of 371 tests (`docs/evidence/07_source_control_ci/03_ci_run.txt`).
+`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `aeb8f83` with the evidence script added: all five checks pass, 367 of 367 tests, and on 2026-11-11 at `acd9531` plus the console table change: all five checks pass, 371 of 371 tests (`docs/evidence/07_source_control_ci/03_ci_run.txt`). The last run, at `141fb4b` with only doc changes on top, gave the same: all five checks pass, 371 of 371 (`reports/ci/last_run.log`).
 
 ## 5. Defects found in this run
 

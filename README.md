@@ -58,7 +58,7 @@ The first starts the app and the monitoring (10 containers). The second starts t
 
 Open **https://localhost**. The browser warns about the certificate the first time, because I made it myself. `docs/user_manual.md` explains what that means and how to get rid of it. The console is at `https://localhost/console`, Grafana at `http://localhost:13000`, MLflow at `http://localhost:5000` and Prometheus at `http://localhost:19090`.
 
-Other commands I use:
+Other commands I use. The Python, `dvc` and `mlflow` commands here and in "Reproduce a result" run in the project environment, so activate it first (`source .venv/bin/activate`) or put `uv run --frozen` in front of them:
 
 ```
 scripts/ci.sh                         # lint, 371 tests, dvc status, dvc status -c (about 1 min)
@@ -75,7 +75,7 @@ scripts/capture_evidence_host.sh terminals   # evidence gallery: command outputs
 
 All of these were measured on the project VM (4 CPU, 7.2 GB RAM, ARM64). The full tables, with how each number was taken, are in `docs/metrics.md`.
 
-**Pipeline (Spark, local mode, 2 GB driver).** It ingests 3,434,754 rows from 5 CSV files. Ingest takes 8 to 10 s (about 330,000 to 430,000 rows/s, CSV 283 MB to Parquet 65 MB), validate 32 to 37 s (48 checks), features 12 to 15 s and train 24 to 27 s. The whole 7-stage `dvc repro` took 97 s in the last CI run. pandas did the ingest job twice as fast as Spark (3.7 s against 8.2 s), because the data fits in memory and Spark pays for JVM start-up and job planning. I use Spark because the course requires it, and because its code keeps working when data outgrows RAM. I have not tested that second point.
+**Pipeline (Spark, local mode, 2 GB driver).** It ingests 3,434,754 rows from 5 CSV files. Ingest takes 8 to 12 s (about 290,000 to 440,000 rows/s, CSV 283 MB to Parquet 65 MB), validate 26 to 38 s (48 checks), features 11 to 15 s and train 20 to 27 s. The whole 7-stage `dvc repro` took 97 s in the CI run of 2026-10-21, and 79.8 s (73.5 s of stage time) in the forced run `manual-20261111-042650`. pandas did the ingest job twice as fast as Spark (3.7 s against 8.2 s), because the data fits in memory and Spark pays for JVM start-up and job planning. I use Spark because the course requires it, and because its code keeps working when data outgrows RAM. I have not tested that second point.
 
 **Model.** Mean absolute error in µg/m³, every model scored on the same rows:
 

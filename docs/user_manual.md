@@ -44,7 +44,7 @@ Wait about half a minute, then open **https://localhost**. To stop everything, p
 docker compose --profile serve down
 ```
 
-![Terminal after starting the stack, every container Started or Healthy](screenshots/01_start.png)
+![Terminal after starting the stack: docker compose ps lists all 10 containers as Up, and the four with a health check as healthy](screenshots/01_start.png)
 
 ---
 
@@ -88,7 +88,7 @@ Only do this for a `ca.crt` file you made yourself or got from someone you trust
    - the expected amount of PM2.5, in µg/m³ (micrograms per cubic metre of air; lower is better),
    - the category name, such as **Good** or **Poor**,
    - one sentence of health advice for that category.
-3. Under the cards, **"Measured right now"** is the latest real measurement for your city, so you can compare it with the forecast.
+3. Under the cards, **"Measured right now"** is the latest real measurement for your city (the average of the official CPCB monitoring stations there), so you can compare it with the forecast.
 4. Press **Refresh** to get a new forecast. The replay clock keeps moving, so the forecast changes over time.
 
 The line "Forecast made for ..." tells you the (replayed) time the forecast starts from.
@@ -114,7 +114,7 @@ A practical way to read it: green means go about your day; yellow means people w
 
 **Two things to keep in mind:**
 
-- This is a forecast, not a measurement. In my tests the 1-hour forecast was off by about 3.5 µg/m³ on average, and the 24-hour forecast by about 9 µg/m³. So a value close to the edge of a category could fall on either side. The 24-hour forecast is the less certain one.
+- This is a forecast, not a measurement. In my tests the 1-hour forecast was off by about 3.5 µg/m³ on average, and the 24-hour forecast by about 9 µg/m³. So a value close to the edge of a category could fall on either side. The 24-hour forecast is the less certain one. It is least accurate on the most polluted hours, because there are few of them in the data it learned from, so a very high level may be forecast too low.
 - The official AQI is based on a 24-hour average. These cards show a single hour, so the colour is a guide, not the official AQI. The app says this under the colour table.
 
 ### If something goes wrong
