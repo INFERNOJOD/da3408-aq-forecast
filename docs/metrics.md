@@ -739,3 +739,21 @@ The gate rejected the candidate: mean MAE 6.007 against 5.948 for champion v4 on
 Rollback from the console, to v1 and back to v4, worked in each of the three rounds I ran while I fixed the capture script. In the first try the script typed a wrong value into the version box and the backend refused it, so nothing moved. In the last round the model server answered with v4 again 24 s after the click (it polls the alias every 30 s). After the replay reset, the pooled 72 h MAE ratio gauge kept its last replay value (1.70), because the backend only sets it when the window has forecasts. That kept the warning `ForecastErrorHigh` firing until I restarted the backend. It cannot start a retrain, but it was a stale gauge.
 
 **Fixed the same evening (D-6 in `docs/test_report.md`).** An unknown value now clears its gauge: the pooled ratio becomes NaN and the per-city series are removed. Live check on the rebuilt backend: replay at 20 h/s for 29 s, stopped at 18 Apr 07:00 with the pooled ratio at 1.547; `ForecastErrorHigh` was firing 310 s later (1.566). I reset the replay at 21:11:35. The alert was gone after 15 s, and Prometheus read `aq_rolling_mae_ratio_pooled` as NaN. Rebuilding the backend image took 14.6 min, almost all of it pip downloading packages again.
+
+## Forced full run on the host (2026-11-11)
+
+Run `manual-20261111-042650` at commit `34b5051`, with `PIPELINE_TRIGGER=manual PIPELINE_RUN_ID=manual-20261111-042650 uv run --frozen dvc repro -f`. I stopped the serve stack and kept only the Pushgateway up. I ran it so the console's "last run" would show all 7 stages under one run id. Numbers are from `reports/runs.jsonl`; the wall time and memory are from GNU `time -v`.
+
+| Stage | Time | Rows out | Rows/s |
+|------|-----:|------:|------:|
+| ingest | 11.9 s | 3,434,754 | 289,706 |
+| validate | 29.2 s | 3,434,524 | 117,726 |
+| features | 11.3 s | 302,672 | 26,849 |
+| train | 20.3 s | 508,818 | 25,069 |
+| evaluate | 0.6 s | 833 | 1,344 |
+| test | 0.0 s | 1 | none |
+| register | 0.3 s | 1 | 3.2 |
+| sum of stages | 73.5 s | | |
+| whole `dvc repro -f` | 79.8 s | | |
+
+The largest single process peaked at 1.0 GB resident (1,045,592 KB). Ingest took 11.9 s, slower than the 7.7 to 8.4 s of earlier runs; the other stages were within a second of the 2026-11-05 runs. The candidate tied champion v4 at a mean MAE of 6.467 and the gate rejected it, so the registry stayed at champion 4, previous 1. Spark writes new part-file names on every run, so `dvc.lock` changed even though the feature hash did not (`2afa1813…`), and `dvc push` sent 28 files to the local remote.

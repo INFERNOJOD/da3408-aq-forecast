@@ -8,7 +8,7 @@ Everything runs on one 8 GB ARM64 VM with no cloud services: Spark for data, DVC
 
 ## For TAs
 
-**Evidence gallery: [`docs/evidence/README.md`](docs/evidence/README.md).** It has one table with every rubric line and guideline, and next to each one the screenshot or terminal capture that shows it, with a caption. Every image has a strip on top with the time, the URL or command, and one line saying what it proves. The 11 screenshots in `docs/screenshots/` are the ones in the user manual.
+**Evidence gallery: [`docs/evidence/README.md`](docs/evidence/README.md).** It has one table with every rubric line and guideline, and next to each one the screenshot or terminal capture that shows it, with a caption. Every automated capture has a strip on top with the time, the URL or command, and one line saying what it proves; the two console captures I took by hand in Firefox show the URL and time in the browser instead. The 11 screenshots in `docs/screenshots/` are the ones in the user manual.
 
 ## Architecture
 
@@ -212,7 +212,7 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 
 I used Claude Code, Anthropic's AI coding assistant, throughout this project, under my direction. I chose the problem and made the design decisions. `docs/HLD.md` records them with their reasons, and I can defend each one. Claude Code wrote code, tests and documents from my instructions. I worked one stage at a time and reviewed every stage before it was committed: I read the changes, ran the tests and the live checks, and asked for fixes where something was wrong. The rules I gave it (the fixed stack, the machine limits, the code rules and this writing voice) are in `CLAUDE.md`, and `docs/PROGRESS.md` records each stage as it was built.
 
-The evidence gallery in `docs/evidence/` was captured automatically by `scripts/capture_evidence.py` (Playwright in Docker, with `scripts/capture_evidence_host.sh` for the terminal outputs), written by Claude Code under my direction. The 11 user-manual screenshots in `docs/screenshots/` I took myself, by hand.
+The evidence gallery in `docs/evidence/` was captured automatically by `scripts/capture_evidence.py` (Playwright in Docker, with `scripts/capture_evidence_host.sh` for the terminal outputs), written by Claude Code under my direction. The 11 user-manual screenshots in `docs/screenshots/` I took myself, by hand, in Firefox on the VM, and two of them are also used in the gallery for the console. Headless capture with that Firefox hangs, which is why the gallery uses Playwright in Docker.
 
 Every commit carries a `Co-Authored-By: Claude …` trailer, so the git history shows that this applies to the whole project, not to selected parts.
 
