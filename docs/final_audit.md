@@ -43,7 +43,7 @@ The backend and frontend images were built on 2026-10-21. Compose copies the cod
 | Free of UI errors | WEAK | PASS | Replay time no longer cut off ("25 Mar, 00:00" live), Deploy button hidden in the running image. Not yet seen in a real browser (E2E-17, (b)1) |
 | Console of errors, failures, successful runs | WEAK | PASS | Live console: 18 successful, 2 failed in the last 20, "Failed runs" table with `demo-failure-20261027` and the real MLproject crash `20261103-173537` |
 | Pipeline speed and throughput | WEAK | PASS | Every query in the "AQ pipeline" dashboard returns data (7 stage durations, 6 throughputs; `test` reports no rows/s). Fresh run: ingest 442,395 rows/s |
-| Architecture diagram | WEAK | PASS | `architecture.md`: the runner runs the pipeline "on the host", stops and restarts frontend and Grafana, no commit arrow |
+| Architecture diagram | WEAK | PASS | `architecture.md`: the runner runs the pipeline "on the host", stops and restarts frontend and Grafana, no commit arrow. The evidence image `03_design/01_architecture.png` is a clean render of that source (Mermaid CLI 11.16, 2026-11-11); the first capture showed a Mermaid syntax error |
 | Design document strictly adhered to | WEAK | PASS | `ci` is in the LLD trigger list; the runner pauses the frontend and Grafana as HLD says; all 14 routes match the LLD both ways (live spec) |
 | Grafana in near real time | WEAK | PASS | Pipeline dashboard has data, 15 s refresh |
 | MLproject for identical environments | WEAK | PASS | E2E-21, fresh environment, same MAE and identical model files |
