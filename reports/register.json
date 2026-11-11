@@ -2,10 +2,10 @@
   "promoted": false,
   "version": null,
   "champion_before": "4",
-  "mlflow_run_id": "4c6ef2ee8dd34028bf6c0cd7a583693a",
+  "mlflow_run_id": "3f9cb04b83194743b9658116ca3a8bad",
   "reasons": [
     "mean MAE 6.467 is not lower than champion v4 6.467 on the same window"
   ],
   "cutoff": "2020-04-02 19:00:00",
-  "git_commit": "6e29d9e6f76965937aff37deab7454bb524de9c2"
+  "git_commit": "34b50517eb834e9d5963f2bd885a8d070185c3b9"
 }
