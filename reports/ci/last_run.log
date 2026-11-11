@@ -1,4 +1,4 @@
-CI run 2026-11-11 02:27:37  commit acd9531  uncommitted changes: yes  mode: check
+CI run 2026-11-11 14:51:51  commit f0c275b  uncommitted changes: yes  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
@@ -29,7 +29,7 @@ tests/test_promotion_flow.py::test_first_model_is_promoted_then_an_equal_candida
     sqlalchemy.orm.configure_mappers()
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-371 passed, 38 warnings in 49.47s
+371 passed, 38 warnings in 49.19s
 
 == dvc-status: dvc_clean
 Data and pipelines are up to date.
@@ -37,10 +37,10 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit acd9531)
+== summary (commit f0c275b)
 ruff           PASS     0s
 ruff-format    PASS     0s
-pytest         PASS    54s
-dvc-status     PASS     0s
+pytest         PASS    52s
+dvc-status     PASS     1s
 dvc-remote     PASS     0s
 CI PASSED
