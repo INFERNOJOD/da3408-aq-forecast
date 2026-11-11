@@ -1,17 +1,17 @@
-# captured 2026-11-10 20:33:28 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:28 IST on the project VM, commit 6c65eef
 # what this proves: every model traces to git commit + MLflow run ID + data version
-$ curl -s --cacert certs/ca.crt 'https://localhost:8000/forecast?city=Delhi' | jq '.model'; MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -c "import mlflow; t=mlflow.MlflowClient('http://localhost:5000').get_run('498b149f78e2418695c3bf7e01b91615').data.tags; [print(k, '=', t[k]) for k in ['git_commit','git_dirty','dvc_data_md5','features_md5','cutoff','trigger','pipeline_run_id']]"; git show -s --format='%h %ad %s' --date=short b2eff79
+$ curl -s --cacert certs/ca.crt 'https://localhost:8000/forecast?city=Delhi' | jq '.model'; MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -c "import mlflow; t=mlflow.MlflowClient('http://localhost:5000').get_run('498b149f78e2418695c3bf7e01b91615').data.tags; [print(k, '=', t[k]) for k in ['git_commit','git_dirty','dvc_data_md5','features_md5','cutoff','trigger','pipeline_run_id']]"; git show -s --format='%h %ad %s' --date=short b130997
 {
   "name": "aq-pm25",
   "version": "4",
   "mlflow_run_id": "498b149f78e2418695c3bf7e01b91615",
-  "git_commit": "b2eff79"
+  "git_commit": "b130997"
 }
-git_commit = b2eff79051146d487e9792578fc4617b0bb09cf0
+git_commit = b13099798f74dd0d8192cb25c3e0a188f154ab40
 git_dirty = true
 dvc_data_md5 = 7921cce1dbe07b5b8c33ffd85e4a34b4.dir
 features_md5 = 2afa18138f64bab9472d0fa2c773f62d
 cutoff = 2020-04-02 19:00:00
 trigger = drift_alert
 pipeline_run_id = 20261020-172022
-b2eff79 2026-10-20 Stage 11 code: PSI drift module, thresholds in features stage, live drift report, ops runner with smoke check and auto-rollback, replay acceptance script, drift alert config, tests
+b130997 2026-10-20 Stage 11 code: PSI drift module, thresholds in features stage, live drift report, ops runner with smoke check and auto-rollback, replay acceptance script, drift alert config, tests

@@ -165,7 +165,7 @@ def shot(
 ) -> Path:
     """Capture the page (or one element) to ``docs/evidence/<target>.png``."""
     assert_no_secret(page)
-    if page.url.startswith(MLFLOW):  # close the "MLflow Assistant" side panel
+    if page.url.startswith(MLFLOW):  # close MLflow's side panel
         close = page.get_by_role("button", name="Close", exact=True)
         if close.count():
             close.first.click()

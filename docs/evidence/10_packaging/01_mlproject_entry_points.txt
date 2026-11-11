@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:28 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:28 IST on the project VM, commit 6c65eef
 # what this proves: MLproject: entry points run in the pinned python_env, the same versions as dev (uv.lock)
 $ cat MLproject; echo; cat python_env.yaml; echo; uv run --frozen python --version; grep -E '^(name = "(lightgbm|mlflow|pyspark|scikit-learn)")' -A1 uv.lock
 name: aq-forecast

@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:32:22 IST on the project VM, commit 6c65eef
 # what this proves: every stage run recorded with throughput (reports/runs.jsonl)
 $ jq -r 'select(.stage=="ingest" or .stage=="validate" or .stage=="features") | [.started_at,.stage,.status,.duration_s,.rows_out,.rows_per_sec] | @tsv' reports/runs.jsonl | column -t | tail -30
 2026-10-20T15:47:07  features  success  13.056  301188   23068.9

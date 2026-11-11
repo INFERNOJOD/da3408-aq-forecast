@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:32 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:32 IST on the project VM, commit 6c65eef
 # what this proves: Docker Hub's own API lists every tag of the 5 images with linux/amd64 and linux/arm64 (the website blocks headless browsers with a Cloudflare check)
 $ for i in aq-frontend aq-backend aq-model-server aq-mlflow aq-pipeline; do echo "== infernogod/$i"; curl -s https://hub.docker.com/v2/namespaces/infernogod/repositories/$i/tags | jq -c '.results[] | {tag: .name, platforms: [.images[] | select(.architecture != "unknown") | .os + "/" + .architecture], pushed: .tag_last_pushed}'; done
 == infernogod/aq-frontend

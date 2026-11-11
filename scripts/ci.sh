@@ -17,7 +17,7 @@
 #   commit can be restored later with "git checkout <commit> && dvc pull".
 #
 # --repro refuses to start while the serve stack is up: Spark plus the serve
-# containers do not fit in 8 GB (CLAUDE.md). Stop it first with
+# containers do not fit in 8 GB (docs/HLD.md). Stop it first with
 # "docker compose --profile serve stop".
 #
 # Writes reports/ci/last_run.log and reports/ci/junit.xml (CI_OUT_DIR

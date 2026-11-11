@@ -70,7 +70,7 @@ The `max` of the last category (`Severe`) is `null`.
     {"horizon_h": 24, "valid_at": "2020-03-26T14:00:00", "pm25": 44.1,
      "aqi_category": "Satisfactory", "aqi_color": "#92D050", "advice": "Minor breathing discomfort to sensitive people."}
   ],
-  "model": {"name": "aq-pm25", "version": "3", "mlflow_run_id": "8f1c...", "git_commit": "6b50365"}
+  "model": {"name": "aq-pm25", "version": "3", "mlflow_run_id": "8f1c...", "git_commit": "fc771b2"}
 }
 ```
 `pm25` is in µg/m³, rounded to 1 decimal and clipped at 0. `latest_observed_pm25` may be `null` if the current hour is missing. `model.version` is the version the model server reported in its answer; `mlflow_run_id` and `git_commit` (7 characters) come from that version's registry entry and are `null` if the registry cannot be read. The category of a value is the one whose lowest value is not above it, so 30.5 is `Good` and 31 is `Satisfactory`.

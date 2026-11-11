@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:14 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:14 IST on the project VM, commit 6c65eef
 # what this proves: the model server (MLflow serving behind a metrics proxy) exports Prometheus metrics
 $ docker compose exec -T model-server curl -s localhost:8001/metrics | grep -E '^(# HELP|# TYPE)? ?aq_' | head -40
 # HELP aq_model_predictions_total Rows predicted, by horizon.

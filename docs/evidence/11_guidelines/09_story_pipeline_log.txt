@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:11:12 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:11:12 IST on the project VM, commit 6c65eef
 # what this proves: step 11: dvc repro with the new cutoff: Spark stages with time and rows/sec, train, evaluate, gate
 $ grep -vE '^\[Stage|WARN|setLogLevel|log level' ops/logs/rt-20261110-144028.log
 'data/raw.dvc' didn't change, skipping

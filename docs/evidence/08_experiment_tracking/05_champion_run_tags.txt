@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:11 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:11 IST on the project VM, commit 6c65eef
 # what this proves: beyond autolog: git commit, dirty flag, data md5, features md5, cutoff, trigger, gate result on the run
 $ MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -c "import mlflow; r=mlflow.MlflowClient('http://localhost:5000').get_run('498b149f78e2418695c3bf7e01b91615'); [print(f'tag    {k} = {v}') for k,v in sorted(r.data.tags.items()) if not k.startswith('mlflow.log')]; [print(f'param  {k} = {v}') for k,v in sorted(r.data.params.items())]"
 tag    chosen_1h = lightgbm
@@ -6,11 +6,11 @@ tag    chosen_24h = lightgbm
 tag    cutoff = 2020-04-02 19:00:00
 tag    dvc_data_md5 = 7921cce1dbe07b5b8c33ffd85e4a34b4.dir
 tag    features_md5 = 2afa18138f64bab9472d0fa2c773f62d
-tag    git_commit = b2eff79051146d487e9792578fc4617b0bb09cf0
+tag    git_commit = b13099798f74dd0d8192cb25c3e0a188f154ab40
 tag    git_dirty = true
 tag    mlflow.runName = train-2020-04-02 19:00:00
 tag    mlflow.source.git.branch = main
-tag    mlflow.source.git.commit = b2eff79051146d487e9792578fc4617b0bb09cf0
+tag    mlflow.source.git.commit = b13099798f74dd0d8192cb25c3e0a188f154ab40
 tag    mlflow.source.name = /home/krish-yadav/DA3408/da3408-project-aq-forecast/src/pipeline/train.py
 tag    mlflow.source.type = LOCAL
 tag    mlflow.user = krish-yadav

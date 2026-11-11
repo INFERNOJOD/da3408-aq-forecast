@@ -20,7 +20,7 @@
 # never starts (final audit, 2026-10-27).
 #
 # Needs docker, uv, java 17 (Spark) and openssl. Refuses while this project's
-# serve stack runs: Spark and the stack together do not fit in 8 GB (CLAUDE.md).
+# serve stack runs: Spark and the stack together do not fit in 8 GB (docs/HLD.md).
 # Exit codes: 0 ready, 1 a step failed, 3 the serve stack is running.
 set -euo pipefail
 

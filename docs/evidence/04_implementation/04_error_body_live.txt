@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:31:33 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:31:33 IST on the project VM, commit 6c65eef
 # what this proves: exception handling live: wrong input gives the LLD error body, not a stack trace
 $ for p in '/forecast?city=Pune' '/forecast' '/nope'; do curl -s -w '  -> HTTP %{http_code}\n' --cacert certs/ca.crt "https://localhost:8000$p"; done; curl -s -w '  -> HTTP %{http_code}\n' --cacert certs/ca.crt -X DELETE https://localhost:8000/health
 {"error":{"code":"UNKNOWN_CITY","message":"City 'Pune' is not supported."}}  -> HTTP 404

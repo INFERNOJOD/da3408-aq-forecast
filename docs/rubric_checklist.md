@@ -32,7 +32,7 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 8. **A forecast with MLflow down answers 200 but takes 4.5 s.** The wrong rollback message with MLflow down ("No previous version to roll back to") is fixed since 2026-11-05: it is now 503 `REGISTRY_UNAVAILABLE`, checked live (test report, D-2).
 9. **The MLflow container now mounts the whole project folder** (fix D-1 in the test report). It can read `.env`. The pipeline container already had the same mount.
 10. **Internal traffic is partly plain HTTP** (model server, MLflow, exporters on the compose network). Only the browser-to-proxy and frontend-to-backend hops, which carry the API key, are TLS.
-11. **The reproducibility check rebuilt v4 at a later commit** (`92537ef`, same pipeline code), not at `b2eff79` itself.
+11. **The reproducibility check rebuilt v4 at a later commit** (`f8fde15`, same pipeline code), not at `b130997` itself.
 12. **Hot swap with zero failed requests was measured outside Docker** (Stage 9).
 13. **CI runs when I run it.** There is no server, because cloud CI is not allowed. The pre-commit hook runs on every commit, but `--no-verify` skips it.
 
@@ -164,5 +164,5 @@ Index digests and platforms from `docker buildx imagetools inspect <image>:0.1.0
 | Automated retraining | Drift alert → webhook → `ops/requests/` → `src/ops/runner.py` → `dvc repro` with the new cutoff → gate → registry → hot swap; 2 min 47 s end to end, MLflow run tagged `trigger=drift_alert` (metrics.md, Stage 11) |
 | Encryption and security | TLS 1.3 with a local CA (`scripts/make_certs.sh`), Caddy proxy (`docker/tls_proxy/Caddyfile`), HTTPS backend; API key in constant time on `/ops/*` (`test_ops_requires_key`, 30 cases); secrets only in `.env` (`test_secrets_come_only_from_env_file`, `test_certs_and_env_are_gitignored`); non-root containers (`test_every_container_runs_as_non_root`) |
 | Docker Hub | All 5 custom images on Docker Hub, multi-arch (amd64 + arm64), tags `latest` and `0.1.0` (item 1, README "Docker images") |
-| Multi-arch images (CLAUDE.md) | Every pushed image lists `linux/amd64` and `linux/arm64` in `docker buildx imagetools inspect`, and each config's `architecture` matches (item 1) |
+| Multi-arch images (project brief) | Every pushed image lists `linux/amd64` and `linux/arm64` in `docker buildx imagetools inspect`, and each config's `architecture` matches (item 1) |
 | No cloud platforms | Local Spark, DVC remote is a local folder (`test_remote_is_local_path_not_cloud`), local MLflow (SQLite), CI is a local script, no cloud SDK in `pyproject.toml`. Docker Hub is the one allowed exception, used only to publish the images |

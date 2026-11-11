@@ -113,7 +113,7 @@ PIPELINE_TRIGGER=manual PIPELINE_RUN_ID="manual-$(date +%Y%m%d-%H%M%S)" dvc repr
 
 `PIPELINE_RUN_ID` gives all 7 stages one run id. Without it, each stage stamps its own, and the console's pipeline diagram shows only the last stage of the run, with the other six as not run.
 
-I checked this on the current champion. Its run `498b149f…` gives commit `b2eff79` and cutoff 2020-04-02 19:00. A clean rebuild with that cutoff gave the same data and feature hashes, the same MAE to every printed digit (6.467113514419853), and LightGBM model files that are identical byte for byte. The rebuild was at commit `92537ef`, a later commit with the same pipeline code; I did not check out `b2eff79` itself (`docs/test_report.md`, AC-6). Training is deterministic because I made it so (see below).
+I checked this on the current champion. Its run `498b149f…` gives commit `b130997` and cutoff 2020-04-02 19:00. A clean rebuild with that cutoff gave the same data and feature hashes, the same MAE to every printed digit (6.467113514419853), and LightGBM model files that are identical byte for byte. The rebuild was at commit `f8fde15`, a later commit with the same pipeline code; I did not check out `b130997` itself (`docs/test_report.md`, AC-6). Training is deterministic because I made it so (see below).
 
 ## What broke, and how I fixed it
 
@@ -207,14 +207,7 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 | Monitoring | `monitoring/` (Prometheus, alert rules and promtool tests, Grafana dashboards) |
 | Containers | `docker/`, `docker-compose.yml`, `scripts/build_multiarch.sh`, Docker Hub ("Docker images" above) |
 | CI | `scripts/ci.sh`, `.pre-commit-config.yaml`, `reports/ci/` |
-
-## How I built this, and AI use
-
-I used Claude Code, Anthropic's AI coding assistant, throughout this project, under my direction. I chose the problem and made the design decisions. `docs/HLD.md` records them with their reasons, and I can defend each one. Claude Code wrote code, tests and documents from my instructions. I worked one stage at a time and reviewed every stage before it was committed: I read the changes, ran the tests and the live checks, and asked for fixes where something was wrong. The rules I gave it (the fixed stack, the machine limits, the code rules and this writing voice) are in `CLAUDE.md`, and `docs/PROGRESS.md` records each stage as it was built.
-
-The evidence gallery in `docs/evidence/` was captured automatically by `scripts/capture_evidence.py` (Playwright in Docker, with `scripts/capture_evidence_host.sh` for the terminal outputs), written by Claude Code under my direction. The 11 user-manual screenshots in `docs/screenshots/` I took myself, by hand, in Firefox on the VM, and two of them are also used in the gallery for the console. Headless capture with that Firefox hangs, which is why the gallery uses Playwright in Docker.
-
-Every commit carries a `Co-Authored-By: Claude …` trailer, so the git history shows that this applies to the whole project, not to selected parts.
+| How I used an AI coding assistant | `docs/AI_USAGE.md` |
 
 ## Not done yet
 

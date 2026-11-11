@@ -1,6 +1,6 @@
 # Final Audit
 
-I ran this audit on 2026-10-27 at commit `1cdba84`. I did not rely on `docs/PROGRESS.md` or `docs/rubric_checklist.md`. Every mark below comes from a file I read, a command I ran today, or a live call to the running stack. Where a mark rests on older evidence (a drill I could not repeat without changing the served model), I say so.
+I ran this audit on 2026-10-27 at commit `d8e4ab5`. I did not rely on `docs/PROGRESS.md` or `docs/rubric_checklist.md`. Every mark below comes from a file I read, a command I ran today, or a live call to the running stack. Where a mark rests on older evidence (a drill I could not repeat without changing the served model), I say so.
 
 I fixed section (a) and re-audited on 2026-11-03; the results are in the next two sections.
 
@@ -10,27 +10,27 @@ PASS means the evidence is there and works. WEAK means it exists but has a gap a
 
 ## Status of the fixes (finished 2026-11-03)
 
-I fixed section (a) between 2026-10-27 and 2026-11-03, one commit each. Section 1 below is still the audit as of `1cdba84`. The new marks are in "Re-audit on 2026-11-03", right after this table.
+I fixed section (a) between 2026-10-27 and 2026-11-03, one commit each. Section 1 below is still the audit as of `d8e4ab5`. The new marks are in "Re-audit on 2026-11-03", right after this table.
 
 | (a) item | Status | Commit(s) / where |
 |---|---|---|
-| 1. Pushgateway persistence | **Done.** Volume moved to `/pushgateway`. A probe metric survived a full `down`/`up` (E2E-18). The real pipeline run (item 10) refilled the dashboard. | `cc0822a` |
-| 2. Fresh clone / `scripts/bootstrap.sh` | **Done, tested in a clean clone** (E2E-20). Exit 0 in 7 min 20 s, v1 registered as champion, serve stack healthy in about 25 s, forecast 200, 9/9 targets up. `.env.example` no longer has container URLs. README and user manual give the new run steps. | `e0a7cb1` |
-| 3. Ops runner documented | **Done** in HLD, the user manual and the README | `69e9b4e`, `3484879`, `e0a7cb1` |
-| 4. Batch next to the full serve stack | **Done.** The runner stops the frontend and Grafana, then starts exactly those again. The TLS proxy serves a 503 "Back in a few minutes" page meanwhile (E2E-19). | `4841b2e` |
-| 5. Stale architecture/HLD text | **Done** (inconsistencies 1-4, 8) | `4841b2e`, `3400783` |
-| 6. `ci` trigger in LLD | **Done.** LLD lists `manual`, `drift_alert`, `ci`, `initial`. The clone test produced an `initial` run. | `fd7d292` |
-| 7. Failures visible in the console | **Done, live since 2026-11-03.** The console has a "Failed runs" table. The labelled failure `demo-failure-20261027` (validate, PM2.5 ceiling lowered to 500, 4 hard checks failed) shows in it. Until 2026-11-03 the running frontend image did not have this code (see the re-audit). | `e10f521`; record in `reports/runs.jsonl` |
-| 8. Console replay-time box | **Done, live since 2026-11-03** ("25 Mar, 00:00") | `e10f521` |
-| 9. Small doc fixes (inconsistencies 9-12) | **Done.** The OpenAPI part went live on 2026-11-03 with the rebuilt backend image. | `3400783`, `56779b3` |
-| 10. Real `dvc repro` | **Done.** `dvc repro -f`, all 7 stages ran in 75.5 s. The candidate tied v4 at 6.467 and was rejected. All 7 stage statuses are 1 in the Pushgateway, and `PipelineStageFailed` is inactive. | `0a81f6e` |
-| Extra: MLproject in a fresh environment | **Done after a fix** (E2E-21). The first run crashed after training: `mlflow run` creates its run in the Default experiment, and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` the run gives the same MAE and byte-identical LightGBM files as the pipeline. The command is documented with the flag. | `e10bbaf` |
-| Extra: OpenAPI error responses (inconsistency 11) | **Done** | `56779b3` |
-| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 362 passed, 0 failed since 2026-11-05. | `c8201f8`, `a9610f2` |
+| 1. Pushgateway persistence | **Done.** Volume moved to `/pushgateway`. A probe metric survived a full `down`/`up` (E2E-18). The real pipeline run (item 10) refilled the dashboard. | `ba0473a` |
+| 2. Fresh clone / `scripts/bootstrap.sh` | **Done, tested in a clean clone** (E2E-20). Exit 0 in 7 min 20 s, v1 registered as champion, serve stack healthy in about 25 s, forecast 200, 9/9 targets up. `.env.example` no longer has container URLs. README and user manual give the new run steps. | `d7e0b03` |
+| 3. Ops runner documented | **Done** in HLD, the user manual and the README | `957dea2`, `d30d9ab`, `d7e0b03` |
+| 4. Batch next to the full serve stack | **Done.** The runner stops the frontend and Grafana, then starts exactly those again. The TLS proxy serves a 503 "Back in a few minutes" page meanwhile (E2E-19). | `1c95beb` |
+| 5. Stale architecture/HLD text | **Done** (inconsistencies 1-4, 8) | `1c95beb`, `ed87793` |
+| 6. `ci` trigger in LLD | **Done.** LLD lists `manual`, `drift_alert`, `ci`, `initial`. The clone test produced an `initial` run. | `e2046a6` |
+| 7. Failures visible in the console | **Done, live since 2026-11-03.** The console has a "Failed runs" table. The labelled failure `demo-failure-20261027` (validate, PM2.5 ceiling lowered to 500, 4 hard checks failed) shows in it. Until 2026-11-03 the running frontend image did not have this code (see the re-audit). | `5ccdd24`; record in `reports/runs.jsonl` |
+| 8. Console replay-time box | **Done, live since 2026-11-03** ("25 Mar, 00:00") | `5ccdd24` |
+| 9. Small doc fixes (inconsistencies 9-12) | **Done.** The OpenAPI part went live on 2026-11-03 with the rebuilt backend image. | `ed87793`, `a66701c` |
+| 10. Real `dvc repro` | **Done.** `dvc repro -f`, all 7 stages ran in 75.5 s. The candidate tied v4 at 6.467 and was rejected. All 7 stage statuses are 1 in the Pushgateway, and `PipelineStageFailed` is inactive. | `05a7b61` |
+| Extra: MLproject in a fresh environment | **Done after a fix** (E2E-21). The first run crashed after training: `mlflow run` creates its run in the Default experiment, and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` the run gives the same MAE and byte-identical LightGBM files as the pipeline. The command is documented with the flag. | `5785004` |
+| Extra: OpenAPI error responses (inconsistency 11) | **Done** | `a66701c` |
+| Re-audit, `test_report.md`, README test count, final CI | **Done** (below). `scripts/ci.sh`: 350 tests, 0 failed on 2026-11-03; 362 passed, 0 failed since 2026-11-05. | `2a9bbd4`, `2f2e95e` |
 
 ## Re-audit on 2026-11-03
 
-I checked each line that a fix touched again, on the live stack or from a file, at `e10bbaf` and later. The other PASS lines rest on the 2026-10-27 audit. Since `1cdba84` the code changes are the runner, the console, the OpenAPI error docs, the Caddyfile, compose (the Pushgateway volume) and the bootstrap script. None of them touches what those lines depend on.
+I checked each line that a fix touched again, on the live stack or from a file, at `5785004` and later. The other PASS lines rest on the 2026-10-27 audit. Since `d8e4ab5` the code changes are the runner, the console, the OpenAPI error docs, the Caddyfile, compose (the Pushgateway volume) and the bootstrap script. None of them touches what those lines depend on.
 
 ### A new finding: the running images were stale
 
@@ -119,7 +119,7 @@ The 11 screenshots are in `docs/screenshots/`. Every image link in `docs/user_ma
 1. **Pushgateway persistence is broken.** The container runs as `nobody` (65534), but its `/data` volume is owned by root. `touch /data/probe` inside the container gives "Permission denied", and `/data` has no `pushgateway.db`. After today's restart the Pushgateway holds 0 groups, Prometheus has 0 `aq_stage_*` series, and the "AQ pipeline" Grafana dashboard is empty. Fix the volume ownership (or the user), re-push with `python -m scripts.push_stage_metrics --url http://localhost:19091`, and correct the Stage 14 sentence in `docs/metrics.md` that says the records survived a restart.
 2. **The README "Run it" steps do not work from a fresh clone.** In a clean clone I found no `mlflow.db`, `mlruns/`, `data/features/`, `data/raw/` or `models/candidate/`. The README goes straight from `.env` and certificates to `docker compose --profile serve up -d`. With no registry the model server has no champion, `/ping` answers 503, the model server never becomes healthy, and `backend` (which `depends_on` it being healthy) never starts. I worked this out from the compose file and `proxy.py`; I did not start a second stack. The missing steps are `uv sync --frozen`, `dvc pull`, one first `dvc repro` to create the registry and v1, and the command that starts the ops runner. The DVC remote is an absolute path on this VM (`/home/krish-yadav/DA3408/dvc-remote`), which I should mention too.
 3. **The ops runner is not documented as something to start, and it was not running.** Automatic retraining needs `python -m src.ops.runner` on the host. Neither the README nor the user manual says how to start it, and `pgrep` found no runner today. Without it, a drift alert only leaves a queued request file. The user manual tells the operator that "the system starts a retrain by itself".
-4. **The batch runs next to the full serve stack.** `CLAUDE.md` and HLD say this never happens. The ops runner only checks for 2,500 MB of free memory (`src/ops/runner.py:236-241`). It then runs `dvc repro` with all 10 serve containers up, which is what happened in E2E-07. Either make the runner stop the frontend and Grafana, as HLD §5 describes, or change the docs to say what really happens.
+4. **The batch runs next to the full serve stack.** My project brief and HLD say this never happens. The ops runner only checks for 2,500 MB of free memory (`src/ops/runner.py:236-241`). It then runs `dvc repro` with all 10 serve containers up, which is what happened in E2E-07. Either make the runner stop the frontend and Grafana, as HLD §5 describes, or change the docs to say what really happens.
 5. **Fix the stale and contradictory text in `architecture.md` and `HLD.md`** (inconsistencies 1-4 and 8 below).
 6. **Add `ci` to the `trigger` values in LLD §2 `/pipeline/runs`.** The live endpoint returns `"trigger": "ci"`, and `reports/runs.jsonl` has 7 such records. LLD allows only `manual | drift_alert | initial`.
 7. **Make failures visible in the console.** `runs.jsonl` has one failed stage record ever (`20261020-141854`, validate, `KeyError: 'NO'`, a code crash rather than a data check). It is older than the last 20 runs, so the console shows "20 successful, 0 failed". For the rubric's "console of errors, failures" I need a recent, deliberate failure, for example a validation failure on a bad row, or a control to show more runs.
@@ -129,7 +129,7 @@ The 11 screenshots are in `docs/screenshots/`. Every image link in `docs/user_ma
 
 ### (b) Things only I can do
 
-1. **Screenshots.** *Done on 2026-11-05, see "Update on 2026-11-05: screenshots and browser check" above.* As of the audit: `docs/user_manual.md` has 13 `[SCREENSHOT n]` placeholders and none are filled. `docs/screenshots/` is untracked and holds two files from 2026-10-20. They predate commit `4d39d3a`, so they still show the "Deploy" button, and their names do not match the names the manual asks for (`04_forecast.png`, `08_console_top.png`, ...). Also needed: a narrow-window screenshot (responsiveness, E2E-17), Grafana during a replay, and `PM25DriftHigh` firing in Prometheus.
+1. **Screenshots.** *Done on 2026-11-05, see "Update on 2026-11-05: screenshots and browser check" above.* As of the audit: `docs/user_manual.md` has 13 `[SCREENSHOT n]` placeholders and none are filled. `docs/screenshots/` is untracked and holds two files from 2026-10-20. They predate commit `d2a3cf9`, so they still show the "Deploy" button, and their names do not match the names the manual asks for (`04_forecast.png`, `08_console_top.png`, ...). Also needed: a narrow-window screenshot (responsiveness, E2E-17), Grafana during a replay, and `PM25DriftHigh` firing in Prometheus.
 2. **Docker Hub and multi-arch images.** *Done on 2026-11-05 for all five images, see "Update on 2026-11-05" above.* As of the audit: none are pushed. The local images (`aq-backend`, `aq-frontend`, `aq-model-server`, `aq-mlflow`, `aq-pipeline`) are arm64 only. The only buildx builder supports `linux/arm64`, no QEMU binfmt handler is registered, and Docker is not logged in. I need to log in, install QEMU (needs sudo), run `scripts/build_multiarch.sh`, and add the image names to the README.
 3. **GitHub.** The repo has no git remote at all (`git remote` prints nothing). Create the repository and push.
 4. **Demo video and viva preparation.**
@@ -215,29 +215,29 @@ Not something a file can show. Only I can prepare it.
 
 | Requirement | Mark | Evidence |
 |---|---|---|
-| Reproducible via commit + MLflow run ID | PASS | Run `498b149f` tags give commit `b2eff79`, cutoff, data and feature hashes; the rebuild `c9933e83` has the same hashes and MAE (checked in MLflow today); test report AC-6. The README steps for a fresh machine are incomplete (item (a)2) |
+| Reproducible via commit + MLflow run ID | PASS | Run `498b149f` tags give commit `b130997`, cutoff, data and feature hashes; the rebuild `c9933e83` has the same hashes and MAE (checked in MLflow today); test report AC-6. The README steps for a fresh machine are incomplete (item (a)2) |
 | EDA and documented data biases | PASS | `docs/eda.md` §4, 6 figures in `docs/img/` |
 | Rollback for failed deployments | PASS | `POST /ops/rollback`, `scripts/rollback.py`, smoke-check rollback in the runner. Live drill 2026-10-21 (test report AC-5). Today: 400 for version 99; registry `champion`=4, `previous`=1 |
 | Automated monitoring and alerting | PASS | 6 rules loaded and inactive at rest, Alertmanager ready, `promtool test rules` SUCCESS today |
 | Automated retraining | WEAK | Proven once (E2E-07, Stage 11, 2 min 47 s). Today drift went true live at sim time 2020-04-01 12:00 (4 cities). But the loop needs the host ops runner, which nothing starts and no run instruction mentions, and it was not running |
 | Encryption / security | PASS | HTTPS backend and proxy; `curl` without the CA exits 60; `http://localhost/` and `:8501` → 301 to https; API key compared in constant time; no container runs as root (checked `docker inspect` today); `.env` mode 600 |
 | Docker Hub | FAIL | Nothing pushed, not logged in |
-| Multi-arch images (CLAUDE.md) | FAIL | Local images arm64 only; no amd64 builder or QEMU |
+| Multi-arch images (project brief) | FAIL | Local images arm64 only; no amd64 builder or QEMU |
 | No cloud platforms | PASS | No cloud SDKs or URLs in `src/`, `scripts/`, `docker/`, `pyproject.toml`; DVC remote is a local path |
-| Memory limits (CLAUDE.md) | PASS | Every service has `mem_limit`; 1.23 GiB in total for the 10 serve containers today; Prometheus retention `2d`, scrape 15 s; Spark 2g driver |
+| Memory limits (project brief) | PASS | Every service has `mem_limit`; 1.23 GiB in total for the 10 serve containers today; Prometheus retention `2d`, scrape 15 s; Spark 2g driver |
 
 ## 2. Inconsistencies found
 
 1. **`architecture.md` diagram vs its own text.** The arrow `runner -->|dvc repro on the host| pipe` points at the "Pipeline container" box in the batch profile, but the text says the runner runs `dvc repro` on the host and never starts the container. The arrow `runner -->|commit dvc.lock + params| git` contradicts "The runner does not commit `dvc.lock`".
 2. **`architecture.md` (Ops runner) and HLD §3 "Memory":** "The plan is to pause the frontend and Grafana during the batch once the compose stack exists (Stage 13)" and "comes with Stage 13". The compose stack exists and the runner does not pause anything. It refuses below 2,500 MB free with the message "stop the frontend and Grafana first".
 3. **HLD §5** still says "These are planned memory limits. I will measure real usage in Stage 13". The measurements exist (`docs/metrics.md`; 1.23 GiB today).
-4. **HLD and `CLAUDE.md` say batch and the full serve stack never run together.** The ops runner runs `dvc repro` with the whole serve stack up (item (a)4). `scripts/ci.sh --repro` does enforce the rule, so the two paths disagree.
+4. **HLD and my project brief say batch and the full serve stack never run together.** The ops runner runs `dvc repro` with the whole serve stack up (item (a)4). `scripts/ci.sh --repro` does enforce the rule, so the two paths disagree.
 5. **LLD §2 `/pipeline/runs`:** `trigger` ∈ `manual | drift_alert | initial`, but the code writes and returns `ci`.
 6. **`docs/metrics.md` Stage 14:** "The Pushgateway's 7 stage records were still there after the restart (persistence file in its volume)." Today the volume is not writable and holds no file. Either a later change broke it or the earlier check was lucky (a `restart` rather than a `down`). In any case the sentence is not true of the current setup.
 7. **`docs/user_manual.md` §4 Drift:** "When drift is detected, the system starts a retrain by itself." That is only true if someone started the ops runner, and no document tells the operator to.
 8. **HLD §3 "Promotion rule":** "'Best model' means the better of Ridge and LightGBM, as you confirmed." It speaks to a reader who confirmed something, which breaks the first-person voice.
 9. **README "Model" paragraph:** "the model still loses to a baseline in Kolkata and Lucknow" comes right after the v4 sentence, but the evidence (test report AC-1, metrics.md Stage 7) is for v1's window. I found no per-city check for v4 in the docs.
-10. **Numbers quoted but not in `metrics.md`.** CLAUDE.md asks for measured numbers there, but these appear only in `PROGRESS.md`: MLflow "OOM-killed 11 times in 5 minutes" (README) and "about 11 s per horizon" (HLD).
+10. **Numbers quoted but not in `metrics.md`.** My project brief asks for measured numbers there, but these appear only in `PROGRESS.md`: MLflow "OOM-killed 11 times in 5 minutes" (README) and "about 11 s per horizon" (HLD).
 11. **OpenAPI vs LLD error contract.** `/openapi.json` lists only 200/202 and FastAPI's default 422 schema. It does not show the custom `{"error": {...}}` body or the 401, 404, 409 and 503 responses. The code follows LLD; only the generated spec is incomplete.
 12. **LLD §3 `/ops/rollback`** does not say that `version` is limited to 1-20 characters, as the code enforces.
 13. **Screenshots.** The test report lists E2E-17 as pending and the manual has placeholders, while `docs/screenshots/` holds two untracked, outdated files.

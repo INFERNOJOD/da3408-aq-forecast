@@ -1,4 +1,4 @@
-# captured 2026-11-11 02:29:39 IST on the project VM, commit acd9531
+# captured 2026-11-11 02:29:39 IST on the project VM, commit 082a01c
 # what this proves: test report with the number of test cases run, passed and failed
 $ sed -n '/^## 1. Summary/,/^The pytest numbers/p' docs/test_report.md
 ## 1. Summary
@@ -14,4 +14,4 @@ $ sed -n '/^## 1. Summary/,/^The pytest numbers/p' docs/test_report.md
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
 | Defects found | 6, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/junit.xml` (`tests="371" failures="0" errors="0" skipped="0"`, 2026-11-11), at commit `acd9531` with the console table change in the workspace. The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/junit.xml` (`tests="371" failures="0" errors="0" skipped="0"`, 2026-11-11), at commit `082a01c` with the console table change in the workspace. The run before it, 362 of 362 at `7ce97cd`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `5785004`, 353 of 353 at `6f3bb7c`, 358 of 358 at `3dd6081`, 359 of 359 at `cf5bff1`) are in git history under the same path. The Stage 17 run (341 of 341 at `df2dab9`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.

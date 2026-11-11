@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:15 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:15 IST on the project VM, commit 6c65eef
 # what this proves: docker compose: frontend and backend are separate services, all healthy
 $ docker compose --profile serve ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
 SERVICE         IMAGE                       STATUS                       PORTS

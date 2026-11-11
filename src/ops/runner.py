@@ -5,7 +5,7 @@ the host, handles one request at a time:
 
 1. mark it ``running``,
 2. stop the frontend and Grafana, so the batch never runs next to the full
-   serve stack (CLAUDE.md), and check there is enough free memory for Spark,
+   serve stack (docs/HLD.md), and check there is enough free memory for Spark,
 3. move ``cutoff`` in params.yaml to the request's simulated time, so the
    retrain sees the replayed hours up to then,
 4. hand the drift numbers to the train stage (``reports/drift_trigger.json``),

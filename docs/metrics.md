@@ -71,7 +71,7 @@ to find duplicates. That distinct count needs a shuffle.
 
 On memory: the 3.4 GB peak is the JVM filling the heap it is allowed to use. It
 does not need that much. With a 1 GB driver the same run gives the same answer in
-almost the same time. I first kept the 3 GB limit from `CLAUDE.md` for the later,
+almost the same time. I first kept the 3 GB limit from my project brief for the later,
 heavier stages. I lowered it to 2 GB afterwards (see the last section). Spark never runs together with the full serve stack.
 
 Data facts found by validation (full list in `reports/validation.json`):
@@ -91,7 +91,7 @@ timestamps on the hour. All 7 selected cities have PM2.5 for 99.9% to 100% of th
 ## Driver memory 2g
 
 The VM has about 3.9 GB free, and the 1 GB test above showed that validate does not need 3 GB.
-I set the Spark driver to 2g in `CLAUDE.md` and `params.yaml`, then ran the whole pipeline again.
+I set the Spark driver to 2g in my project brief and in `params.yaml`, then ran the whole pipeline again.
 
 | What | Driver 3g | Driver 2g |
 |------|-----------|-----------|
@@ -442,10 +442,10 @@ ingest and validate did not change, so DVC skipped them. Promotion decision on t
 
 The candidate is 0.881 and 0.890 times the best baseline (limit 1.02) and beats v1, so it became
 v4 (versions 2 and 3 do not exist in the registry; MLflow does not reuse numbers). The MLflow run
-`498b149f…` is tagged `trigger=drift_alert`, `cutoff=2020-04-02 19:00:00`, `git_commit=b2eff79`
+`498b149f…` is tagged `trigger=drift_alert`, `cutoff=2020-04-02 19:00:00`, `git_commit=b130997`
 and `git_dirty=true` (the runner changed `cutoff` in `params.yaml`), and has the metrics
 `drift_cities_exceeding` 4, `drift_psi_max` 6.073 and `drift_mae_ratio_pooled` 0.827. After the
-swap, `/forecast?city=Delhi` answered with version 4 and commit `b2eff79`.
+swap, `/forecast?city=Delhi` answered with version 4 and commit `b130997`.
 
 Memory over the whole run, sampled every 2 s with `free -m` (the whole VM, which also ran three
 unrelated containers): peak used 5,008 MB, lowest available 2,389 MB.
@@ -573,7 +573,7 @@ Tests: 334 passed (11 new in `tests/test_security.py`), ruff clean.
 
 ## Stage 16: CI
 
-Measured on 2026-10-21 at commit `92537ef`, serve stack stopped, with `scripts/ci.sh --repro`
+Measured on 2026-10-21 at commit `f8fde15`, serve stack stopped, with `scripts/ci.sh --repro`
 (log in `reports/ci/stage16/repro_run.log`). Every stage ran because `src/common` had changed since the
 last `dvc repro`.
 
@@ -652,7 +652,7 @@ marked `failed` with `paused: ["frontend", "grafana"]`. `params.yaml` was unchan
 those two stopped, the TLS proxy stayed up and answered `https://localhost/` with its 503 page
 (`Retry-After: 120`). The frontend and Grafana used 51 and 109 MiB at idle (`docker stats`).
 
-**Fresh clone with `scripts/bootstrap.sh`** (E2E-20, 2026-11-03, at `c27e809` plus the bootstrap
+**Fresh clone with `scripts/bootstrap.sh`** (E2E-20, 2026-11-03, at `99b842e` plus the bootstrap
 change). With the main stack down, I cloned the repository into `/var/tmp/aq-clone`, not `/tmp`,
 because `/tmp` on this VM is a RAM disk and the clone (venv, raw data, DVC cache) would have taken
 memory from Spark. The folder name also gives Compose its own project name (`aq-clone`), so the
@@ -671,7 +671,7 @@ horizons, `/pipeline/runs` listed the run with `trigger: initial`, `/ops/*` gave
 key and answered with it (rollback 400 "No previous version to roll back to", correct with one
 version), and all 9 Prometheus targets were `up`. Then `down -v`, and I deleted the clone.
 
-**Real pipeline run** (audit fix 10, 2026-11-03, commit `0a81f6e`). Only the Pushgateway was up.
+**Real pipeline run** (audit fix 10, 2026-11-03, commit `05a7b61`). Only the Pushgateway was up.
 `PIPELINE_TRIGGER=manual dvc repro -f` ran all 7 stages in 75.5 s (peak RSS 1.0 GB): ingest 7.8 s
 (442,395 rows/s), validate 28.3 s, features 11.3 s, train 21.4 s, evaluate 0.6 s, test 0.0 s,
 register 0.3 s. Candidate `94dc83e2` tied champion v4 (mean MAE 6.467 both) and the gate rejected
@@ -701,7 +701,7 @@ and `reports/train_metrics.json` with `dvc checkout` and `git checkout`.
 
 ## Pipeline in the batch container (2026-11-05)
 
-Run `container-20261105-214229` at commit `6e29d9e`, with `docker compose --profile batch run --rm pipeline dvc repro -f`. The serve stack was stopped and only the Pushgateway was up. `docker stats` was sampled every 5 s.
+Run `container-20261105-214229` at commit `3dd6081`, with `docker compose --profile batch run --rm pipeline dvc repro -f`. The serve stack was stopped and only the Pushgateway was up. `docker stats` was sampled every 5 s.
 
 | Stage | Time | Rows/s |
 |------|-----:|------:|
@@ -719,7 +719,7 @@ The container's peak memory was 2.39 GiB against its `mem_limit` of 2560 MiB. Th
 
 ## Evidence run: drift to retrain, live (2026-11-10)
 
-I ran the whole loop once more while `scripts/capture_evidence_host.sh story` took the screenshots now in `docs/evidence/11_guidelines/` (05 to 12). Commit `aeb8f83`, replay at 1 simulated hour per second, ops runner on the host, serve stack up. Times are wall-clock IST.
+I ran the whole loop once more while `scripts/capture_evidence_host.sh story` took the screenshots now in `docs/evidence/11_guidelines/` (05 to 12). Commit `6c65eef`, replay at 1 simulated hour per second, ops runner on the host, serve stack up. Times are wall-clock IST.
 
 | Step | Time | Note |
 |------|------|------|
@@ -742,7 +742,7 @@ Rollback from the console, to v1 and back to v4, worked in each of the three rou
 
 ## Forced full run on the host (2026-11-11)
 
-Run `manual-20261111-042650` at commit `34b5051`, with `PIPELINE_TRIGGER=manual PIPELINE_RUN_ID=manual-20261111-042650 uv run --frozen dvc repro -f`. I stopped the serve stack and kept only the Pushgateway up. I ran it so the console's "last run" would show all 7 stages under one run id. Numbers are from `reports/runs.jsonl`; the wall time and memory are from GNU `time -v`.
+Run `manual-20261111-042650` at commit `eee829b`, with `PIPELINE_TRIGGER=manual PIPELINE_RUN_ID=manual-20261111-042650 uv run --frozen dvc repro -f`. I stopped the serve stack and kept only the Pushgateway up. I ran it so the console's "last run" would show all 7 stages under one run id. Numbers are from `reports/runs.jsonl`; the wall time and memory are from GNU `time -v`.
 
 | Stage | Time | Rows out | Rows/s |
 |------|-----:|------:|------:|

@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:10:28 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:10:28 IST on the project VM, commit 6c65eef
 # what this proves: step 7: the webhook wrote a retrain request with the drift numbers and the simulated cutoff
 $ cat $(ls -t ops/requests/*.json | head -1)
 {

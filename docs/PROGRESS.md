@@ -8,9 +8,9 @@ All three stages are done and committed. Nothing is blocked. I used no sudo and 
 
 | Stage | Commit | What it delivers |
 |-------|--------|------------------|
-| 2. Project skeleton | `6f8ca82` | Python 3.12 environment, lint and test setup, shared helpers |
-| 3. DVC | `1de6eed` | Raw data versioned by DVC with a local remote |
-| 4. Spark ingest | `2491249` | CSV files converted to Parquet, with run records |
+| 2. Project skeleton | `1022dee` | Python 3.12 environment, lint and test setup, shared helpers |
+| 3. DVC | `9025b49` | Raw data versioned by DVC with a local remote |
+| 4. Spark ingest | `d3228c4` | CSV files converted to Parquet, with run records |
 
 At the end of Part 1, `ruff check` passed, `pytest` gave 29 passed and 0 failed, and `dvc status` said up to date.
 
@@ -94,9 +94,9 @@ This part is also done and committed, and nothing is blocked. I used no sudo, pu
 
 | Work | Commit | What it delivers |
 |------|--------|------------------|
-| Housekeeping and benchmark | `d5b11f2` | Empty folders removed, status column in `docs/PLAN.md`, pandas vs Spark benchmark |
-| Stage 5: validate | `040e474` | 48 data checks, `reports/validation.json`, second DVC stage |
-| Stage 5b: EDA | `ed7b6bd` | 8 CSV aggregates, 6 figures, `docs/eda.md` with 9 data biases |
+| Housekeeping and benchmark | `a200228` | Empty folders removed, status column in `docs/PLAN.md`, pandas vs Spark benchmark |
+| Stage 5: validate | `c82c9e0` | 48 data checks, `reports/validation.json`, second DVC stage |
+| Stage 5b: EDA | `fc9f797` | 8 CSV aggregates, 6 figures, `docs/eda.md` with 9 data biases |
 
 ### Housekeeping
 
@@ -116,7 +116,7 @@ On the real data all 48 checks pass, with 0 warnings and 0 failures. The data is
 
 ### Stage 5b: EDA and data biases
 
-`src/pipeline/eda.py` runs Spark counts and saves them as 8 small CSV files in `reports/eda/`. `scripts/plot_eda.py` draws 6 figures into `docs/img/`. `docs/eda.md` explains the findings, lists 9 data biases with evidence and what I do about each, and gives a text table for every figure. EDA is not a DVC stage. I run it by hand, so the 7-stage DAG stays as CLAUDE.md requires.
+`src/pipeline/eda.py` runs Spark counts and saves them as 8 small CSV files in `reports/eda/`. `scripts/plot_eda.py` draws 6 figures into `docs/img/`. `docs/eda.md` explains the findings, lists 9 data biases with evidence and what I do about each, and gives a text table for every figure. EDA is not a DVC stage. I run it by hand, so the 7-stage DAG stays as my project brief requires.
 
 The five main findings:
 
@@ -153,7 +153,7 @@ The full tables are in `docs/metrics.md`.
 
 **A YAML trap.** An unquoted `NO:` in `params.yaml` is read as the boolean `false`. That crashed validate with `KeyError: 'NO'`, and I lost some time before I saw why. The keys are now quoted, and a test checks that every pollutant has a limit.
 
-**Memory.** The 3.4 GB peak is the JVM filling the heap it is allowed, not a real need. The 1 GB run proves it: same answer, almost the same time. I kept the 3 GB limit from CLAUDE.md at that point. Free RAM on the VM is only about 3.9 GB, so I run Spark stages alone.
+**Memory.** The 3.4 GB peak is the JVM filling the heap it is allowed, not a real need. The 1 GB run proves it: same answer, almost the same time. I kept the 3 GB limit from my project brief at that point. Free RAM on the VM is only about 3.9 GB, so I run Spark stages alone.
 
 **No Node.js.** I could not run the palette validator script that comes with the chart guidance. I used the first seven slots of its documented palette in the documented order, which the guidance says passes the adjacent-pair checks. I did not verify that myself. Every figure also has a text table, so colour is never the only channel.
 
@@ -184,7 +184,7 @@ Nine, listed in `docs/eda.md`. The main ones: missing data is concentrated in ea
 
 ## Part 3: Spark driver memory lowered to 2 GB
 
-I changed the driver memory from 3g to 2g in `CLAUDE.md` and `params.yaml`. The default in `src/common/spark.py`, one test, `docs/HLD.md` and `docs/PLAN.md` changed with it.
+I changed the driver memory from 3g to 2g in my project brief and in `params.yaml`. The default in `src/common/spark.py`, one test, `docs/HLD.md` and `docs/PLAN.md` changed with it.
 
 The reason is the VM. Only about 3.9 GB is free, and the validate stage with a 3 GB driver grew to 3.4 GB of JVM memory. The earlier 1 GB test gave the same answer in almost the same time, so the extra memory was not doing useful work. With 2g, `dvc repro` ran both stages again with the same results: ingest 8.9 s, validate 33.3 s, and a peak of about 2.4 GB of JVM memory. The old numbers in `docs/metrics.md` stay as they were, labelled with the driver size they were measured with.
 
@@ -196,7 +196,7 @@ I did not know whether the features stage would fit in 2g. It does (see Part 4).
 
 ## Part 4: Stage 6, Spark features
 
-Stage 6 is done and committed as `cea9532`. Nothing is blocked. At the end `ruff check` passed, `pytest` gave 77 passed and 0 failed, and `dvc status` said up to date. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone.
+Stage 6 is done and committed as `4fa51a0`. Nothing is blocked. At the end `ruff check` passed, `pytest` gave 77 passed and 0 failed, and `dvc status` said up to date. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone.
 
 ### What I built
 
@@ -226,7 +226,7 @@ I also did a stronger check outside the test suite. I recomputed every feature c
 
 ### What went wrong
 
-**The DAG did not enforce the order.** When I ran `dvc dag`, `validate` and `features` both hung off `ingest` side by side. So a failed validation would not have stopped features from running, which defeats the point of the validate stage and goes against the `ingest -> validate -> features` chain in CLAUDE.md. I fixed it twice over. `features` now depends on `reports/validation.json` in `dvc.yaml`, and the stage itself refuses to run unless that report says "passed". The second part protects a direct `python -m src.pipeline.features` run too. A test covers a missing, failed and unreadable report.
+**The DAG did not enforce the order.** When I ran `dvc dag`, `validate` and `features` both hung off `ingest` side by side. So a failed validation would not have stopped features from running, which defeats the point of the validate stage and goes against the `ingest -> validate -> features` chain in my project brief. I fixed it twice over. `features` now depends on `reports/validation.json` in `dvc.yaml`, and the stage itself refuses to run unless that report says "passed". The second part protects a direct `python -m src.pipeline.features` run too. A test covers a missing, failed and unreadable report.
 
 **The time zone caught me again.** My first test helper converted the start time with Python's `timestamp()`, which uses the machine's local time zone (IST). Every hour index came out shifted by six, and 7 tests failed. The stage was right and the test was wrong. I now compute the index inside Spark. Two more failures were plain mistakes in my expectations: I asked for a lag that reached before the start of the series, and for an hour past the end of it.
 
@@ -286,7 +286,7 @@ For each city it stores the quantile bin edges of `pm25_lag_1` on the training r
 
 ## Part 5: your two decisions, and Stage 7 (train)
 
-I applied both decisions and built Stage 7. The code is in commits `b0dbca6`, `410a0cc` and `865e661`, and the final run is tagged with the last one. At the end `ruff check` passed and `pytest` gave 117 passed and 0 failed. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone. Results are in `docs/metrics.md`. This part also lists three open decisions for you; they are at the end of "Open decisions".
+I applied both decisions and built Stage 7. The code is in commits `ebb05a9`, `eeec08e` and `645bbbd`, and the final run is tagged with the last one. At the end `ruff check` passed and `pytest` gave 117 passed and 0 failed. As before I used no sudo, pushed nothing except to the local DVC folder, and left `data/raw` and the `a4-*` containers alone. Results are in `docs/metrics.md`. This part also lists three open decisions for you; they are at the end of "Open decisions".
 
 ### Your two decisions
 
@@ -669,7 +669,7 @@ There is no certificate yet, so the backend serves plain HTTP and says so in the
 
 ### What I ran and measured
 
-I ran the backend against the real model server with champion v1. The forecast for Delhi at the replay start returned 28.2 µg/m³ at 1 h (Good) and 51.4 at 24 h (Satisfactory), with run id `0b70053677db...` and commit `feab67a` from the registry. `/ops/drift` without a key returned 401. After `start` at 20 hours per second, the clock read 2020-03-27 12:00 three seconds later. `/forecast` took 8.7 ms at p50 and 15.6 ms at p95 over 200 serial calls (table in `docs/metrics.md`). The new tests are 92, and the whole suite is 248 passed, 0 failed. `ruff` is clean.
+I ran the backend against the real model server with champion v1. The forecast for Delhi at the replay start returned 28.2 µg/m³ at 1 h (Good) and 51.4 at 24 h (Satisfactory), with run id `0b70053677db...` and commit `748c0f8` from the registry. `/ops/drift` without a key returned 401. After `start` at 20 hours per second, the clock read 2020-03-27 12:00 three seconds later. `/forecast` took 8.7 ms at p50 and 15.6 ms at p95 over 200 serial calls (table in `docs/metrics.md`). The new tests are 92, and the whole suite is 248 passed, 0 failed. `ruff` is clean.
 
 ### What went wrong
 
@@ -822,7 +822,7 @@ Stage 12 is the Streamlit frontend: the forecast page for non-technical users an
 
 This part covers three tasks done back to back. The first two are done and committed. The third is only partly done, and I say exactly where it stops below.
 
-### 1. One retrain per drift episode (commit `9e2273a`)
+### 1. One retrain per drift episode (commit `474db67`)
 
 **The problem.** After a retrain the PSI reference does not change, so the lockdown still looks like drift and the alert keeps firing. Only the 30-minute cooldown held it back, which in real time means a retrain every half hour.
 
@@ -832,7 +832,7 @@ This part covers three tasks done back to back. The first two are done and commi
 
 **Tests.** `test_episode_gate_closes_after_quiet_period` (71 hours is not enough, a drift hour restarts the count, 72 closes it, state survives a restart) and `test_alerts_one_retrain_per_episode` (cooldown over, still ignored, then allowed after the quiet period). Settings: `drift.episode_clear_hours` in `params.yaml`. HLD and LLD are updated.
 
-### 2. Stage 12: Streamlit frontend (commit `d5f38cf`)
+### 2. Stage 12: Streamlit frontend (commit `d843bba`)
 
 | File | What it does |
 |------|--------------|
@@ -1122,7 +1122,7 @@ Only in `.env`, which is gitignored together with `certs/`. A test checks both w
 
 ## Part 16: hiding Streamlit's developer controls, and Stage 16 (CI)
 
-### First, a small UI fix (commit `4d39d3a`)
+### First, a small UI fix (commit `d2a3cf9`)
 
 The page showed Streamlit's "Deploy" button and the three-dot menu in the top right. A
 non-technical user has no use for either, and "Deploy" invites a click that leads nowhere useful.
@@ -1188,14 +1188,14 @@ files and let `data/raw.dvc` through.
 
 ### What I ran and measured
 
-Check-only run at `92537ef`, serve stack up: ruff and format pass, 341 tests pass, `dvc-status`
+Check-only run at `f8fde15`, serve stack up: ruff and format pass, 341 tests pass, `dvc-status`
 FAIL, `dvc-remote` FAIL, exit 1, as expected.
 
 `scripts/ci.sh --repro` with the stack up: refused, exit 3. After
 `docker compose --profile serve stop`:
 
 ```
-== summary (commit 92537ef)
+== summary (commit f8fde15)
 ruff           PASS     0s
 ruff-format    PASS     0s
 pytest         PASS    55s
@@ -1341,10 +1341,10 @@ A real browser, a real phone, concurrent load, a real failed smoke check, and th
 
 ### Done
 
-- **Pushgateway persistence** (`cc0822a`). The image runs as `nobody`, and the volume on `/data` was root-owned, so the save file was never written. The volume is now on `/pushgateway`, the image's own folder. A probe metric survived a full `down`/`up`.
-- **Ops runner pauses containers around the batch** (`4841b2e`). It stops the frontend and Grafana before its memory check and starts exactly those again when `dvc repro` ends, also when it fails or memory is short. I checked live that `docker compose stop frontend` leaves the TLS proxy up. The proxy now answers 503 with a "Back in a few minutes" page instead of an empty 502. Live check with the real runner: both containers were stopped and started again within 2.3 s, and `params.yaml` was unchanged (`docs/metrics.md`, "Final audit fixes").
-- **How to start the runner** (`69e9b4e`, `3484879`): HLD and the user manual.
-- **OpenAPI error responses** (`56779b3`), **console** (short replay time, "Failed runs" table, `e10f521`), **LLD trigger values** (`fd7d292`), **architecture diagram and the other doc inconsistencies** (`3400783`), **test plan rows** for the new tests (`efb8883`).
+- **Pushgateway persistence** (`ba0473a`). The image runs as `nobody`, and the volume on `/data` was root-owned, so the save file was never written. The volume is now on `/pushgateway`, the image's own folder. A probe metric survived a full `down`/`up`.
+- **Ops runner pauses containers around the batch** (`1c95beb`). It stops the frontend and Grafana before its memory check and starts exactly those again when `dvc repro` ends, also when it fails or memory is short. I checked live that `docker compose stop frontend` leaves the TLS proxy up. The proxy now answers 503 with a "Back in a few minutes" page instead of an empty 502. Live check with the real runner: both containers were stopped and started again within 2.3 s, and `params.yaml` was unchanged (`docs/metrics.md`, "Final audit fixes").
+- **How to start the runner** (`957dea2`, `d30d9ab`): HLD and the user manual.
+- **OpenAPI error responses** (`a66701c`), **console** (short replay time, "Failed runs" table, `5ccdd24`), **LLD trigger values** (`e2046a6`), **architecture diagram and the other doc inconsistencies** (`ed87793`), **test plan rows** for the new tests (`7dae2c9`).
 - **A deliberate failure for the console demo.** This was not a real defect. I lowered the PM2.5 ceiling in `params.yaml` from 1000 to 500 and ran `dvc repro validate` with `PIPELINE_RUN_ID=demo-failure-20261027`. The stage failed as designed: "4 hard check(s) failed: ... city_hour/values_below_ceiling: PM2.5 > 500 in 2120 rows ...". I then restored `params.yaml` and `reports/validation.json` from git. The record is in `reports/runs.jsonl`, and its status was pushed to the Pushgateway.
 
 ### Not finished
@@ -1374,9 +1374,9 @@ I resumed the list from Part 18. All of section (a) in `docs/final_audit.md` is 
 
 ### What I did
 
-- **Bootstrap in a clean clone** (`e0a7cb1`). I restored the stash, stopped the stack and cloned into `/var/tmp/aq-clone`. Part 18 said `/tmp`, but `/tmp` on this VM is a RAM disk (tmpfs, 3.7 GB). A venv, the raw data and the DVC cache there would have taken memory from Spark. The folder name also matters: Compose names the project after it, and a clone called `da3408-project-aq-forecast` would have shared the main stack's volumes, so `down -v` would have deleted them. `scripts/bootstrap.sh` ran with exit 0 in 7 min 20 s. Six of those minutes were `uv sync` downloading 24 packages that were not in uv's cache, and the pipeline took 75 s. The serve stack was healthy in about 25 s, a forecast answered 200, all 9 targets were up, and keyed ops calls worked. Then `down -v`, and I deleted the clone. The README had said "about 2 minutes", so I changed it to the measured time.
-- **A real pipeline run** (`0a81f6e`). With only the Pushgateway up: `PIPELINE_TRIGGER=manual dvc repro -f`, 75.5 s, all 7 stages. The candidate tied v4 (6.467) and was rejected. All 7 stage statuses went to 1, which replaced the `validate 0` from the demo failure, and the pipeline dashboard has data again.
-- **MLproject in a fresh environment** (`e10bbaf`). It built a new environment from `uv.lock` in 1 s, because the clone test had just filled uv's cache. It trained, then crashed when it logged the run (defect D-3 in the test report). `mlflow run` puts its run in the Default experiment and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` it worked, with the same MAE and byte-identical LightGBM files as the pipeline. I documented the flag and did not change `train.py`, because both paths should log to one experiment.
+- **Bootstrap in a clean clone** (`d7e0b03`). I restored the stash, stopped the stack and cloned into `/var/tmp/aq-clone`. Part 18 said `/tmp`, but `/tmp` on this VM is a RAM disk (tmpfs, 3.7 GB). A venv, the raw data and the DVC cache there would have taken memory from Spark. The folder name also matters: Compose names the project after it, and a clone called `da3408-project-aq-forecast` would have shared the main stack's volumes, so `down -v` would have deleted them. `scripts/bootstrap.sh` ran with exit 0 in 7 min 20 s. Six of those minutes were `uv sync` downloading 24 packages that were not in uv's cache, and the pipeline took 75 s. The serve stack was healthy in about 25 s, a forecast answered 200, all 9 targets were up, and keyed ops calls worked. Then `down -v`, and I deleted the clone. The README had said "about 2 minutes", so I changed it to the measured time.
+- **A real pipeline run** (`05a7b61`). With only the Pushgateway up: `PIPELINE_TRIGGER=manual dvc repro -f`, 75.5 s, all 7 stages. The candidate tied v4 (6.467) and was rejected. All 7 stage statuses went to 1, which replaced the `validate 0` from the demo failure, and the pipeline dashboard has data again.
+- **MLproject in a fresh environment** (`5785004`). It built a new environment from `uv.lock` in 1 s, because the clone test had just filled uv's cache. It trained, then crashed when it logged the run (defect D-3 in the test report). `mlflow run` puts its run in the Default experiment and `train.py` sets `aq-pm25`. With `--experiment-name aq-pm25` it worked, with the same MAE and byte-identical LightGBM files as the pipeline. I documented the flag and did not change `train.py`, because both paths should log to one experiment.
 - **Stale images.** The re-audit found that the backend and frontend images were from 2026-10-21. The console and OpenAPI fixes of 2026-10-27 were committed and tested, but not running. I rebuilt both images and restarted the two services. The console now shows the failed runs live. The README has `up -d --build` for after a code change.
 - **Re-audit and docs.** `final_audit.md` (status table, re-audit, tally), `test_report.md` (350 tests, E2E-18 to E2E-22, D-3), README test count, `rubric_checklist.md`, `metrics.md`, this file and PLAN.
 
@@ -1405,9 +1405,9 @@ PIPELINE_TRIGGER=manual PIPELINE_RUN_ID="manual-$(date +%Y%m%d-%H%M%S)" \
 
 ### What I did
 
-- **Replay-clock note on the Forecast page** (`dc684a3`). Under the date, the page reads `replay_running` from `GET /health`. It says "Demo clock is paused. Start the replay in the Pipeline console to move time forward." or "Replay running". If `/health` fails, it leaves the note out and still shows the cards. 3 new tests. I rebuilt only the frontend image (`up -d --build --no-deps frontend`), because the disk was full. With permission, I pruned Docker's unused build cache, which freed 2.9 GB. Rendered with `AppTest` inside the running container against the live backend, the page showed the right note in both replay states. I left the replay stopped, as I found it.
-- **User manual screenshots** (`76de3f9`). The placeholders are now image links to `docs/screenshots/<name>.png`. Placeholders 02 and 03 (certificate warning, CA import) became short written steps. The PNG files are not taken yet.
-- **Test count.** `scripts/ci.sh` at `76de3f9`: 353 passed, 0 failed, in 30 files (`test_frontend.py` 21 to 24), DVC clean and in sync. I copied that run into `reports/ci/final/`. `test_report.md`, the README, `rubric_checklist.md` and `final_audit.md` now say 353. Older numbers in this file and in `final_audit.md` (341, 350) stay as they were, because they are what those runs measured on their day.
+- **Replay-clock note on the Forecast page** (`2a0444b`). Under the date, the page reads `replay_running` from `GET /health`. It says "Demo clock is paused. Start the replay in the Pipeline console to move time forward." or "Replay running". If `/health` fails, it leaves the note out and still shows the cards. 3 new tests. I rebuilt only the frontend image (`up -d --build --no-deps frontend`), because the disk was full. With permission, I pruned Docker's unused build cache, which freed 2.9 GB. Rendered with `AppTest` inside the running container against the live backend, the page showed the right note in both replay states. I left the replay stopped, as I found it.
+- **User manual screenshots** (`6f3bb7c`). The placeholders are now image links to `docs/screenshots/<name>.png`. Placeholders 02 and 03 (certificate warning, CA import) became short written steps. The PNG files are not taken yet.
+- **Test count.** `scripts/ci.sh` at `6f3bb7c`: 353 passed, 0 failed, in 30 files (`test_frontend.py` 21 to 24), DVC clean and in sync. I copied that run into `reports/ci/final/`. `test_report.md`, the README, `rubric_checklist.md` and `final_audit.md` now say 353. Older numbers in this file and in `final_audit.md` (341, 350) stay as they were, because they are what those runs measured on their day.
 - **A full pipeline run for the console.** The console's latest run was `20261103-173624`, the train-only MLproject test, so 6 of 7 stages showed not run. I stopped the serve stack, started only the Pushgateway and ran `PIPELINE_TRIGGER=manual dvc repro -f`. All 7 stages passed in 1 min 24 s. But each stage wrote its own `run_id`, because the stage runner falls back to a timestamp when `PIPELINE_RUN_ID` is not set. The console groups by `run_id`, so its latest run would have been register alone. The 2026-11-03 run in Part 19 had the same problem. The ops runner and `ci.sh` set `PIPELINE_RUN_ID`, and the manual command did not. I ran it again with `PIPELINE_RUN_ID=manual-20261105-174821`: 1 min 16 s, about 1 GB peak memory. Stage times were ingest 8.4 s (411,200 rows/s), validate 30.0 s, features 10.8 s, train 19.7 s, evaluate 0.6 s, test 0.0 s and register 0.3 s. The candidate tied v4 at a mean MAE of 6.467 and the gate rejected it, so v4 is still champion and v1 previous. The console shows all 7 stages green. The 7 one-stage records from the first try stay in `runs.jsonl`, because they were real runs. `dvc push` sent 16 files. I committed the new `dvc.lock` and the changed reports. `runs.jsonl` stays out of git, because it is runtime data and is in `.gitignore`. The manual command in the README and below now sets `PIPELINE_RUN_ID`.
 
 ### State I left
@@ -1418,7 +1418,7 @@ The serve stack is running and healthy. Registry: champion 4, previous 1. The re
 
 ### What I did
 
-- **Rollback with MLflow down** (`6e29d9e`, rubric checklist item 8). The registry used to read any MLflow error as "alias not set", so with MLflow down a rollback said "No previous version to roll back to". Now only MLflow's not-found codes mean "not there". Any other error during a rollback raises `RegistryUnavailableError`, and the backend answers 503 `REGISTRY_UNAVAILABLE`, which is a new code in the LLD. Serving lookups stay lenient, so forecasts still work without MLflow. 5 new tests. Live, after rebuilding only the backend image, with the `mlflow` container stopped: 503 in 4.4 s and 4.9 s. The aliases were unchanged after MLflow came back.
+- **Rollback with MLflow down** (`3dd6081`, rubric checklist item 8). The registry used to read any MLflow error as "alias not set", so with MLflow down a rollback said "No previous version to roll back to". Now only MLflow's not-found codes mean "not there". Any other error during a rollback raises `RegistryUnavailableError`, and the backend answers 503 `REGISTRY_UNAVAILABLE`, which is a new code in the LLD. Serving lookups stay lenient, so forecasts still work without MLflow. 5 new tests. Live, after rebuilding only the backend image, with the `mlflow` container stopped: 503 in 4.4 s and 4.9 s. The aliases were unchanged after MLflow came back.
 - **Pipeline in the batch container** (item 7, E2E-23). With the serve stack stopped and only the Pushgateway up, `docker compose --profile batch run --rm pipeline dvc repro -f` failed twice before it worked (defect D-4). The container runs as my uid, which the image's `/etc/passwd` does not have. DVC failed in `getpass.getuser()`. With `USER` set, Spark's Hadoop login failed next, because it reads the user database directly. Compose now mounts the host's `/etc/passwd` and `/etc/group` read-only. That needs no image rebuild, so the Docker Hub image is still current. Run `container-20261105-214229`: all 7 stages in 74.4 s, peak memory 2.39 GiB of the 2.5 GiB limit. The candidate tied v4 at 6.467 and was rejected, so v4 is still champion and v1 previous. `dvc push` sent 18 files. The serve stack is back up and healthy, and the console shows this run with all 7 stages green.
 - **Counts.** 358 tests now (`test_registry.py` 6 to 9, `test_backend.py` 95 to 97). The docs that quote the current count say 358.
 

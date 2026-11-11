@@ -1,7 +1,7 @@
-# captured 2026-11-11 02:27:37 IST on the project VM, commit acd9531
+# captured 2026-11-11 02:27:37 IST on the project VM, commit 082a01c
 # what this proves: local CI (cloud CI is not allowed): ruff, format, pytest, dvc status, dvc status -c all pass
 $ scripts/ci.sh
-CI run 2026-11-11 02:27:37  commit acd9531  uncommitted changes: yes  mode: check
+CI run 2026-11-11 02:27:37  commit 082a01c  uncommitted changes: yes  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
@@ -40,7 +40,7 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit acd9531)
+== summary (commit 082a01c)
 ruff           PASS     0s
 ruff-format    PASS     0s
 pytest         PASS    54s

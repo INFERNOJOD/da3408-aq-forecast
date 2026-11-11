@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:32:23 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:32:23 IST on the project VM, commit 6c65eef
 # what this proves: raw data is versioned by DVC, not git: git holds only the .dvc pointer and dvc.lock hashes
 $ cat data/raw.dvc; echo; git ls-files data; echo; git check-ignore -v data/raw/city_hour.csv; echo; grep -n -B1 -A4 'path: data/raw\|path: models/candidate' dvc.lock | head -30
 outs:

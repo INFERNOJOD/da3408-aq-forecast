@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:15 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:15 IST on the project VM, commit 6c65eef
 # what this proves: retention 2 days, scrape interval 15 s
 $ grep -n 'retention' docker-compose.yml; grep -n 'interval' monitoring/prometheus.yml
 153:      - --storage.tsdb.retention.time=2d

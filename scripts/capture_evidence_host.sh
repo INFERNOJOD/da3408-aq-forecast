@@ -167,7 +167,7 @@ for r in c.search_runs(['1'], max_results=100, order_by=['attributes.start_time 
 
     s=11_guidelines
     cap $s 01_reproducibility_tags "every model traces to git commit + MLflow run ID + data version" \
-        "curl -s --cacert $CACERT '$B/forecast?city=Delhi' | jq '.model'; MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -c \"import mlflow; t=mlflow.MlflowClient('http://localhost:5000').get_run('498b149f78e2418695c3bf7e01b91615').data.tags; [print(k, '=', t[k]) for k in ['git_commit','git_dirty','dvc_data_md5','features_md5','cutoff','trigger','pipeline_run_id']]\"; git show -s --format='%h %ad %s' --date=short b2eff79"
+        "curl -s --cacert $CACERT '$B/forecast?city=Delhi' | jq '.model'; MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -c \"import mlflow; t=mlflow.MlflowClient('http://localhost:5000').get_run('498b149f78e2418695c3bf7e01b91615').data.tags; [print(k, '=', t[k]) for k in ['git_commit','git_dirty','dvc_data_md5','features_md5','cutoff','trigger','pipeline_run_id']]\"; git show -s --format='%h %ad %s' --date=short b130997"
     cap $s 10_rollback_cli "rollback is one command; versions and aliases listed" \
         "MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -m scripts.rollback --help 2>&1 | grep -v INFO; MLFLOW_DISABLE_AGENT_HINT=1 uv run --frozen python -m scripts.rollback --list 2>&1 | grep -v INFO"
     cap $s 40_https_redirect "http and the old :8501 address redirect to https" \

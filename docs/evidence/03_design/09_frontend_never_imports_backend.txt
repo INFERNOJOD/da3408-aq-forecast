@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:31:31 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:31:31 IST on the project VM, commit 6c65eef
 # what this proves: loose coupling: no frontend module imports backend code; the URL is configurable
 $ grep -rn 'src.backend\|from src import backend' src/frontend/ || echo 'no imports of src.backend in src/frontend'; grep -n BACKEND_URL src/frontend/client.py docker-compose.yml
 no imports of src.backend in src/frontend

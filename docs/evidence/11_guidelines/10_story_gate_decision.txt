@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:11:12 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:11:12 IST on the project VM, commit 6c65eef
 # what this proves: step 12: the gate compares the candidate with the champion on the same window
 $ cat reports/gate.json; echo; cat reports/register.json
 {
@@ -25,5 +25,5 @@ $ cat reports/gate.json; echo; cat reports/register.json
     "mean MAE 6.007 is not lower than champion v4 5.948 on the same window"
   ],
   "cutoff": "2020-04-04 04:00:00",
-  "git_commit": "aeb8f83c73cc9015da169bb1cf87816b1b423780"
+  "git_commit": "6c65eef3c677e1066963de0bb71b9bb61b678e01"
 }

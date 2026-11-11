@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:28 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:28 IST on the project VM, commit 6c65eef
 # what this proves: FastAPI serves the forecast the UI needs, with model version, run ID and git commit
 $ curl -s --cacert certs/ca.crt 'https://localhost:8000/forecast?city=Delhi' | jq .
 {
@@ -27,6 +27,6 @@ $ curl -s --cacert certs/ca.crt 'https://localhost:8000/forecast?city=Delhi' | j
     "name": "aq-pm25",
     "version": "4",
     "mlflow_run_id": "498b149f78e2418695c3bf7e01b91615",
-    "git_commit": "b2eff79"
+    "git_commit": "b130997"
   }
 }

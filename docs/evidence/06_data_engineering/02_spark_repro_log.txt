@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:32:22 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:32:22 IST on the project VM, commit 6c65eef
 # what this proves: Spark ingest/validate/features output with stage times and rows/sec (recorded CI dvc repro of 2026-10-21, not rerun today)
 $ grep -v '^\.\|warnings summary\|Warning\|color_warning\|^  ' reports/ci/stage16/repro_run.log | sed -n '/dvc-repro/,$p' | grep -v '^\[Stage'
 == dvc-repro: uv run --frozen dvc repro
@@ -126,7 +126,7 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit 92537ef)
+== summary (commit f8fde15)
 ruff           PASS     0s
 ruff-format    PASS     0s
 pytest         PASS    55s

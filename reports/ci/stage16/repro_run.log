@@ -1,4 +1,4 @@
-CI run 2026-10-21 12:52:43  commit 92537ef  uncommitted changes: no  mode: repro
+CI run 2026-10-21 12:52:43  commit f8fde15  uncommitted changes: no  mode: repro
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
@@ -41,10 +41,26 @@ Setting default log level to "WARN".
 To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
 26/10/21 12:53:39 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 2026-10-21 12:53:40,356 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
-[Stage 0:>                                                          (0 + 1) / 1]                                                                                2026-10-21 12:53:42,829 INFO __main__: Ingested city_day: 29531 rows
-[Stage 5:>                                                          (0 + 4) / 4][Stage 5:============================================>              (3 + 1) / 4]                                                                                2026-10-21 12:53:44,799 INFO __main__: Ingested city_hour: 707875 rows
+
+[Stage 0:>                                                          (0 + 1) / 1]
+
+                                                                                
+2026-10-21 12:53:42,829 INFO __main__: Ingested city_day: 29531 rows
+
+[Stage 5:>                                                          (0 + 4) / 4]
+
+[Stage 5:============================================>              (3 + 1) / 4]
+
+                                                                                
+2026-10-21 12:53:44,799 INFO __main__: Ingested city_hour: 707875 rows
 2026-10-21 12:53:45,362 INFO __main__: Ingested station_day: 108035 rows
-[Stage 15:>                                                         (0 + 4) / 4][Stage 15:==============>                                           (1 + 3) / 4]                                                                                2026-10-21 12:53:48,709 INFO __main__: Ingested station_hour: 2589083 rows
+
+[Stage 15:>                                                         (0 + 4) / 4]
+
+[Stage 15:==============>                                           (1 + 3) / 4]
+
+                                                                                
+2026-10-21 12:53:48,709 INFO __main__: Ingested station_hour: 2589083 rows
 2026-10-21 12:53:48,916 INFO __main__: Ingested stations: 230 rows
 2026-10-21 12:53:49,287 INFO src.common.stage_runner: Stage 'ingest' done in 10.4s (3434754 rows, 331188.3 rows/s)
 2026-10-21 12:53:49,288 INFO py4j.clientserver: Closing down clientserver connection
@@ -60,10 +76,56 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 26/10/21 12:53:50 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 2026-10-21 12:53:51,131 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
 26/10/21 12:53:52 WARN SparkStringUtils: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
-[Stage 1:>                                                          (0 + 1) / 1][Stage 3:>                                                          (0 + 2) / 2][Stage 3:=============================>                             (1 + 1) / 2]                                                                                2026-10-21 12:53:55,615 INFO __main__: Validated city_day: 29531 rows
-[Stage 8:>                                                          (0 + 4) / 4][Stage 8:==============>                                            (1 + 3) / 4][Stage 8:=============================>                             (2 + 2) / 4][Stage 10:>                                                         (0 + 4) / 4][Stage 10:===========================================>              (3 + 1) / 4]                                                                                2026-10-21 12:54:03,505 INFO __main__: Validated city_hour: 707875 rows
-[Stage 15:===================>                                      (1 + 2) / 3][Stage 17:=============================>                            (3 + 3) / 6][Stage 17:================================================>         (5 + 1) / 6]                                                                                2026-10-21 12:54:05,430 INFO __main__: Validated station_day: 108035 rows
-[Stage 22:>                                                         (0 + 4) / 4][Stage 22:==============>                                           (1 + 3) / 4][Stage 22:=============================>                            (2 + 2) / 4][Stage 24:>                                                         (0 + 4) / 5][Stage 24:===========>                                              (1 + 4) / 5][Stage 24:=======================>                                  (2 + 3) / 5][Stage 24:==================================>                       (3 + 2) / 5][Stage 24:==============================================>           (4 + 1) / 5]                                                                                2026-10-21 12:54:24,652 INFO __main__: Validated station_hour: 2589083 rows
+
+[Stage 1:>                                                          (0 + 1) / 1]
+
+[Stage 3:>                                                          (0 + 2) / 2]
+
+[Stage 3:=============================>                             (1 + 1) / 2]
+
+                                                                                
+2026-10-21 12:53:55,615 INFO __main__: Validated city_day: 29531 rows
+
+[Stage 8:>                                                          (0 + 4) / 4]
+
+[Stage 8:==============>                                            (1 + 3) / 4]
+
+[Stage 8:=============================>                             (2 + 2) / 4]
+
+[Stage 10:>                                                         (0 + 4) / 4]
+
+[Stage 10:===========================================>              (3 + 1) / 4]
+
+                                                                                
+2026-10-21 12:54:03,505 INFO __main__: Validated city_hour: 707875 rows
+
+[Stage 15:===================>                                      (1 + 2) / 3]
+
+[Stage 17:=============================>                            (3 + 3) / 6]
+
+[Stage 17:================================================>         (5 + 1) / 6]
+
+                                                                                
+2026-10-21 12:54:05,430 INFO __main__: Validated station_day: 108035 rows
+
+[Stage 22:>                                                         (0 + 4) / 4]
+
+[Stage 22:==============>                                           (1 + 3) / 4]
+
+[Stage 22:=============================>                            (2 + 2) / 4]
+
+[Stage 24:>                                                         (0 + 4) / 5]
+
+[Stage 24:===========>                                              (1 + 4) / 5]
+
+[Stage 24:=======================>                                  (2 + 3) / 5]
+
+[Stage 24:==================================>                       (3 + 2) / 5]
+
+[Stage 24:==============================================>           (4 + 1) / 5]
+
+                                                                                
+2026-10-21 12:54:24,652 INFO __main__: Validated station_hour: 2589083 rows
 2026-10-21 12:54:26,690 INFO __main__: Validation passed: 48 checks, 0 warnings
 2026-10-21 12:54:26,692 INFO src.common.stage_runner: Stage 'validate' done in 37.0s (3434524 rows, 92787.4 rows/s)
 2026-10-21 12:54:26,692 INFO py4j.clientserver: Closing down clientserver connection
@@ -78,8 +140,28 @@ Setting default log level to "WARN".
 To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
 26/10/21 12:54:28 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 2026-10-21 12:54:28,701 INFO src.common.spark: Spark 3.5.9 started (driver=2g, shuffle_partitions=8)
-[Stage 7:>                                                          (0 + 4) / 8][Stage 7:=======>                                                   (1 + 4) / 8][Stage 7:====================================>                      (5 + 3) / 8][Stage 7:===================================================>       (7 + 1) / 8][Stage 9:==============>                                            (2 + 4) / 8][Stage 9:======================>                                    (3 + 4) / 8][Stage 9:============================================>              (6 + 2) / 8]                                                                                2026-10-21 12:54:38,747 INFO __main__: Wrote 272096 training rows and 30576 serving rows
-[Stage 26:>                                                         (0 + 4) / 4]                                                                                2026-10-21 12:54:41,885 WARNING __main__: Kolkata has no PSI threshold and will not vote
+
+[Stage 7:>                                                          (0 + 4) / 8]
+
+[Stage 7:=======>                                                   (1 + 4) / 8]
+
+[Stage 7:====================================>                      (5 + 3) / 8]
+
+[Stage 7:===================================================>       (7 + 1) / 8]
+
+[Stage 9:==============>                                            (2 + 4) / 8]
+
+[Stage 9:======================>                                    (3 + 4) / 8]
+
+[Stage 9:============================================>              (6 + 2) / 8]
+
+                                                                                
+2026-10-21 12:54:38,747 INFO __main__: Wrote 272096 training rows and 30576 serving rows
+
+[Stage 26:>                                                         (0 + 4) / 4]
+
+                                                                                
+2026-10-21 12:54:41,885 WARNING __main__: Kolkata has no PSI threshold and will not vote
 2026-10-21 12:54:42,194 INFO src.common.stage_runner: Stage 'features' done in 15.1s (302672 rows, 20016.7 rows/s)
 2026-10-21 12:54:42,194 INFO py4j.clientserver: Closing down clientserver connection
 Updating lock file 'dvc.lock'
@@ -93,9 +175,18 @@ Running stage 'train':
 /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
   color_warning(
 2026/10/21 12:55:10 INFO mlflow.pyfunc: Validating input example against model signature
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2017.46it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1756.41it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1328.15it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1236.89it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 10538.45it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 6636.56it/s] 
+
+Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2017.46it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1756.41it/s]
+
+Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1328.15it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1236.89it/s]
+
+Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 10538.45it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 6636.56it/s] 
 2026/10/21 12:55:10 WARNING mlflow.utils.environment: Failed to resolve installed pip version. ``pip`` will be added to conda.yaml environment spec without a version specifier.
 2026/10/21 12:55:10 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
 2026/10/21 12:55:10 INFO mlflow.utils.uv_utils: Copied uv.lock to model artifacts
@@ -104,9 +195,18 @@ Running stage 'train':
 /home/krish-yadav/DA3408/da3408-project-aq-forecast/.venv/lib/python3.12/site-packages/mlflow/pyfunc/utils/data_validation.py:187: UserWarning: [33mAdd type hints to the `predict` method to enable data validation and automatic signature inference during model logging. Check https://mlflow.org/docs/latest/model/python_model.html#type-hint-usage-in-pythonmodel for more details.[0m
   color_warning(
 2026/10/21 12:55:11 INFO mlflow.pyfunc: Validating input example against model signature
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1356.94it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1268.31it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2882.68it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2639.59it/s]
-Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 11037.64it/s]Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 8256.50it/s] 
+
+Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1356.94it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 1268.31it/s]
+
+Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2882.68it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 2639.59it/s]
+
+Downloading artifacts:   0%|          | 0/1 [00:00<?, ?it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 11037.64it/s]
+Downloading artifacts: 100%|██████████| 1/1 [00:00<00:00, 8256.50it/s] 
 2026/10/21 12:55:11 WARNING mlflow.utils.environment: Failed to resolve installed pip version. ``pip`` will be added to conda.yaml environment spec without a version specifier.
 2026/10/21 12:55:11 INFO mlflow.utils.uv_utils: Detected uv project: found uv.lock and pyproject.toml in /home/krish-yadav/DA3408/da3408-project-aq-forecast
 2026/10/21 12:55:11 INFO mlflow.utils.uv_utils: Copied uv.lock to model artifacts
@@ -165,7 +265,7 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit 92537ef)
+== summary (commit f8fde15)
 ruff           PASS     0s
 ruff-format    PASS     0s
 pytest         PASS    55s

@@ -1,4 +1,4 @@
-# captured 2026-11-10 21:14:28 IST on the project VM, commit cc39d92
+# captured 2026-11-10 21:14:28 IST on the project VM, commit 547ca62
 # what this proves: no cloud service is used: the one cloud SDK in uv.lock, databricks-sdk, comes in with MLflow itself and my code never imports it; the DVC remote and the MLflow store are local folders
 $ echo 'cloud SDK packages in uv.lock:'; grep -iE '^name = "(boto3|botocore|google-cloud[a-z-]*|azure[a-z-]*|sagemaker|databricks[a-z-]*)"' uv.lock; echo; echo 'why it is there:'; uv tree --frozen --invert --package databricks-sdk; echo; echo 'lines in src/ that mention databricks:'; grep -rn databricks src --include='*.py' | wc -l; echo; uv run --frozen dvc remote list; grep -n 'MLFLOW_TRACKING_URI\|backend-store-uri\|default-artifact-root' docker-compose.yml
 cloud SDK packages in uv.lock:

@@ -15,10 +15,10 @@ I ran the whole suite and every acceptance check again on 2026-10-21, against th
 | Acceptance criteria (AC-1 to AC-7) | **7 of 7 met** |
 | Defects found | 6, all fixed (section 5) |
 
-The pytest numbers are from `reports/ci/junit.xml` (`tests="371" failures="0" errors="0" skipped="0"`, 2026-11-11 15:06), at commit `141fb4b` with the final-audit doc fixes in the workspace. The same 371 had passed earlier that day at `acd9531` (`docs/evidence/07_source_control_ci/03_ci_run.txt`). The run before it, 362 of 362 at `5092d56`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `e10bbaf`, 353 of 353 at `76de3f9`, 358 of 358 at `6e29d9e`, 359 of 359 at `1341240`) are in git history under the same path. The Stage 17 run (341 of 341 at `2c452c3`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
+The pytest numbers are from `reports/ci/junit.xml` (`tests="371" failures="0" errors="0" skipped="0"`, 2026-11-11 15:06), at commit `038a8ff` with the final-audit doc fixes in the workspace. The same 371 had passed earlier that day at `082a01c` (`docs/evidence/07_source_control_ci/03_ci_run.txt`). The run before it, 362 of 362 at `7ce97cd`, is in `reports/ci/final/junit.xml`. The full CI output is in `reports/ci/final/last_run.log`. Earlier runs (350 of 350 at `5785004`, 353 of 353 at `6f3bb7c`, 358 of 358 at `3dd6081`, 359 of 359 at `cf5bff1`) are in git history under the same path. The Stage 17 run (341 of 341 at `df2dab9`) is kept in `reports/ci/stage17/`, and the Stage 16 run with `--repro` (every stage executed) in `reports/ci/stage16/repro_run.log`. The warnings are deprecation and hint messages from MLflow, SQLAlchemy and Starlette, not from my code.
 
 ```
-== summary (commit 5092d56)
+== summary (commit 7ce97cd)
 ruff           PASS     0s
 ruff-format    PASS     0s
 pytest         PASS    54s
@@ -84,7 +84,7 @@ The slowest single tests are the Spark ones (`test_missing_by_city_year` 5.0 s, 
 | E2E-11 Rollback, live | Pass after fix | Today | section 4, AC-5; the first try failed (defect D-1) |
 | E2E-12 Rollback with MLflow down | Pass after fix | 2026-11-05 | 503 `REGISTRY_UNAVAILABLE` in 4.4 s (4.9 s with a named version); aliases unchanged 35 s after MLflow was back (defect D-2 and the fix after it, section 5) |
 | E2E-13 Hot swap | Pass | Stage 9 | 0 failed requests, both versions seen; run outside Docker (metrics.md, Stage 9) |
-| E2E-14 CI with `--repro` | Pass | Stage 16 | every step PASS, `dvc-repro` 97 s, at `92537ef`: `reports/ci/stage16/repro_run.log` |
+| E2E-14 CI with `--repro` | Pass | Stage 16 | every step PASS, `dvc-repro` 97 s, at `f8fde15`: `reports/ci/stage16/repro_run.log` |
 | E2E-15 Reproduce the champion | Pass | Today | section 4, AC-6 |
 | E2E-16 Pre-commit hook | Pass | Stage 16 | commit refused with ruff D100 and F401; guard failed on `certs/ca.crt` and `.env` (PROGRESS Part 16) |
 | E2E-17 Pages in a browser | Pass | 2026-11-05 | 11 screenshots in Firefox on the VM's desktop, in `docs/screenshots/` and linked from the user manual. Responsive: `05_forecast_mobile.png` uses Firefox's responsive mode at iPhone 14 size (393 x 852). The page fits the width, the text wraps and the two colour cards stack in one column. The first console screenshot `08_console_top.png` showed the replay time cut off (defect D-5). The retaken one shows it in full |
@@ -165,9 +165,9 @@ Afterwards the registry is as before: `champion` = 4, `previous` = 1. I polled o
 
 ### AC-6: reproducible from git commit + MLflow run ID: **met**
 
-I started from the champion's run ID, as a reviewer would. The run `498b149f…` (v4) has the tags `git_commit=b2eff79`, `cutoff=2020-04-02 19:00:00`, `dvc_data_md5=7921cce1…dir` and `features_md5=2afa1813…`. It also has `git_dirty=true`, because the ops runner changed only the cutoff in `params.yaml`, and the cutoff is in the tags.
+I started from the champion's run ID, as a reviewer would. The run `498b149f…` (v4) has the tags `git_commit=b130997`, `cutoff=2020-04-02 19:00:00`, `dvc_data_md5=7921cce1…dir` and `features_md5=2afa1813…`. It also has `git_dirty=true`, because the ops runner changed only the cutoff in `params.yaml`, and the cutoff is in the tags.
 
-The Stage 16 CI run rebuilt the pipeline from a clean commit, `92537ef` (`git_dirty=false`), with the same cutoff. That gave run `c9933e83…`. Comparing the two:
+The Stage 16 CI run rebuilt the pipeline from a clean commit, `f8fde15` (`git_dirty=false`), with the same cutoff. That gave run `c9933e83…`. Comparing the two:
 
 | | v4 (`498b149f`) | Rebuild (`c9933e83`) |
 |---|---|---|
@@ -177,11 +177,11 @@ The Stage 16 CI run rebuilt the pipeline from a clean commit, `92537ef` (`git_di
 | `h1.txt` (SHA-256, first 16) | `cc2493a351aaeda8` | same |
 | `h24.txt` (SHA-256, first 16) | `4c03852a00892493` | same |
 
-The two LightGBM files are identical byte for byte. So a model can be rebuilt from its run ID: the run gives the commit and the cutoff, `git checkout` and `dvc pull` give the code and data, and `dvc repro` gives the same model. The steps are in `README.md`, "Reproduce a result". One honest limit: the rebuild used a later commit than `b2eff79`. It was the same pipeline code apart from monitoring and CI changes, which is why the result is identical, but I did not check out `b2eff79` itself.
+The two LightGBM files are identical byte for byte. So a model can be rebuilt from its run ID: the run gives the commit and the cutoff, `git checkout` and `dvc pull` give the code and data, and `dvc repro` gives the same model. The steps are in `README.md`, "Reproduce a result". One honest limit: the rebuild used a later commit than `b130997`. It was the same pipeline code apart from monitoring and CI changes, which is why the result is identical, but I did not check out `b130997` itself.
 
 ### AC-7: clean code and a passing suite: **met**
 
-`scripts/ci.sh` (2026-11-05, at `5092d56` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `aeb8f83` with the evidence script added: all five checks pass, 367 of 367 tests, and on 2026-11-11 at `acd9531` plus the console table change: all five checks pass, 371 of 371 tests (`docs/evidence/07_source_control_ci/03_ci_run.txt`). The last run, at `141fb4b` with only doc changes on top, gave the same: all five checks pass, 371 of 371 (`reports/ci/last_run.log`).
+`scripts/ci.sh` (2026-11-05, at `7ce97cd` plus the console message change): ruff and format pass, 362 of 362 tests pass, `dvc status` says "Data and pipelines are up to date", and `dvc status -c` says "Cache and remote 'localremote' are in sync". I ran it again on 2026-11-10 at `6c65eef` with the evidence script added: all five checks pass, 367 of 367 tests, and on 2026-11-11 at `082a01c` plus the console table change: all five checks pass, 371 of 371 tests (`docs/evidence/07_source_control_ci/03_ci_run.txt`). The last run, at `038a8ff` with only doc changes on top, gave the same: all five checks pass, 371 of 371 (`reports/ci/last_run.log`).
 
 ## 5. Defects found in this run
 

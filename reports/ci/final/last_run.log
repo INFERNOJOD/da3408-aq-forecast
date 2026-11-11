@@ -1,4 +1,4 @@
-CI run 2026-11-05 23:01:56  commit 5092d56  uncommitted changes: yes  mode: check
+CI run 2026-11-05 23:01:56  commit 7ce97cd  uncommitted changes: yes  mode: check
 
 == ruff: uv run --frozen ruff check .
 All checks passed!
@@ -37,7 +37,7 @@ Data and pipelines are up to date.
 == dvc-remote: dvc_clean -c
 Cache and remote 'localremote' are in sync.
 
-== summary (commit 5092d56)
+== summary (commit 7ce97cd)
 ruff           PASS     0s
 ruff-format    PASS     0s
 pytest         PASS    54s

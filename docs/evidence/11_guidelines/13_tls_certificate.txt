@@ -1,4 +1,4 @@
-# captured 2026-11-10 20:33:31 IST on the project VM, commit aeb8f83
+# captured 2026-11-10 20:33:31 IST on the project VM, commit 6c65eef
 # what this proves: TLS: the frontend and backend serve certificates signed by the project CA, and the chain verifies
 $ for h in localhost:443 localhost:8000; do echo "== $h"; echo | openssl s_client -connect $h -servername localhost -CAfile certs/ca.crt 2>/dev/null | grep -E 'subject=|issuer=|Verify return code|Protocol|Cipher' | sort -u; done
 == localhost:443
