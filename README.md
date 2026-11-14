@@ -209,7 +209,4 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 | CI | `scripts/ci.sh`, `.pre-commit-config.yaml`, `reports/ci/` |
 | How I used an AI coding assistant | `docs/AI_USAGE.md` |
 
-## Not done yet
 
-- The GitHub remote and the demo video.
-- A check on a real phone. The narrow layout is checked only in Firefox's responsive mode.
