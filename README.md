@@ -208,5 +208,7 @@ Digest:    sha256:376209d720ec7362074fdef8e9c2fcaa2dff7c1b6116c5d714f8b8a0d2ab44
 | Containers | `docker/`, `docker-compose.yml`, `scripts/build_multiarch.sh`, Docker Hub ("Docker images" above) |
 | CI | `scripts/ci.sh`, `.pre-commit-config.yaml`, `reports/ci/` |
 | How I used an AI coding assistant | `docs/AI_USAGE.md` |
+| DEMO VIDEO | [link](https://drive.google.com/file/d/11AR4SZbNsZmlZEKrVsoY7wVUPwv60-FS/view?usp=sharing) |
+
 
 
